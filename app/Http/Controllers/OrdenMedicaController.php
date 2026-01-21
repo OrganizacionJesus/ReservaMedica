@@ -42,9 +42,32 @@ class OrdenMedicaController extends Controller
             $query->where('paciente_id', $paciente->id);
         }
 
+        // Filtros adicionales desde Request
+        if (request('cita_id')) {
+            $query->where('cita_id', request('cita_id'));
+        }
+        if (request('tipo_orden')) {
+            $query->where('tipo_orden', request('tipo_orden'));
+        }
+
+        // Calcular estadísticas para los cards superiores
+        $statsQuery = OrdenMedica::where('status', true);
+        if ($user->rol_id == 2) {
+            $statsQuery->where('medico_id', $medico->id);
+        } elseif ($user->rol_id == 3) {
+            $statsQuery->where('paciente_id', $paciente->id);
+        }
+        
+        $stats = [
+            'recetas' => (clone $statsQuery)->where('tipo_orden', 'Receta')->count(),
+            'laboratorios' => (clone $statsQuery)->where('tipo_orden', 'Laboratorio')->count(),
+            'imagenologia' => (clone $statsQuery)->where('tipo_orden', 'Imagenologia')->count(),
+            'referencias' => (clone $statsQuery)->where('tipo_orden', 'Referencia')->count(),
+        ];
+
         $ordenes = $query->orderBy('fecha_emision', 'desc')->paginate(10);
 
-        return view('medico.ordenes-medicas.index', compact('ordenes'));
+        return view('medico.ordenes-medicas.index', compact('ordenes', 'stats'));
     }
 
     public function buscar(Request $request)
