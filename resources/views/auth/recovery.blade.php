@@ -355,7 +355,7 @@ if(identificationForm) {
         console.log('CSRF Token:', csrfToken ? 'Found' : 'Missing');
         
         try {
-            const response = await fetch("{{ route('recovery.get-questions') }}", {
+            const response = await fetch("{{ route('recovery.v2.get-questions') }}", {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -455,7 +455,7 @@ if (securityForm) {
         toggleSubmitButton(verifyQuestionsBtn, true, 'Verificando...');
         
         try {
-            const response = await fetch("{{ route('recovery.verify-answers') }}", {
+            const response = await fetch("{{ route('recovery.v2.verify-answers') }}", {
                 method: 'POST',
                 headers: {
                     'X-CSRF-TOKEN': document.querySelector('[name="_token"]').value

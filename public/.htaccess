@@ -5,8 +5,7 @@
 
     RewriteEngine On
     
-    # Ajuste para subdirectorios en localhost
-    RewriteBase /sisreservamedicasoring/public/
+
 
     # Handle Authorization Header
     RewriteCond %{HTTP:Authorization} .

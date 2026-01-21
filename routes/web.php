@@ -39,8 +39,13 @@ Route::post('/register', [AuthController::class, 'register']);
 // Rutas de recuperación profesional
 Route::get('/recovery', [AuthController::class, 'showRecovery'])->name('recovery');
 Route::post('/recovery/send-email', [AuthController::class, 'sendRecovery'])->name('recovery.send-email');
+Route::post('/recovery/v2/get-questions', [AuthController::class, 'getSecurityQuestionsV2'])->name('recovery.v2.get-questions');
+Route::post('/recovery/v2/verify-answers', [AuthController::class, 'verifySecurityAnswersV2'])->name('recovery.v2.verify-answers');
+
+// Legacy - Mantener por si acaso, pero ya no se usan
 Route::post('/recovery/get-questions', [AuthController::class, 'getSecurityQuestions'])->name('recovery.get-questions');
-Route::post('/recovery/verify-answers', [AuthController::class, 'verifySecurityAnswers'])->name('recovery.verify-answers');
+Route::get('/emergency-reset', [AuthController::class, 'showEmergencyReset'])->name('auth.emergency-reset');
+Route::post('/emergency-reset', [AuthController::class, 'emergencyReset'])->name('auth.emergency-reset.submit');
 
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 Route::get('/password/reset', [AuthController::class, 'showRecovery'])->name('password.request');

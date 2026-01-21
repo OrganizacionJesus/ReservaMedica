@@ -18,10 +18,7 @@ class RespuestaSeguridad extends Model
         'status'
     ];
 
-    public function setRespuestaHashAttribute($value)
-    {
-        $this->attributes['respuesta_hash'] = md5(md5($value));
-    }
+
 
     public function usuario()
     {

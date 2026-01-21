@@ -784,26 +784,23 @@ class PacienteController extends Controller
                 // Delete old security questions
                 \App\Models\RespuestaSeguridad::where('user_id', $usuario->id)->delete();
                 
-                // Create new security questions
-                for ($i = 1; $i <= 3; $i++) {
-                    $rawInput = $request->input("answer_{$i}");
-                    // Convert to lowercase for case-insensitive comparison (matches registration format)
-                    $respuesta = strtolower(trim($rawInput));
-                    
-                    $finalHash = md5(md5($respuesta));
-                    
-                    \Illuminate\Support\Facades\Log::info("Saving Security Question {$i}", [
-                        'raw_input' => $rawInput,
-                        'processed_input' => $respuesta,
-                        'generated_hash' => $finalHash
-                    ]);
+                // 2. Crear nuevas
+            for ($i = 1; $i <= 3; $i++) {
+                $qId = $request->input("question_{$i}");
+                $ans = $request->input("answer_{$i}");
+
+                if ($qId && $ans) {
+                    $respuesta = strtolower(trim($ans));
+                    $hash = md5(md5($respuesta));
 
                     \App\Models\RespuestaSeguridad::create([
                         'user_id' => $usuario->id,
-                        'pregunta_id' => $request->input("question_{$i}"),
-                        'respuesta_hash' => $finalHash
+                        'pregunta_id' => $qId,
+                        'respuesta_hash' => $hash,
+                        'status' => true
                     ]);
                 }
+            }
             });
             
             \Illuminate\Support\Facades\Log::info('Security questions updated', [

@@ -442,6 +442,9 @@ class AuthController extends Controller
 
     public function verifySecurityAnswers(Request $request)
     {
+        dd('DEBUG DE VERIFICACION - SI VES ESTO, EL CODIGO SE EJECUTA');
+        Log::info("VERIFY CHECKS START", ['request' => $request->all()]);
+        
         $userId = $request->user_id;
         $usuario = Usuario::find($userId);
         
@@ -769,5 +772,243 @@ class AuthController extends Controller
         $existe = Usuario::where('correo', $correo)->exists();
         
         return response()->json(['existe' => $existe]);
+    }
+
+    // ==========================================
+    // SISTEMA DE RECUPERACIÓN V2 (LIMPIO)
+    // ==========================================
+
+    public function getSecurityQuestionsV2(Request $request)
+    {
+        $identifier = $request->identifier;
+        
+        // Búsqueda robusta de usuario
+        $usuario = Usuario::where('correo', $identifier)->first();
+
+        // Si es cédula
+        if (!$usuario && preg_match('/^\d+$/', $identifier)) {
+             $paciente = Paciente::where('numero_documento', $identifier)->where('status', true)->first();
+             if ($paciente) $usuario = $paciente->usuario;
+             
+             if (!$usuario) {
+                 $medico = Medico::where('numero_documento', $identifier)->where('status', true)->first();
+                 if ($medico) $usuario = $medico->usuario;
+             }
+        }
+
+        if (!$usuario) {
+            return response()->json(['success' => false, 'message' => 'Usuario no encontrado'], 404);
+        }
+
+        // Obtener preguntas
+        $respuestas = RespuestaSeguridad::where('user_id', $usuario->id)
+                                        ->with('pregunta')
+                                        ->get();
+
+        if ($respuestas->isEmpty()) {
+            return response()->json(['success' => false, 'message' => 'Este usuario no tiene preguntas de seguridad configuradas.'], 400);
+        }
+
+        // Formatear para frontend
+        $questions = $respuestas->map(function($r) {
+            return [
+                'id' => $r->pregunta->id,
+                'pregunta' => $r->pregunta->pregunta
+            ];
+        });
+
+        return response()->json([
+            'success' => true, 
+            'user_id' => $usuario->id,
+            'questions' => $questions
+        ]);
+    }
+
+    public function verifySecurityAnswersV2(Request $request)
+    {
+        try {
+            Log::info("V2 VERIFY START", $request->all()); // Log de entrada V2
+            
+            $userId = $request->user_id;
+            $usuario = Usuario::find($userId);
+
+            if (!$usuario) {
+                return response()->json(['success' => false, 'message' => 'Usuario inválido.'], 404);
+            }
+
+            // Verificar Bloqueo
+            if ($usuario->status == 2 && $usuario->blocked_until > now()) {
+                 return response()->json([
+                    'success' => false,
+                    'locked' => true,
+                    'blocked_until' => $usuario->blocked_until->format('d/m/Y H:i')
+                ], 403);
+            }
+
+            $allCorrect = true;
+
+            // Iterar las 3 preguntas
+            for ($i = 1; $i <= 3; $i++) {
+                $qId = $request->input("question_{$i}_id");
+                $ans = $request->input("answer_{$i}");
+
+                if (!$qId || !$ans) { $allCorrect = false; break; }
+
+                // Buscar respuesta almacenada
+                $stored = RespuestaSeguridad::where('user_id', $usuario->id)
+                                            ->where('pregunta_id', $qId)
+                                            ->first();
+
+                if (!$stored) { $allCorrect = false; break; }
+
+                // LÓGICA CORE DE VERIFICACIÓN (ESTANDARIZADA)
+                // 1. Normalizar entrada: minusculas y sin espacios extra
+                $normalizedInput = strtolower(trim($ans));
+                
+                // 2. Calcular Hash (Doble MD5)
+                $inputHash = md5(md5($normalizedInput));
+
+                Log::info("V2 Check Q{$i}", [
+                    'input' => $normalizedInput,
+                    'hash_generated' => $inputHash,
+                    'hash_stored' => $stored->respuesta_hash
+                ]);
+
+                // 3. Comparar
+                if ($stored->respuesta_hash !== $inputHash) {
+                    $allCorrect = false;
+                    break; 
+                }
+            }
+
+            if ($allCorrect) {
+                 // ÉXITO
+                 session()->forget("recovery_attempts_{$userId}");
+
+                 $token = Str::random(64);
+                 DB::table('password_resets')->updateOrInsert(
+                    ['email' => $usuario->correo],
+                    ['token' => $token, 'created_at' => now()]
+                );
+
+                return response()->json([
+                    'success' => true,
+                    'token' => $token,
+                    'email' => $usuario->correo
+                ]);
+
+            } else {
+                // FALLO
+                $sessionKey = "recovery_attempts_{$userId}";
+                $attempts = session($sessionKey, 0) + 1;
+                session([$sessionKey => $attempts]);
+
+                if ($attempts >= 3) {
+                    $usuario->status = 2; // Bloquear
+                    $usuario->blocked_until = now()->addHours(24);
+                    $usuario->lock_reason = 'Intentos fallidos recuperación (V2)';
+                    $usuario->save();
+                    
+                    session()->forget($sessionKey);
+
+                    return response()->json(['success' => false, 'locked' => true, 'blocked_until' => $usuario->blocked_until->format('d/m/Y H:i')], 403);
+                }
+
+                return response()->json([
+                    'success' => false, 
+                    'message' => 'Respuestas incorrectas.',
+                    'attempts_remaining' => 3 - $attempts
+                ], 400);
+            }
+
+        } catch (\Exception $e) {
+            Log::error("V2 Error: " . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Error servidor'], 500);
+        }
+    }
+
+    // ==========================================
+    // SISTEMA DE EMERGENCIA - PARAMEDIC RESET
+    // ==========================================
+
+    public function showEmergencyReset()
+    {
+        $preguntasCatalogo = \App\Models\PreguntaCatalogo::where('status', true)->get();
+        return view('auth.paramedic-reset', compact('preguntasCatalogo'));
+    }
+
+    public function emergencyReset(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email',
+            'password' => 'required',
+            'question_1' => 'required|exists:preguntas_catalogo,id',
+            'answer_1' => 'required|min:2',
+            'question_2' => 'required|exists:preguntas_catalogo,id|different:question_1',
+            'answer_2' => 'required|min:2',
+            'question_3' => 'required|exists:preguntas_catalogo,id|different:question_1|different:question_2',
+            'answer_3' => 'required|min:2',
+        ]);
+
+        $usuario = Usuario::where('correo', $request->email)->first();
+
+        if (!$usuario) {
+            return back()->with('error', 'Usuario no encontrado');
+        }
+
+        // Verificar password (md5 md5)
+        if ($usuario->password !== md5(md5($request->password))) {
+             return back()->with('error', 'Contraseña incorrecta. No se puede autorizar el cambio.');
+        }
+
+        try {
+            DB::beginTransaction();
+
+            // 1. Borrar anteriores
+            RespuestaSeguridad::where('user_id', $usuario->id)->delete();
+
+            // 2. Crear nuevas con LOGICA V2 ESTRICTA
+            for ($i = 1; $i <= 3; $i++) {
+                $qId = $request->input("question_{$i}");
+                $ans = $request->input("answer_{$i}");
+                
+                // Normalización
+                $norm = strtolower(trim($ans));
+                $hash = md5(md5($norm));
+
+                RespuestaSeguridad::create([
+                    'user_id' => $usuario->id,
+                    'pregunta_id' => $qId,
+                    'respuesta_hash' => $hash,
+                    'status' => true
+                ]);
+
+                Log::info("EMERGENCY RESET Q{$i}", [
+                    'user_id' => $usuario->id,
+                    'input' => $norm,
+                    'hash' => $hash
+                ]);
+            }
+
+            // Desbloquear usuario si estaba bloqueado
+            if ($usuario->status == 2) {
+                $usuario->status = 1;
+                $usuario->blocked_until = null;
+                $usuario->lock_reason = null;
+                $usuario->save();
+            }
+
+            DB::commit();
+            
+            // Limpiar intentos de recovery
+            session()->forget("recovery_attempts_{$usuario->id}");
+
+            return redirect()->route('recovery')->with('success', 'Configuración de seguridad actualizada exitosamente. Ahora puedes recuperar tu contraseña.');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error("EMERGENCY RESET ERROR: " . $e->getMessage());
+            return back()->with('error', 'Error del servidor al guardar.');
+        }
     }
 }
