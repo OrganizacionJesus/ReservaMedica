@@ -97,6 +97,23 @@
                                     <i class="bi bi-eye"></i> Ver Evolución Completa
                                 </a>
                                 @endif
+
+                                
+                                @php
+                                    $receta = \App\Models\OrdenMedica::where('cita_id', $cita->id)
+                                                ->where('tipo_orden', 'Receta')
+                                                ->first();
+                                @endphp
+
+                                @if($receta)
+                                    <a href="{{ route('ordenes-medicas.show', $receta->id) }}" class="btn btn-sm btn-outline">
+                                        <i class="bi bi-capsule"></i> Ver Recetas
+                                    </a>
+                                @else
+                                    <a href="{{ route('ordenes-medicas.create', ['cita_id' => $cita->id, 'tipo_orden' => 'Receta']) }}" class="btn btn-sm btn-success">
+                                        <i class="bi bi-plus-circle"></i> Registrar Receta
+                                    </a>
+                                @endif
                             </div>
                         </div>
                     </div>

@@ -243,55 +243,5 @@
         @endif
     </div>
 
-    <!-- Quick Links -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <a href="{{ route('ordenes-medicas.recetas') }}" class="card card-hover p-6 bg-gradient-to-br from-purple-50 to-white border-purple-200">
-            <div class="flex items-center gap-4">
-                <div class="w-14 h-14 rounded-xl bg-purple-600 flex items-center justify-center">
-                    <i class="bi bi-prescription text-white text-2xl"></i>
-                </div>
-                <div>
-                    <h3 class="font-bold text-gray-900">Recetas Médicas</h3>
-                    <p class="text-sm text-gray-600 mt-1">Ver todas las recetas</p>
-                </div>
-            </div>
-        </a>
 
-        <a href="{{ route('ordenes-medicas.laboratorios') }}" class="card card-hover p-6 bg-gradient-to-br from-blue-50 to-white border-blue-200">
-            <div class="flex items-center gap-4">
-                <div class="w-14 h-14 rounded-xl bg-blue-600 flex items-center justify-center">
-                    <i class="bi bi-activity text-white text-2xl"></i>
-                </div>
-                <div>
-                    <h3 class="font-bold text-gray-900">Laboratorios</h3>
-                    <p class="text-sm text-gray-600 mt-1">Órdenes de laboratorio</p>
-                </div>
-            </div>
-        </a>
-
-        <a href="{{ route('ordenes-medicas.imagenologias') }}" class="card card-hover p-6 bg-gradient-to-br from-emerald-50 to-white border-emerald-200">
-            <div class="flex items-center gap-4">
-                <div class="w-14 h-14 rounded-xl bg-emerald-600 flex items-center justify-center">
-                    <i class="bi bi-x-ray text-white text-2xl"></i>
-                </div>
-                <div>
-                    <h3 class="font-bold text-gray-900">Imagenología</h3>
-                    <p class="text-sm text-gray-600 mt-1">Estudios de imagen</p>
-                </div>
-            </div>
-        </a>
-
-        <a href="{{ route('ordenes-medicas.referencias') }}" class="card card-hover p-6 bg-gradient-to-br from-amber-50 to-white border-amber-200">
-            <div class="flex items-center gap-4">
-                <div class="w-14 h-14 rounded-xl bg-amber-600 flex items-center justify-center">
-                    <i class="bi bi-arrow-right-circle text-white text-2xl"></i>
-                </div>
-                <div>
-                    <h3 class="font-bold text-gray-900">Referencias</h3>
-                    <p class="text-sm text-gray-600 mt-1">Referencias médicas</p>
-                </div>
-            </div>
-        </a>
-    </div>
-</div>
 @endsection
