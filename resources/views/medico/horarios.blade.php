@@ -4,46 +4,33 @@
 
 @section('content')
 <script>
-    // 1. Data Sources (Global) - Ejecutado inmediatamente para asegurar disponibilidad
-    window.rawHorarios = @json($consultorios->mapWithKeys(function($c) {
-        return [$c->id => [
-            'inicio' => \Carbon\Carbon::parse($c->horario_inicio)->format('H:i'), 
-            'fin' => \Carbon\Carbon::parse($c->horario_fin)->format('H:i')
-        ]];
-    }));
-
-    // Data de Reglas (Especialidades)
-    window.globalConsultorioRules = @json($consultorios->mapWithKeys(function($c) { 
-        return [$c->id => $c->especialidades->pluck('id')]; 
-    }));
-
-    // Helper seguro para obtener horarios
-    window.getConsultorioData = function(id) {
-        if (!id) return null;
-        
-        const result = window.rawHorarios[id] || window.rawHorarios[String(id)] || window.rawHorarios[parseInt(id)];
-        return result;
-    };
-
-    // 2. Component Logic Factory - Mismo patrón que vista de Admin
+    // ============================================================
+    // NUEVA ARQUITECTURA: AJAX + Alpine.js Reactivo
+    // ============================================================
+    
+    // 2. Component Logic Factory - CON AJAX DINÁMICO
     window.makeScheduleCard = function(data) {
         return {
             editing: false,
-            // Inicializar estados asegurando que no sean null para los inputs
+            
+            // ==========================================
+            // DATOS DE TURNO MAÑANA
+            // ==========================================
             manana: {
                 active: !!data.manana.active,
-                consultorio_id: data.manana.consultorio_id ? String(data.manana.consultorio_id) : '',
                 especialidad_id: data.manana.especialidad_id ? String(data.manana.especialidad_id) : '',
+                consultorio_id: data.manana.consultorio_id ? String(data.manana.consultorio_id) : '',
                 inicio: data.manana.inicio || '08:00',
                 fin: data.manana.fin || '12:00',
             },
-            tarde: {
-                active: !!data.tarde.active,
-                consultorio_id: data.tarde.consultorio_id ? String(data.tarde.consultorio_id) : '',
-                especialidad_id: data.tarde.especialidad_id ? String(data.tarde.especialidad_id) : '',
-                inicio: data.tarde.inicio || '14:00',
-                fin: data.tarde.fin || '18:00',
-            },
+            // Lista dinámica de consultorios (ya no se usa array interno, se lee del DOM)
+            // mananaConsultorios: [], 
+            // tardeConsultorios: [],
+
+            // Horario del consultorio seleccionado (mañana)
+            mananaHorarioConsultorio: { inicio: '--:--', fin: '--:--' },
+            // Horario del consultorio seleccionado (tarde)
+            tardeHorarioConsultorio: { inicio: '--:--', fin: '--:--' },
 
             // Computed Helpers para compatibilidad
             get manana_active() { return this.manana.active; },
@@ -52,86 +39,97 @@
             set tarde_active(val) { this.tarde.active = val; },
             get active() { return this.manana.active || this.tarde.active; },
 
-            init() {
-                // Forzar validación inicial si hay datos cargados
-                if(this.manana.active) this.validateBounds('manana');
-                if(this.tarde.active) this.validateBounds('tarde');
-                
-                // Observadores para corrección automática y actualización dinámica
-                this.$watch('manana.consultorio_id', () => this.validateBounds('manana'));
-                this.$watch('tarde.consultorio_id', () => this.validateBounds('tarde'));
+            // ==========================================
+            // LOGICA DOM ACTUALIZADA (Lee atributos del Option)
+            // ==========================================
+            
+            // Ya no necesitamos cargarConsultoriosDOM interno porque lo hace el script nativo global
+            
+            // wrappers para change (si se necesitan)
+            onEspecialidadChange(turno) {
+                // El script nativo maneja la carga. Alpine solo necesita saber que cambió para resetear su modelo si es necesario.
+                // Resetear consultorio y horario
+                this[turno].consultorio_id = '';
+                if(turno === 'manana') this.mananaHorarioConsultorio = { inicio: '--:--', fin: '--:--' };
+                else this.tardeHorarioConsultorio = { inicio: '--:--', fin: '--:--' };
             },
 
-            // Lógica de validación visual (Retorna clases CSS)
-            getStatusClass(shift, tipo) {
-                const cId = this[shift].consultorio_id;
-                const cData = window.getConsultorioData(cId);
-                if (!cData) return 'text-gray-500'; // Sin consultorio seleccionado
 
-                const horaUsuario = this[shift][tipo]; // 'inicio' o 'fin'
-
-                if (tipo === 'inicio') {
-                    if (horaUsuario < cData.inicio) return 'text-red-600 font-bold';
+            // ==========================================
+            // ACTUALIZAR HORARIO DEL CONSULTORIO SELECCIONADO
+            // ==========================================
+            // ==========================================
+            // ACTUALIZAR HORARIO DEL CONSULTORIO SELECCIONADO
+            // ==========================================
+            actualizarHorario(turno) {
+                // Obtenemos el ID seleccionado
+                const consultorioId = this[turno].consultorio_id;
+                console.log(`[actualizarHorario] Turno: ${turno}, Consultorio ID: ${consultorioId}`);
+                
+                // Buscamos el elemento select en el DOM usando x-ref
+                const selectEl = this.$refs[turno + 'ConsultoriosSelect'];
+                if (!selectEl) return;
+                
+                // Buscamos la opción seleccionada
+                const selectedOption = selectEl.options[selectEl.selectedIndex];
+                
+                if (!selectedOption || !consultorioId) {
+                    console.log(`[actualizarHorario] Sin selección válida, reseteando.`);
+                    if (turno === 'manana') this.mananaHorarioConsultorio = { inicio: '--:--', fin: '--:--' };
+                    else this.tardeHorarioConsultorio = { inicio: '--:--', fin: '--:--' };
+                    return;
                 }
-                if (tipo === 'fin') {
-                    if (horaUsuario > cData.fin) return 'text-red-600 font-bold';
+                
+                // Leemos los data attributes que inyectó el script nativo
+                const inicio = selectedOption.getAttribute('data-inicio') || '--:--';
+                const fin = selectedOption.getAttribute('data-fin') || '--:--';
+                
+                console.log(`[actualizarHorario] Datos leídos del DOM: ${inicio} - ${fin}`);
+                
+                if (turno === 'manana') {
+                    this.mananaHorarioConsultorio = { inicio, fin };
+                } else {
+                    this.tardeHorarioConsultorio = { inicio, fin };
+                }
+            },
+
+            // ==========================================
+            // HELPERS PARA VALIDACIÓN (mantener compatibilidad)
+            // ==========================================
+            getStatusClass(turno, tipo) {
+                const horario = turno === 'manana' ? this.mananaHorarioConsultorio : this.tardeHorarioConsultorio;
+                if (horario.inicio === '--:--') return 'text-gray-500';
+
+                const horaUsuario = this[turno][tipo];
+                
+                if (tipo === 'inicio' && horaUsuario < horario.inicio) {
+                    return 'text-red-600 font-bold';
+                }
+                if (tipo === 'fin' && horaUsuario > horario.fin) {
+                    return 'text-red-600 font-bold';
                 }
 
                 return 'text-green-600 font-medium';
             },
 
-            // Texto dinámico para mostrar horarios del consultorio
-            getLimitText(shift, tipo) {
-                const cId = this[shift].consultorio_id;
-                const cData = window.getConsultorioData(cId);
-                if (!cData) return '--:--';
-                return cData[tipo];
-            },
-
-            // Validación estricta para los inputs (min/max attributes)
-            getInputLimits(shift) {
-                const cId = this[shift].consultorio_id;
-                const cData = window.getConsultorioData(cId);
+            getInputLimits(turno) {
+                const horario = turno === 'manana' ? this.mananaHorarioConsultorio : this.tardeHorarioConsultorio;
                 
                 let limits = { min: '00:00', max: '23:59' };
                 
-                if (cData) {
-                    if (shift === 'manana') {
-                        limits.min = cData.inicio;
-                        limits.max = '12:00'; // Límite lógico de turno mañana
+                if (horario.inicio !== '--:--') {
+                    if (turno === 'manana') {
+                        limits.min = horario.inicio;
+                        limits.max = '12:00';
                     } else {
-                        limits.min = '12:00'; // Límite lógico de turno tarde
-                        limits.max = cData.fin;
+                        limits.min = '12:00';
+                        limits.max = horario.fin;
                     }
                 } else {
-                    if (shift === 'manana') limits.max = '12:00';
-                    if (shift === 'tarde') limits.min = '12:00';
+                    if (turno === 'manana') limits.max = '12:00';
+                    if (turno === 'tarde') limits.min = '12:00';
                 }
                 return limits;
-            },
-
-            // Autocorrección (Llamada por watchers)
-            validateBounds(shift) {
-                this.$nextTick(() => {
-                    const cId = this[shift].consultorio_id;
-                    const cData = window.getConsultorioData(cId);
-                    if (!cData) return;
-
-                    if (this[shift].inicio < cData.inicio) {
-                         this[shift].inicio = cData.inicio;
-                    }
-                    if (this[shift].fin > cData.fin) {
-                        this[shift].fin = cData.fin;
-                    }
-                });
-            },
-            
-            // Filtro de especialidades
-            isAllowed(consultorioId, especialidadId) {
-                if (!consultorioId) return true; 
-                const rules = window.globalConsultorioRules[consultorioId] || window.globalConsultorioRules[String(consultorioId)];
-                if (!rules) return true;
-                return rules.includes(parseInt(especialidadId));
             }
         };
     };
@@ -162,6 +160,86 @@
     @csrf
     
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <!-- HERRAMIENTA DE DIAGNÓSTICO GLOBAL -->
+
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('✅ [Diagnostico Nativo] DOM Cargado. Inicializando eventos.');
+        
+        const btn = document.getElementById('btn_probar_fetch');
+        const selectEsp = document.getElementById('diag_especialidad');
+        const preResult = document.getElementById('diag_resultado');
+        const preJson = document.getElementById('diag_json');
+        const selectDestino = document.getElementById('diag_select_consultorios');
+        
+        if(btn) {
+            btn.addEventListener('click', async function() {
+                const espId = selectEsp.value;
+                console.log('🚀 [Diagnostico Nativo] Click. ID:', espId);
+                
+                if (!espId) {
+                    alert('Seleccione una especialidad primero');
+                    return;
+                }
+                
+                preResult.textContent = 'Cargando...';
+                preJson.textContent = '...';
+                
+                // Limpiar select
+                selectDestino.innerHTML = '<option>Cargando...</option>';
+                
+                try {
+                    const url = '/ajax/citas/consultorios-por-especialidad/' + espId;
+                    console.log('📡 [Diagnostico Nativo] Fetching:', url);
+                    
+                    const res = await fetch(url);
+                    preResult.textContent = `Status: ${res.status} ${res.statusText}`;
+                    
+                    if (!res.ok) throw new Error('HTTP ' + res.status);
+                    
+                    const data = await res.json();
+                    console.log('📦 [Diagnostico Nativo] Data:', data);
+                    
+                    preJson.textContent = JSON.stringify(data, null, 2);
+                    preResult.textContent += `\nRegistros recibidos: ${data.length}`;
+                    
+                    // Llenar select
+                    selectDestino.innerHTML = '';
+                    if (data.length === 0) {
+                        const opt = document.createElement('option');
+                        opt.text = 'Lista vacía (0 consultorios)';
+                        selectDestino.add(opt);
+                        alert('Petición exitosa pero lista VACÍA.');
+                    } else {
+                        const optDefault = document.createElement('option');
+                        optDefault.text = `Se cargaron ${data.length} consultorios`;
+                        selectDestino.add(optDefault);
+                        
+                        data.forEach(c => {
+                            const opt = document.createElement('option');
+                            opt.value = c.id;
+                            const h_inicio = c.horario_inicio ? c.horario_inicio.substring(0,5) : '--:--';
+                            const h_fin = c.horario_fin ? c.horario_fin.substring(0,5) : '--:--';
+                            opt.text = `${c.nombre} (${h_inicio} - ${h_fin})`;
+                            selectDestino.add(opt);
+                        });
+                        alert(`¡Éxito! ${data.length} consultorios cargados en el select de prueba.`);
+                    }
+                    
+                } catch (e) {
+                    console.error('❌ [Diagnostico Nativo] Error:', e);
+                    preResult.textContent += '\nError: ' + e.message;
+                    alert('Error JS: ' + e.message);
+                }
+            });
+        } else {
+            console.error('❌ [Diagnostico Nativo] No se encontró el botón de prueba.');
+        }
+    });
+</script>
+        
         <!-- Configuración de Horarios -->
         <div class="lg:col-span-2 space-y-4">
             
@@ -319,59 +397,77 @@
                                 </label>
 
                                 <div x-show="manana_active" class="grid grid-cols-1 md:grid-cols-2 gap-3 animate-fade-in-down">
-                                    <div>
-                                        <label class="form-label text-xs">Consultorio</label>
-                                        <select name="horarios[{{ $key }}][manana_consultorio_id]" class="form-select text-sm"
-                                                x-model="manana.consultorio_id">
-                                            <option value="">Seleccione...</option>
-                                            @foreach($consultorios as $consultorio)
-                                                <option value="{{ $consultorio->id }}"
-                                                    {{ ($hManana && $hManana->consultorio_id == $consultorio->id) ? 'selected' : '' }}>
-                                                    {{ $consultorio->nombre }} ({{ \Carbon\Carbon::parse($consultorio->horario_inicio)->format('H:i') }} - {{ \Carbon\Carbon::parse($consultorio->horario_fin)->format('H:i') }})
-                                                </option>
-                                            @endforeach
-                                        </select>
-                                    </div>
+                                    <!-- ESPECIALIDAD PRIMERO -->
                                     <div>
                                         <label class="form-label text-xs">Especialidad</label>
-                                        <select name="horarios[{{ $key }}][manana_especialidad_id]" class="form-select text-sm"
+                                        <select name="horarios[{{ $key }}][manana_especialidad_id]" 
+                                                id="select_esp_manana_{{ $key }}"
+                                                class="form-select text-sm select-especialidad"
+                                                data-turno="manana"
+                                                data-key="{{ $key }}"
                                                 x-model="manana.especialidad_id">
-                                            <option value="">Seleccione...</option>
+                                            <option value="">Seleccione especialidad...</option>
                                             @foreach($medico->especialidades as $especialidad)
-                                                <option value="{{ $especialidad->id }}" 
-                                                    x-show="isAllowed(manana.consultorio_id, '{{ $especialidad->id }}')"
+                                                <option value="{{ $especialidad->id }}"
                                                     {{ ($hManana && $hManana->especialidad_id == $especialidad->id) ? 'selected' : '' }}>
                                                     {{ $especialidad->nombre }}
                                                 </option>
                                             @endforeach
                                         </select>
-                                        <p class="text-xs text-info-600 mt-1" 
-                                           x-show="manana.consultorio_id && !isAllowed(manana.consultorio_id, $el.previousElementSibling.value)">
-                                            <!-- Simple feedback if selected option becomes invalid -->
-                                        </p>
                                     </div>
+                                    <!-- CONSULTORIO DINÁMICO (cargado via JS Nativo) -->
                                     <div>
-                                        <label class="form-label text-xs">Inicio</label>
-                                        <p x-show="manana.consultorio_id" class="text-xs mb-1 transition-colors duration-200"
-                                           :class="getStatusClass('manana', 'inicio')">
-                                            <i class="bi bi-clock"></i> Consultorio abre: <span x-text="getLimitText('manana', 'inicio')"></span>
-                                        </p>
-                                        <input type="time" name="horarios[{{ $key }}][manana_inicio]" class="input text-sm" 
-                                            :min="getInputLimits('manana').min" 
-                                            :max="getInputLimits('manana').max"
-                                            x-model="manana.inicio"
-                                            @change="validateBounds('manana')">
+                                        <label class="form-label text-xs">Consultorio</label>
+                                        <select name="horarios[{{ $key }}][manana_consultorio_id]" 
+                                                id="select_cons_manana_{{ $key }}"
+                                                class="form-select text-sm select-consultorio"
+                                                data-selected-id="{{ $hManana ? $hManana->consultorio_id : '' }}"
+                                                data-turno="manana"
+                                                data-key="{{ $key }}"
+                                                x-ref="mananaConsultoriosSelect"
+                                                x-model="manana.consultorio_id"
+                                                :disabled="!manana.especialidad_id"
+                                                onchange="updateHorariosUI(this)">
+                                            <option value="">Primero seleccione especialidad</option>
+                                        </select>
                                     </div>
+                                    <!-- HORA INICIO -->
                                     <div>
-                                        <label class="form-label text-xs">Fin</label>
-                                        <p x-show="manana.consultorio_id" class="text-xs text-gray-500 mb-1">
-                                            Corte turno mañana: 12:00
+                                        <label class="form-label text-xs font-bold text-gray-600">Inicio</label>
+                                        <p id="info_inicio_manana_{{ $key }}" class="text-xs mb-1 transition-all duration-200 text-gray-500">
+                                            <i class="bi bi-clock"></i> Abre: <strong id="lbl_inicio_manana_{{ $key }}">--:--</strong>
                                         </p>
-                                        <input type="time" name="horarios[{{ $key }}][manana_fin]" class="input text-sm" 
-                                            :min="getInputLimits('manana').min" 
-                                            :max="getInputLimits('manana').max"
-                                            x-model="manana.fin"
-                                            @change="validateBounds('manana')">
+                                        <div class="relative">
+                                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                <i class="bi bi-clock text-gray-400"></i>
+                                            </div>
+                                            <input type="time" 
+                                                name="horarios[{{ $key }}][manana_inicio]" 
+                                                id="input_inicio_manana_{{ $key }}"
+                                                class="form-input time-input block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 sm:text-sm transition duration-150 ease-in-out shadow-sm"
+                                                data-turno="manana"
+                                                data-key="{{ $key }}"
+                                                value="{{ $hManana ? \Carbon\Carbon::parse($hManana->horario_inicio)->format('H:i') : '' }}">
+                                        </div>
+                                    </div>
+                                    <!-- HORA FIN -->
+                                    <div>
+                                        <label class="form-label text-xs font-bold text-gray-600">Fin</label>
+                                        <p id="info_fin_manana_{{ $key }}" class="text-xs mb-1 transition-all duration-200 text-gray-500">
+                                            <i class="bi bi-door-closed"></i> Cierra: <strong id="lbl_fin_manana_{{ $key }}">--:--</strong>
+                                        </p>
+                                        <div class="relative">
+                                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                <i class="bi bi-dash-circle text-gray-400"></i>
+                                            </div>
+                                            <input type="time" 
+                                                name="horarios[{{ $key }}][manana_fin]" 
+                                                id="input_fin_manana_{{ $key }}"
+                                                class="form-input time-input block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 sm:text-sm transition duration-150 ease-in-out shadow-sm"
+                                                data-turno="manana"
+                                                data-key="{{ $key }}"
+                                                value="{{ $hManana ? \Carbon\Carbon::parse($hManana->horario_fin)->format('H:i') : '' }}">
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -390,55 +486,77 @@
                                 </label>
                                 
                                 <div x-show="tarde_active" class="grid grid-cols-1 md:grid-cols-2 gap-3 animate-fade-in-down">
-                                    <div>
-                                        <label class="form-label text-xs">Consultorio</label>
-                                        <select name="horarios[{{ $key }}][tarde_consultorio_id]" class="form-select text-sm"
-                                                x-model="tarde.consultorio_id">
-                                            <option value="">Seleccione...</option>
-                                            @foreach($consultorios as $consultorio)
-                                                <option value="{{ $consultorio->id }}"
-                                                    {{ ($hTarde && $hTarde->consultorio_id == $consultorio->id) ? 'selected' : '' }}>
-                                                    {{ $consultorio->nombre }} ({{ \Carbon\Carbon::parse($consultorio->horario_inicio)->format('H:i') }} - {{ \Carbon\Carbon::parse($consultorio->horario_fin)->format('H:i') }})
-                                                </option>
-                                            @endforeach
-                                        </select>
-                                    </div>
+                                    <!-- ESPECIALIDAD PRIMERO -->
                                     <div>
                                         <label class="form-label text-xs">Especialidad</label>
-                                        <select name="horarios[{{ $key }}][tarde_especialidad_id]" class="form-select text-sm"
+                                        <select name="horarios[{{ $key }}][tarde_especialidad_id]" 
+                                                id="select_esp_tarde_{{ $key }}"
+                                                class="form-select text-sm select-especialidad"
+                                                data-turno="tarde"
+                                                data-key="{{ $key }}"
                                                 x-model="tarde.especialidad_id">
-                                            <option value="">Seleccione...</option>
+                                            <option value="">Seleccione especialidad...</option>
                                             @foreach($medico->especialidades as $especialidad)
-                                                <option value="{{ $especialidad->id }}" 
-                                                    x-show="isAllowed(tarde.consultorio_id, '{{ $especialidad->id }}')"
+                                                <option value="{{ $especialidad->id }}"
                                                     {{ ($hTarde && $hTarde->especialidad_id == $especialidad->id) ? 'selected' : '' }}>
                                                     {{ $especialidad->nombre }}
                                                 </option>
                                             @endforeach
                                         </select>
                                     </div>
+                                    <!-- CONSULTORIO DINÁMICO (cargado via JS Nativo) -->
                                     <div>
-                                        <label class="form-label text-xs">Inicio</label>
-                                        <p x-show="tarde.consultorio_id" class="text-xs text-gray-500 mb-1">
-                                            Inicio turno tarde: 12:00
-                                        </p>
-                                        <input type="time" name="horarios[{{ $key }}][tarde_inicio]" class="input text-sm" 
-                                            :min="getInputLimits('tarde').min" 
-                                            :max="getInputLimits('tarde').max"
-                                            x-model="tarde.inicio"
-                                            @change="validateBounds('tarde')">
+                                        <label class="form-label text-xs">Consultorio</label>
+                                        <select name="horarios[{{ $key }}][tarde_consultorio_id]" 
+                                                id="select_cons_tarde_{{ $key }}"
+                                                class="form-select text-sm select-consultorio"
+                                                data-selected-id="{{ $hTarde ? $hTarde->consultorio_id : '' }}"
+                                                data-turno="tarde"
+                                                data-key="{{ $key }}"
+                                                x-ref="tardeConsultoriosSelect"
+                                                x-model="tarde.consultorio_id"
+                                                :disabled="!tarde.especialidad_id"
+                                                onchange="updateHorariosUI(this)">
+                                            <option value="">Primero seleccione especialidad</option>
+                                        </select>
                                     </div>
+                                    <!-- HORA INICIO -->
                                     <div>
-                                        <label class="form-label text-xs">Fin</label>
-                                        <p x-show="tarde.consultorio_id" class="text-xs mb-1 transition-colors duration-200"
-                                           :class="getStatusClass('tarde', 'fin')">
-                                            <i class="bi bi-door-closed"></i> Consultorio cierra: <span x-text="getLimitText('tarde', 'fin')"></span>
+                                        <label class="form-label text-xs font-bold text-gray-600">Inicio</label>
+                                        <p id="info_inicio_tarde_{{ $key }}" class="text-xs mb-1 transition-all duration-200 text-gray-500">
+                                            <i class="bi bi-clock"></i> Abre: <strong id="lbl_inicio_tarde_{{ $key }}">--:--</strong>
                                         </p>
-                                        <input type="time" name="horarios[{{ $key }}][tarde_fin]" class="input text-sm" 
-                                            :min="getInputLimits('tarde').min" 
-                                            :max="getInputLimits('tarde').max"
-                                            x-model="tarde.fin"
-                                            @change="validateBounds('tarde')">
+                                        <div class="relative">
+                                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                <i class="bi bi-clock text-gray-400"></i>
+                                            </div>
+                                            <input type="time" 
+                                                name="horarios[{{ $key }}][tarde_inicio]" 
+                                                id="input_inicio_tarde_{{ $key }}"
+                                                class="form-input time-input block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 sm:text-sm transition duration-150 ease-in-out shadow-sm"
+                                                data-turno="tarde"
+                                                data-key="{{ $key }}"
+                                                value="{{ $hTarde ? \Carbon\Carbon::parse($hTarde->horario_inicio)->format('H:i') : '' }}">
+                                        </div>
+                                    </div>
+                                    <!-- HORA FIN -->
+                                    <div>
+                                        <label class="form-label text-xs font-bold text-gray-600">Fin</label>
+                                        <p id="info_fin_tarde_{{ $key }}" class="text-xs mb-1 transition-all duration-200 text-gray-500">
+                                            <i class="bi bi-door-closed"></i> Cierra: <strong id="lbl_fin_tarde_{{ $key }}">--:--</strong>
+                                        </p>
+                                        <div class="relative">
+                                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                <i class="bi bi-dash-circle text-gray-400"></i>
+                                            </div>
+                                            <input type="time" 
+                                                name="horarios[{{ $key }}][tarde_fin]" 
+                                                id="input_fin_tarde_{{ $key }}"
+                                                class="form-input time-input block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 sm:text-sm transition duration-150 ease-in-out shadow-sm"
+                                                data-turno="tarde"
+                                                data-key="{{ $key }}"
+                                                value="{{ $hTarde ? \Carbon\Carbon::parse($hTarde->horario_fin)->format('H:i') : '' }}">
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -534,4 +652,190 @@
     </div>
 </form>
 
+
+<script>
+    // Logic Nativo para Manejo de Selects del Formulario Principal
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('✅ [Horarios Main] Inicializando lógica nativa para selects principales.');
+
+        const especialidadSelects = document.querySelectorAll('.select-especialidad');
+        
+        // Función reutilizable para cargar consultorios
+        async function loadConsultorios(espSelect, triggerType = 'manual') {
+            const espId = espSelect.value;
+            const turno = espSelect.dataset.turno;
+            const key = espSelect.dataset.key;
+            
+            const targetId = `select_cons_${turno}_${key}`;
+            const targetSelect = document.getElementById(targetId);
+            
+            if (!targetSelect) return;
+
+            // Si es carga inicial (auto), y ya tiene opciones cargadas, no hacer nada para evitar parpadeos
+            // (aunque en este diseño simple siempre recargamos para asegurar consistencia)
+            
+            if (!espId) {
+                targetSelect.innerHTML = '<option value="">Primero seleccione especialidad</option>';
+                targetSelect.disabled = true;
+                return;
+            }
+
+            // Mostrar estado de carga solo si es cambio manual, para no ensuciar la UI al cargar página
+            if (triggerType === 'manual') {
+                targetSelect.innerHTML = '<option value="">Cargando...</option>';
+                targetSelect.disabled = true;
+            }
+
+            try {
+                // Pequeña optimización: si ya estamos cargando esto en otro request idéntico, podríamos cachear.
+                // Por ahora fetch directo.
+                const url = '/ajax/citas/consultorios-por-especialidad/' + espId;
+                const res = await fetch(url);
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                
+                const data = await res.json();
+                
+                targetSelect.innerHTML = ''; // Limpiar
+                
+                if (data.length === 0) {
+                    targetSelect.add(new Option('Sin consultorios disponibles', ''));
+                } else {
+                    targetSelect.add(new Option('Seleccione consultorio...', ''));
+                    data.forEach(c => {
+                        const h_inicio = c.horario_inicio ? c.horario_inicio.substring(0,5) : '--:--';
+                        const h_fin = c.horario_fin ? c.horario_fin.substring(0,5) : '--:--';
+                        const text = `${c.nombre} (${h_inicio} - ${h_fin})`;
+                        
+                        // Crear opción con DATA ATTRIBUTES para las horas
+                        const opt = new Option(text, c.id);
+                        opt.setAttribute('data-inicio', h_inicio);
+                        opt.setAttribute('data-fin', h_fin);
+                        
+                        targetSelect.add(opt);
+                    });
+                }
+                
+                targetSelect.disabled = false;
+
+                // Lógica de PRECARGA / RESTAURACIÓN
+                // Verificar si hay un valor guardado en el atributo data-selected-id
+                const savedId = targetSelect.dataset.selectedId;
+                if (savedId && triggerType === 'auto') {
+                    // Verificar si el ID guardado existe en las nuevas opciones
+                    const optionExists = Array.from(targetSelect.options).some(o => o.value == savedId);
+                    if (optionExists) {
+                        targetSelect.value = savedId;
+                        console.log(`♻️ [Horarios Main] Restaurado consultorio guardado ID: ${savedId} para ${targetId}`);
+                        
+                        // Disparar evento para que Alpine se entere del valor inicial
+                        targetSelect.dispatchEvent(new Event('input'));
+                        targetSelect.dispatchEvent(new Event('change'));
+                        
+                        // IMPORTANTE: Limpiar el atributo para que futuros cambios manuales no se vean forzados
+                        // targetSelect.removeAttribute('data-selected-id'); 
+                        // (Opcional, pero a veces es mejor dejarlo si el usuario cancela edición)
+                    }
+                }
+
+                // Si fue cambio manual, disparamos eventos para Alpine
+                if (triggerType === 'manual') {
+                    targetSelect.dispatchEvent(new Event('input'));
+                    targetSelect.dispatchEvent(new Event('change'));
+                }
+                
+                // ACTUALIZAR UI DE HORARIOS (Nativo)
+                updateHorariosUI(targetSelect);
+
+            } catch (e) {
+                console.error('❌ [Horarios Main] Error Ajax:', e);
+                targetSelect.innerHTML = '<option value="">Error al cargar</option>';
+            }
+        }
+        
+        // Función para actualizar textos y límites de horas
+        function updateHorariosUI(selectElement) {
+            const turno = selectElement.dataset.turno; // manana / tarde
+            const key = selectElement.dataset.key;
+            
+            // Elementos de UI
+            const lblInicio = document.getElementById(`lbl_inicio_${turno}_${key}`);
+            const lblFin = document.getElementById(`lbl_fin_${turno}_${key}`);
+            const infoInicio = document.getElementById(`info_inicio_${turno}_${key}`);
+            const infoFin = document.getElementById(`info_fin_${turno}_${key}`);
+            const inputInicio = document.getElementById(`input_inicio_${turno}_${key}`);
+            const inputFin = document.getElementById(`input_fin_${turno}_${key}`);
+            
+            if (!lblInicio || !inputInicio) return;
+            
+            // Obtener opción seleccionada
+            const selectedOpt = selectElement.options[selectElement.selectedIndex];
+            
+            if (!selectedOpt || !selectedOpt.value) {
+                // Resetear si no hay consultorio
+                lblInicio.textContent = '--:--';
+                lblFin.textContent = '--:--';
+                return;
+            }
+            
+            const inicio = selectedOpt.getAttribute('data-inicio') || '00:00';
+            const fin = selectedOpt.getAttribute('data-fin') || '23:59';
+            
+            // Actualizar textos
+            lblInicio.textContent = inicio;
+            lblFin.textContent = fin;
+            
+            // Actualizar límites inputs
+            inputInicio.min = inicio;
+            inputInicio.max = fin;
+            inputFin.min = inicio;
+            inputFin.max = fin;
+            
+            console.log(`⏰ [Horarios Main] Límites actualizados para ${turno} ${key}: ${inicio} - ${fin}`);
+            
+            // Validación visual inmediata
+            validateInput(inputInicio, inicio, fin);
+            validateInput(inputFin, inicio, fin);
+        }
+        
+        function validateInput(input, min, max) {
+            if (!input.value) return;
+            const val = input.value;
+            // Simple string compare for HH:MM works fine
+            if (val < min || val > max) {
+                input.classList.add('border-red-500', 'text-red-600');
+            } else {
+                input.classList.remove('border-red-500', 'text-red-600');
+            }
+        }
+
+        // 1. Asignar Listeners para cambios manuales
+        especialidadSelects.forEach(select => {
+            select.addEventListener('change', function() {
+                loadConsultorios(this, 'manual');
+            });
+            
+            // 2. CHECK INICIAL: Si ya tiene valor seleccionado (desde el servidor), cargar consultorios automáticamente
+            if (select.value) {
+                console.log(`🚀 [Horarios Main] Precarga detectada para ${select.id}`);
+                loadConsultorios(select, 'auto');
+            }
+        });
+        
+        // Listener global para inputs de hora (validacion visual en tiempo real)
+        document.querySelectorAll('.time-input').forEach(input => {
+            input.addEventListener('input', function() {
+                const turno = this.dataset.turno;
+                const key = this.dataset.key;
+                // Buscar el select correspondiente para saber los límites
+                // Como no tenemos referencia directa, buscamos el label
+                const lblInicio = document.getElementById(`lbl_inicio_${turno}_${key}`);
+                const lblFin = document.getElementById(`lbl_fin_${turno}_${key}`);
+                
+                if(lblInicio && lblFin) {
+                    validateInput(this, lblInicio.textContent, lblFin.textContent);
+                }
+            });
+        });
+    });
+</script>
 @endsection

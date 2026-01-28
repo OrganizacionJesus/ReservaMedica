@@ -1318,11 +1318,20 @@ class CitaController extends Controller
             return response()->json([]);
         }
         
+        // Se usa la consulta estándar con un orderBy.
+        // NOTA: Se ha verificado que los datos existen con status=1.
         $consultorios = $especialidad->consultorios()
-            ->where('especialidad_consultorio.status', true)
             ->where('consultorios.status', true)
+            ->where('especialidad_consultorio.status', true)
             ->orderBy('nombre')
-            ->get(['consultorios.id', 'consultorios.nombre', 'consultorios.direccion_detallada', 'consultorios.estado_id']);
+            ->get([
+                'consultorios.id', 
+                'consultorios.nombre', 
+                'consultorios.horario_inicio',
+                'consultorios.horario_fin',
+                'consultorios.direccion_detallada', 
+                'consultorios.estado_id'
+            ]);
         
         return response()->json($consultorios);
     }

@@ -101,8 +101,12 @@
                         <span class="text-gray-700">Horario de Trabajo</span>
                     </div>
                     <div class="flex items-center gap-2">
-                        <div class="w-5 h-5 rounded bg-teal-400"></div>
-                        <span class="text-gray-700">Cita Programada</span>
+                        <div class="w-5 h-5 rounded bg-amber-500"></div>
+                        <span class="text-gray-700">Programada</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <div class="w-5 h-5 rounded bg-blue-600"></div>
+                        <span class="text-gray-700">Confirmada</span>
                     </div>
                     <div class="flex items-center gap-2">
                         <div class="w-5 h-5 rounded bg-gray-200 border border-gray-300"></div>
@@ -208,13 +212,26 @@
                                         }
                                         
                                         // Determinar clase CSS y contenido
+                                        // Determinar clase CSS y contenido
                                         if ($esNoLaborable) {
                                             $cellClass = 'bg-blue-400 text-white';
                                             $cellTitle = $motivoNoLaborable;
                                             $cellIcon = 'bi-x-lg';
                                         } elseif ($tieneCita) {
-                                            $cellClass = 'bg-teal-400 text-white';
-                                            $cellTitle = $infoCita;
+                                            $cita = $citasEnEstaHora[0];
+                                            $estado = $cita->estado_cita;
+                                            
+                                            // Asignar color según estado
+                                            if ($estado === 'Confirmada') {
+                                                $cellClass = 'bg-blue-600 text-white'; // Azul fuerte para Confirmada
+                                            } elseif ($estado === 'En Progreso') {
+                                                $cellClass = 'bg-blue-700 text-white'; // Azul más oscuro para En Progreso
+                                            } else {
+                                                // Programada
+                                                $cellClass = 'bg-amber-500 text-white'; // Naranja/Ambar para Programada
+                                            }
+                                            
+                                            $cellTitle = $infoCita . ' (' . $estado . ')';
                                             $cellIcon = 'bi-person-fill';
                                         } elseif ($trabajaEnEstaHora) {
                                             $cellClass = 'bg-emerald-500 text-white';
