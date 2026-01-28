@@ -74,21 +74,21 @@ class AuthController extends Controller
             'medico' => 2,
             'paciente' => 3
         ];
-        
+
         $rolSolicitado = $request->input('rol');
-        
+
         // Solo validamos si se especifica un rol en la URL de login
         if ($rolSolicitado && isset($mapaRoles[$rolSolicitado])) {
             $rolIdSolicitado = $mapaRoles[$rolSolicitado];
-            
+
             // Si el usuario intenta entrar a un portal que no es el suyo
             if ($usuario->rol_id !== $rolIdSolicitado) {
-                
+
                 // Determinar a dónde debería ir y cómo se llama su rol real
                 $rutaCorrecta = 'login';
                 $nombreRolReal = '';
                 $portalIntentado = '';
-                
+
                 switch ($usuario->rol_id) {
                     case 1:
                         $rutaCorrecta = route('login', ['rol' => 'admin']);
@@ -103,14 +103,20 @@ class AuthController extends Controller
                         $nombreRolReal = 'Paciente';
                         break;
                 }
-                
+
                 // Nombre bonito del portal intentado
                 switch ($rolSolicitado) {
-                    case 'admin': $portalIntentado = 'Administradores'; break;
-                    case 'medico': $portalIntentado = 'Médicos'; break;
-                    case 'paciente': $portalIntentado = 'Pacientes'; break;
+                    case 'admin':
+                        $portalIntentado = 'Administradores';
+                        break;
+                    case 'medico':
+                        $portalIntentado = 'Médicos';
+                        break;
+                    case 'paciente':
+                        $portalIntentado = 'Pacientes';
+                        break;
                 }
-                
+
                 return redirect($rutaCorrecta)
                     ->with('error', "Usted es un $nombreRolReal y no puede iniciar sesión desde el portal de $portalIntentado. Por favor ingrese sus credenciales aquí.");
             }
@@ -118,7 +124,7 @@ class AuthController extends Controller
 
         // Verificar estado del perfil específico
         $perfilInactivo = false;
-        
+
         switch ($usuario->rol_id) {
             case 1: // Administrador
                 if ($usuario->administrador && !$usuario->administrador->status) {
@@ -184,10 +190,10 @@ class AuthController extends Controller
 
         $validator = Validator::make($request->all(), [
             'rol_id' => 'required|in:2,3',
-            'primer_nombre' => 'required|max:100|regex:/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/',
-            'segundo_nombre' => 'required|max:100|regex:/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/',
-            'primer_apellido' => 'required|max:100|regex:/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/',
-            'segundo_apellido' => 'required|max:100|regex:/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/',
+            'primer_nombre' => 'required|max:20|regex:/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/',
+            'segundo_nombre' => 'required|max:20|regex:/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/',
+            'primer_apellido' => 'required|max:20|regex:/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/',
+            'segundo_apellido' => 'required|max:20|regex:/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/',
             'correo' => 'required|email|unique:usuarios,correo|max:150',
             'password' => [
                 'required',
@@ -204,8 +210,34 @@ class AuthController extends Controller
             'respuesta_seguridad_2' => 'required|min:2',
             'respuesta_seguridad_3' => 'required|min:2',
             'tipo_documento' => 'required|in:V,E,P,J',
-            'numero_documento' => 'required|min:6|max:12|regex:/^\d+$/',
-            'fecha_nac' => 'required|date|before:-18 years',
+            'numero_documento' => [
+                'required',
+                function ($attribute, $value, $fail) use ($request) {
+                    $tipo = $request->input('tipo_documento');
+                    if ($tipo === 'V') {
+                        if (!ctype_digit($value))
+                            $fail('La cédula V debe contener solo números.');
+                        elseif ($value <= 100000 || $value > 50000000)
+                            $fail('La cédula V debe estar entre 100,000 y 50,000,000.');
+                    } elseif ($tipo === 'E') {
+                        if (!ctype_digit($value))
+                            $fail('La cédula E debe contener solo números.');
+                        elseif ($value <= 50000000 || $value > 100000000)
+                            $fail('La cédula E debe estar entre 50,000,001 y 100,000,000.');
+                    } elseif ($tipo === 'P') {
+                        if (!ctype_alnum($value))
+                            $fail('El pasaporte debe ser alfanumérico.');
+                        elseif (strlen($value) < 8 || strlen($value) > 9)
+                            $fail('El pasaporte debe tener entre 8 y 9 caracteres.');
+                    } elseif ($tipo === 'J') {
+                        if (!ctype_digit($value))
+                            $fail('El RIF J debe contener solo números.');
+                        elseif (strlen($value) < 8 || strlen($value) > 9)
+                            $fail('El RIF J debe tener entre 8 y 9 caracteres.');
+                    }
+                },
+            ],
+            'fecha_nac' => 'required|date|before:-18 years|after:-100 years',
             'prefijo_tlf' => 'required|in:+58,+57,+1,+34',
             'numero_tlf' => 'required|max:15|regex:/^\d+$/',
             'genero' => 'required|in:Masculino,Femenino,Otro'
@@ -215,6 +247,7 @@ class AuthController extends Controller
             'primer_apellido.regex' => 'El primer apellido solo debe contener letras',
             'segundo_apellido.regex' => 'El segundo apellido solo debe contener letras',
             'fecha_nac.before' => 'Debe ser mayor de 18 años',
+            'fecha_nac.after' => 'La edad no puede ser mayor a 100 años',
             'password.confirmed' => 'Las contraseñas no coinciden',
             'password.min' => 'La contraseña debe tener al menos 8 caracteres',
             'password.regex' => 'La contraseña debe tener al menos una mayúscula, un número y un símbolo (@$!%*#?&.)',
@@ -299,24 +332,24 @@ class AuthController extends Controller
     public function getSecurityQuestions(Request $request)
     {
         $identifier = $request->identifier;
-        
+
         $usuario = Usuario::where('correo', $identifier)
-                          ->orWhere('numero_documento', $identifier)
-                          ->first();
+            ->orWhere('numero_documento', $identifier)
+            ->first();
 
         if (!$usuario) {
             return response()->json(['success' => false, 'message' => 'Usuario no encontrado'], 404);
         }
-        
+
         $respuestas = RespuestaSeguridad::where('user_id', $usuario->id)
-                                        ->with('pregunta')
-                                        ->get();
-                                        
+            ->with('pregunta')
+            ->get();
+
         if ($respuestas->isEmpty()) {
-             return response()->json(['success' => false, 'message' => 'El usuario no tiene preguntas de seguridad configuradas'], 400);
+            return response()->json(['success' => false, 'message' => 'El usuario no tiene preguntas de seguridad configuradas'], 400);
         }
-        
-        $questions = $respuestas->map(function($respuesta) {
+
+        $questions = $respuestas->map(function ($respuesta) {
             return [
                 'id' => $respuesta->pregunta->id,
                 'pregunta' => $respuesta->pregunta->pregunta
@@ -334,43 +367,43 @@ class AuthController extends Controller
     {
         $userId = $request->user_id;
         $usuario = Usuario::find($userId);
-        
+
         if (!$usuario) {
             return response()->json(['success' => false, 'message' => 'Usuario no válido'], 404);
         }
-        
+
         $allCorrect = true;
-        
+
         for ($i = 1; $i <= 3; $i++) {
             $questionId = $request->input("question_{$i}_id");
             $userAnswer = $request->input("answer_{$i}");
-            
+
             if (!$questionId || !$userAnswer) {
                 continue;
             }
-            
+
             $respuestaAlmacenada = RespuestaSeguridad::where('user_id', $usuario->id)
-                                                    ->where('pregunta_id', $questionId)
-                                                    ->first();
-            
+                ->where('pregunta_id', $questionId)
+                ->first();
+
             if (!$respuestaAlmacenada) {
                 $allCorrect = false;
                 break;
             }
-            
+
             if ($respuestaAlmacenada->respuesta_hash !== md5(md5($userAnswer))) {
                 $allCorrect = false;
                 break;
             }
         }
-        
+
         if ($allCorrect) {
             $token = Str::random(64);
             DB::table('password_resets')->updateOrInsert(
                 ['email' => $usuario->correo],
                 ['token' => $token, 'created_at' => now()]
             );
-            
+
             return response()->json([
                 'success' => true,
                 'token' => $token,
@@ -384,7 +417,7 @@ class AuthController extends Controller
     public function showResetPassword($token)
     {
         $reset = DB::table('password_resets')->where('token', $token)->first();
-        
+
         if (!$reset) {
             return redirect()->route('login')->with('error', 'Token inválido o expirado');
         }
@@ -405,16 +438,16 @@ class AuthController extends Controller
         }
 
         $reset = DB::table('password_resets')
-                    ->where('email', $request->email)
-                    ->where('token', $request->token)
-                    ->first();
+            ->where('email', $request->email)
+            ->where('token', $request->token)
+            ->first();
 
         if (!$reset) {
             return redirect()->back()->with('error', 'Token inválido o expirado');
         }
 
         $usuario = Usuario::where('correo', $request->email)->first();
-        
+
         if (!$usuario) {
             return redirect()->back()->with('error', 'Usuario no encontrado');
         }
@@ -507,13 +540,13 @@ class AuthController extends Controller
     {
         try {
             $resetUrl = route('password.reset', $token);
-            
+
             Mail::send('emails.recuperacion', [
                 'usuario' => $usuario,
                 'resetUrl' => $resetUrl
-            ], function($message) use ($usuario) {
+            ], function ($message) use ($usuario) {
                 $message->to($usuario->correo)
-                        ->subject('Recuperación de Contraseña - Sistema Médico');
+                    ->subject('Recuperación de Contraseña - Sistema Médico');
             });
         } catch (\Exception $e) {
             Log::error('Error enviando email de recuperación: ' . $e->getMessage());
@@ -523,9 +556,9 @@ class AuthController extends Controller
     private function enviarEmailConfirmacionCambio($usuario)
     {
         try {
-            Mail::send('emails.confirmacion-cambio-password', ['usuario' => $usuario], function($message) use ($usuario) {
+            Mail::send('emails.confirmacion-cambio-password', ['usuario' => $usuario], function ($message) use ($usuario) {
                 $message->to($usuario->correo)
-                        ->subject('Contraseña Cambiada - Sistema Médico');
+                    ->subject('Contraseña Cambiada - Sistema Médico');
             });
         } catch (\Exception $e) {
             Log::error('Error enviando email de confirmación de cambio: ' . $e->getMessage());
@@ -535,7 +568,7 @@ class AuthController extends Controller
     {
         $correo = $request->correo;
         $existe = Usuario::where('correo', $correo)->exists();
-        
+
         return response()->json(['existe' => $existe]);
     }
 }
