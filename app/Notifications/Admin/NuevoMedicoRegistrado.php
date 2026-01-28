@@ -4,10 +4,12 @@ namespace App\Notifications\Admin;
 
 use App\Models\Medico;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
+use Illuminate\Notifications\Messages\BroadcastMessage;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class NuevoMedicoRegistrado extends Notification
+class NuevoMedicoRegistrado extends Notification implements ShouldBroadcastNow
 {
     use Queueable;
 
@@ -22,7 +24,12 @@ class NuevoMedicoRegistrado extends Notification
 
     public function via(object $notifiable): array
     {
-        return ['database'];
+        return ['database', 'broadcast'];
+    }
+
+    public function toBroadcast(object $notifiable): BroadcastMessage
+    {
+        return new BroadcastMessage($this->toArray($notifiable));
     }
 
     public function toMail(object $notifiable): MailMessage
