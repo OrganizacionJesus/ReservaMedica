@@ -92,6 +92,8 @@
                     <input type="text" name="segundo_apellido" id="segundo_apellido" class="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl focus:bg-white focus:border-medical-500 focus:ring-4 focus:ring-medical-500/10 transition-all outline-none text-sm" placeholder="Ej. Rodríguez" value="{{ old('segundo_apellido') }}">
                 </div>
             </div>
+        </div>
+    </div>
 
             <!-- Identificación -->
             <div>
