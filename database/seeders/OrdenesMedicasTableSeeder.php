@@ -9,10 +9,14 @@ class OrdenesMedicasTableSeeder extends Seeder
 {
     public function run(): void
     {
+        $cita = DB::table('citas')->first();
+        
+        if (!$cita) return;
+
         DB::table('ordenes_medicas')->insert([
-            'cita_id' => 2,
-            'paciente_id' => 2,
-            'medico_id' => 2,
+            'cita_id' => $cita->id,
+            'paciente_id' => $cita->paciente_id,
+            'medico_id' => $cita->medico_id,
             'tipo_orden' => 'Laboratorio',
             'descripcion_detallada' => 'Hemograma completo, perfil lipídico, glicemia',
             'indicaciones' => 'Ayuno de 8 horas previas',

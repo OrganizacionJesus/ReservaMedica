@@ -13,17 +13,28 @@ class MedicoConsultorioTableSeeder extends Seeder
         $faker = Faker::create('es_VE');
         $now = now();
         $horarios = [];
-        $dias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
+        $diasSemana = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
 
-        // Médicos 1-20
-        for ($medicoId = 1; $medicoId <= 20; $medicoId++) {
-            // Asignar a 1-3 consultorios
-            $numConsultorios = $faker->numberBetween(1, 3);
+        // Médicos IDs 5, 6, 7
+        $medicosIds = [5, 6, 7];
+
+        foreach ($medicosIds as $medicoId) {
+            // Un médico trabaja en 1 o 2 consultorios
+            $numConsultorios = $faker->numberBetween(1, 2);
             $consultoriosIds = $faker->randomElements(range(1, 8), $numConsultorios);
+            
+            // Días disponibles para asignar (para que no choquen entre consultorios)
+            $diasDisponibles = $diasSemana;
+            shuffle($diasDisponibles); // Mezclar para aleatoriedad
 
             foreach ($consultoriosIds as $consultorioId) {
-                // Asignar días de trabajo en este consultorio (1-3 días)
-                $diasTrabajo = $faker->randomElements($dias, $faker->numberBetween(1, 3));
+                // Si no hay días disponibles, saltar este consultorio
+                if (empty($diasDisponibles)) break;
+
+                // Asignar 1 o 2 días por consultorio, tomados de los disponibles
+                $numDias = $faker->numberBetween(1, min(2, count($diasDisponibles)));
+                // Extraer los días de la lista de disponibles
+                $diasTrabajo = array_splice($diasDisponibles, 0, $numDias);
                 
                 foreach ($diasTrabajo as $dia) {
                     $turno = $faker->randomElement(['mañana', 'tarde', 'completo']);
@@ -54,7 +65,7 @@ class MedicoConsultorioTableSeeder extends Seeder
             }
         }
         
-        // Insertar en chunks para evitar problemas de memoria
+        // Insertar en chunks
         foreach (array_chunk($horarios, 100) as $chunk) {
             DB::table('medico_consultorio')->insert($chunk);
         }
