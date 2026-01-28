@@ -4,6 +4,9 @@
     </IfModule>
 
     RewriteEngine On
+    
+    # Ajuste para subdirectorios en localhost
+    RewriteBase /reservamedica/public/
 
     # Handle Authorization Header
     RewriteCond %{HTTP:Authorization} .
