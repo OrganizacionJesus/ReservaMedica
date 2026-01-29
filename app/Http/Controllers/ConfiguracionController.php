@@ -293,7 +293,54 @@ class ConfiguracionController extends Controller
     public function metodosPago()
     {
         $metodos = MetodoPago::where('status', true)->get();
-        return view('admin.configuracion.metodos-pago', compact('metodos'));
+        
+        // Cargar configuración de datos bancarios
+        $configKeys = [
+            'banco_transferencia_banco', 'banco_transferencia_cuenta', 
+            'banco_transferencia_rif', 'banco_transferencia_titular',
+            'banco_pagomovil_banco', 'banco_pagomovil_telefono', 'banco_pagomovil_rif'
+        ];
+        
+        $configuraciones = Configuracion::whereIn('key', $configKeys)->pluck('value', 'key');
+        
+        $datosBancarios = [
+            'transferencia' => [
+                'banco' => $configuraciones['banco_transferencia_banco'] ?? '',
+                'cuenta' => $configuraciones['banco_transferencia_cuenta'] ?? '',
+                'rif' => $configuraciones['banco_transferencia_rif'] ?? '',
+                'titular' => $configuraciones['banco_transferencia_titular'] ?? ''
+            ],
+            'pagomovil' => [
+                'banco' => $configuraciones['banco_pagomovil_banco'] ?? '',
+                'telefono' => $configuraciones['banco_pagomovil_telefono'] ?? '',
+                'rif' => $configuraciones['banco_pagomovil_rif'] ?? ''
+            ]
+        ];
+
+        return view('admin.configuracion.metodos-pago', compact('metodos', 'datosBancarios'));
+    }
+
+    public function guardarDatosBancarios(Request $request)
+    {
+        // Validar inputs según el tipo de formulario enviado
+        // Se asume que vendrán prefixados o identificados
+        
+        $fields = [
+            'banco_transferencia_banco', 'banco_transferencia_cuenta', 
+            'banco_transferencia_rif', 'banco_transferencia_titular',
+            'banco_pagomovil_banco', 'banco_pagomovil_telefono', 'banco_pagomovil_rif'
+        ];
+
+        foreach ($fields as $field) {
+            if ($request->has($field)) {
+                Configuracion::updateOrCreate(
+                    ['key' => $field],
+                    ['value' => $request->input($field)]
+                );
+            }
+        }
+
+        return redirect()->back()->with('success', 'Datos bancarios actualizados exitosamente');
     }
 
     public function guardarMetodoPago(Request $request)

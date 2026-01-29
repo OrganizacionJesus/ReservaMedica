@@ -10,83 +10,84 @@ class MedicosTableSeeder extends Seeder
 {
     public function run(): void
     {
-        $faker = Faker::create('es_VE');
-
         $medicos = [];
         $now = now();
 
-        // 1. Médicos Fijos (IDs 2 y 3)
+        // 1. Médicos (IDs 5-7)
+        // Médico 1 (ID 5) - Cardiólogo
         $medicos[] = [
-            'user_id' => 2,
+            'id' => 5,
+            'user_id' => 5,
             'primer_nombre' => 'Carlos',
-            'primer_apellido' => 'Pérez',
+            'primer_apellido' => 'Vargas',
             'tipo_documento' => 'V',
-            'numero_documento' => '87654321',
-            'fecha_nac' => '1975-08-20',
+            'numero_documento' => '18000005',
+            'fecha_nac' => '1980-08-20',
             'estado_id' => 1,
             'ciudad_id' => 1,
             'municipio_id' => 1,
             'parroquia_id' => 1,
-            'direccion_detallada' => 'Urbanización Los Caobos, Calle 2',
+            'direccion_detallada' => 'Consultorio Central',
             'prefijo_tlf' => '+58',
-            'numero_tlf' => '4145558877',
+            'numero_tlf' => '4140000005',
             'genero' => 'Masculino',
             'nro_colegiatura' => 'MP-12345',
-            'formacion_academica' => 'Médico Cirujano - Universidad Central de Venezuela\nEspecialista en Cardiología',
-            'experiencia_profesional' => '15 años de experiencia en cardiología intervencionista',
+            'formacion_academica' => 'Médico Cirujano - UCV\nEspecialista en Cardiología',
+            'experiencia_profesional' => '15 años de experiencia en cardiología clínica.',
             'status' => true,
             'created_at' => $now,
             'updated_at' => $now,
         ];
 
+        // Médico 2 (ID 6) - Pediatra
         $medicos[] = [
-            'user_id' => 3,
-            'primer_nombre' => 'Ana',
-            'primer_apellido' => 'González',
+            'id' => 6,
+            'user_id' => 6,
+            'primer_nombre' => 'Elena',
+            'primer_apellido' => 'Gómez',
             'tipo_documento' => 'V',
-            'numero_documento' => '11222333',
-            'fecha_nac' => '1982-03-10',
-            'estado_id' => 2,
-            'ciudad_id' => 2,
-            'municipio_id' => 2,
-            'parroquia_id' => 3,
-            'direccion_detallada' => 'Residencias El Paraíso, Torre B',
+            'numero_documento' => '19000006',
+            'fecha_nac' => '1985-04-12',
+            'estado_id' => 1,
+            'ciudad_id' => 1,
+            'municipio_id' => 1,
+            'parroquia_id' => 1,
+            'direccion_detallada' => 'Urb. El Parque',
             'prefijo_tlf' => '+58',
-            'numero_tlf' => '4165559988',
+            'numero_tlf' => '4240000006',
             'genero' => 'Femenino',
             'nro_colegiatura' => 'MP-67890',
-            'formacion_academica' => 'Médico Pediatra - Universidad de Carabobo',
-            'experiencia_profesional' => '10 años en atención pediátrica',
+            'formacion_academica' => 'Médico Cirujano - UCLA\nPediatría y Puericultura',
+            'experiencia_profesional' => '10 años cuidando la salud de los niños.',
             'status' => true,
             'created_at' => $now,
             'updated_at' => $now,
         ];
 
-        // 2. Médicos Generados (IDs 10-27) - 18 médicos
-        for ($i = 0; $i < 18; $i++) {
-            $medicos[] = [
-                'user_id' => 10 + $i,
-                'primer_nombre' => $faker->firstName,
-                'primer_apellido' => $faker->lastName,
-                'tipo_documento' => $faker->randomElement(['V', 'E']),
-                'numero_documento' => $faker->unique()->numberBetween(10000000, 30000000),
-                'fecha_nac' => $faker->dateTimeBetween('-60 years', '-28 years')->format('Y-m-d'),
-                'estado_id' => 1, // Simplificamos usando IDs existentes o aleatorios si hay más
-                'ciudad_id' => 1,
-                'municipio_id' => 1,
-                'parroquia_id' => 1,
-                'direccion_detallada' => $faker->address,
-                'prefijo_tlf' => '+58',
-                'numero_tlf' => '4' . $faker->randomElement(['12', '14', '16', '24', '26']) . $faker->numberBetween(1000000, 9999999),
-                'genero' => $faker->randomElement(['Masculino', 'Femenino']),
-                'nro_colegiatura' => 'MP-' . $faker->unique()->numberBetween(10000, 99999),
-                'formacion_academica' => 'Médico Cirujano - ' . $faker->randomElement(['UCV', 'ULA', 'LUZ', 'UC']) . '\nEspecialidad en ' . $faker->word,
-                'experiencia_profesional' => $faker->numberBetween(3, 30) . ' años de experiencia.',
-                'status' => true,
-                'created_at' => $now,
-                'updated_at' => $now,
-            ];
-        }
+        // Médico 3 (ID 7) - Traumatólogo
+        $medicos[] = [
+            'id' => 7,
+            'user_id' => 7,
+            'primer_nombre' => 'Roberto',
+            'primer_apellido' => 'Díaz',
+            'tipo_documento' => 'V',
+            'numero_documento' => '20000007',
+            'fecha_nac' => '1978-11-05',
+            'estado_id' => 1,
+            'ciudad_id' => 1,
+            'municipio_id' => 1,
+            'parroquia_id' => 1,
+            'direccion_detallada' => 'Av. Los Próceres',
+            'prefijo_tlf' => '+58',
+            'numero_tlf' => '4120000007',
+            'genero' => 'Masculino',
+            'nro_colegiatura' => 'MP-55555',
+            'formacion_academica' => 'Médico Cirujano - ULA\nTraumatología y Ortopedia',
+            'experiencia_profesional' => 'Especialista en lesiones deportivas.',
+            'status' => true,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ];
 
         DB::table('medicos')->insert($medicos);
     }

@@ -12,122 +12,142 @@ class UsuariosTableSeeder extends Seeder
     {
         $faker = Faker::create('es_VE');
 
-        // Función para aplicar MD5 dos veces
+        // Función para aplicar MD5 dos veces (según lógica del sistema actual)
         $doubleMd5 = function($password) {
             return md5(md5($password));
         };
 
-        $passwordComun = $doubleMd5('123456');
+        $passwordComun = $doubleMd5('12345678'); // Contraseña genérica para pruebas
         $now = now();
 
         $usuarios = [];
 
-        // 1. Usuarios Fijos (5 usuarios)
-        // ID 1: Admin Principal
+        // =========================================================================
+        // 1. ROOT ADMINISTRATOR (ID 1)
+        // =========================================================================
         $usuarios[] = [
             'id' => 1,
             'rol_id' => 1, // Administrador
             'correo' => 'admin@clinica.com',
-            'password' => $doubleMd5('admin123'),
+            'password' => $passwordComun,
             'status' => true,
             'email_verified_at' => $now,
             'created_at' => $now,
             'updated_at' => $now,
         ];
 
-        // ID 2: Médico 1
+        // =========================================================================
+        // 2. ADDITIONAL ADMINISTRATORS (IDs 2-4)
+        // =========================================================================
+        // Admin 1
         $usuarios[] = [
             'id' => 2,
-            'rol_id' => 2, // Médico
-            'correo' => 'dr.perez@clinica.com',
-            'password' => $doubleMd5('medico123'),
+            'rol_id' => 1,
+            'correo' => 'admin1@clinica.com',
+            'password' => $passwordComun,
             'status' => true,
             'email_verified_at' => $now,
             'created_at' => $now,
             'updated_at' => $now,
         ];
-
-        // ID 3: Médico 2
+        // Admin 2
         $usuarios[] = [
             'id' => 3,
-            'rol_id' => 2, // Médico
-            'correo' => 'dra.gonzalez@clinica.com',
-            'password' => $doubleMd5('medico123'),
+            'rol_id' => 1,
+            'correo' => 'admin2@clinica.com',
+            'password' => $passwordComun,
             'status' => true,
             'email_verified_at' => $now,
             'created_at' => $now,
             'updated_at' => $now,
         ];
-
-        // ID 4: Paciente 1
+        // Admin 3
         $usuarios[] = [
             'id' => 4,
-            'rol_id' => 3, // Paciente
-            'correo' => 'paciente1@email.com',
-            'password' => $doubleMd5('paciente123'),
+            'rol_id' => 1,
+            'correo' => 'admin3@clinica.com',
+            'password' => $passwordComun,
             'status' => true,
             'email_verified_at' => $now,
             'created_at' => $now,
             'updated_at' => $now,
         ];
 
-        // ID 5: Paciente 2
+        // =========================================================================
+        // 3. DOCTORS (IDs 5-7)
+        // =========================================================================
+        // Doctor 1
         $usuarios[] = [
             'id' => 5,
-            'rol_id' => 3, // Paciente
-            'correo' => 'paciente2@email.com',
-            'password' => $doubleMd5('paciente123'),
+            'rol_id' => 2, // Médico
+            'correo' => 'medico1@clinica.com',
+            'password' => $passwordComun,
+            'status' => true,
+            'email_verified_at' => $now,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ];
+        // Doctor 2
+        $usuarios[] = [
+            'id' => 6,
+            'rol_id' => 2, // Médico
+            'correo' => 'medico2@clinica.com',
+            'password' => $passwordComun,
+            'status' => true,
+            'email_verified_at' => $now,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ];
+        // Doctor 3
+        $usuarios[] = [
+            'id' => 7,
+            'rol_id' => 2, // Médico
+            'correo' => 'medico3@clinica.com',
+            'password' => $passwordComun,
             'status' => true,
             'email_verified_at' => $now,
             'created_at' => $now,
             'updated_at' => $now,
         ];
 
-        // 2. Administradores Adicionales (4 usuarios) -> IDs 6-9
-        for ($i = 0; $i < 4; $i++) {
-            $usuarios[] = [
-                'id' => 6 + $i,
-                'rol_id' => 1,
-                'correo' => $faker->unique()->userName . '@admin.com',
-                'password' => $passwordComun,
-                'status' => true,
-                'email_verified_at' => $now,
-                'created_at' => $now,
-                'updated_at' => $now,
-            ];
-        }
+        // =========================================================================
+        // 4. PATIENTS (IDs 8-10)
+        // =========================================================================
+        // Paciente 1
+        $usuarios[] = [
+            'id' => 8,
+            'rol_id' => 3, // Paciente
+            'correo' => 'paciente1@clinica.com',
+            'password' => $passwordComun,
+            'status' => true,
+            'email_verified_at' => $now,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ];
+        // Paciente 2
+        $usuarios[] = [
+            'id' => 9,
+            'rol_id' => 3, // Paciente
+            'correo' => 'paciente2@clinica.com',
+            'password' => $passwordComun,
+            'status' => true,
+            'email_verified_at' => $now,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ];
+        // Paciente 3
+        $usuarios[] = [
+            'id' => 10,
+            'rol_id' => 3, // Paciente
+            'correo' => 'paciente3@clinica.com',
+            'password' => $passwordComun,
+            'status' => true,
+            'email_verified_at' => $now,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ];
 
-        // 3. Médicos Adicionales (18 médicos) -> IDs 10-27
-        for ($i = 0; $i < 18; $i++) {
-            $usuarios[] = [
-                'id' => 10 + $i,
-                'rol_id' => 2,
-                'correo' => $faker->unique()->userName . '@medico.com',
-                'password' => $passwordComun,
-                'status' => true,
-                'email_verified_at' => $now,
-                'created_at' => $now,
-                'updated_at' => $now,
-            ];
-        }
-
-        // 4. Pacientes Adicionales (28 pacientes) -> IDs 28-55
-        for ($i = 0; $i < 28; $i++) {
-            $usuarios[] = [
-                'id' => 28 + $i,
-                'rol_id' => 3,
-                'correo' => $faker->unique()->email,
-                'password' => $passwordComun,
-                'status' => true,
-                'email_verified_at' => $now,
-                'created_at' => $now,
-                'updated_at' => $now,
-            ];
-        }
-
-        // Insertar en lotes
-        foreach (array_chunk($usuarios, 50) as $chunk) {
-            DB::table('usuarios')->insert($chunk);
-        }
+        // Insertar usuarios
+        DB::table('usuarios')->insert($usuarios);
     }
 }

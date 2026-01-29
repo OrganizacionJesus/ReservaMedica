@@ -10,82 +10,79 @@ class PacientesTableSeeder extends Seeder
 {
     public function run(): void
     {
-        $faker = Faker::create('es_VE');
         $now = now();
         $pacientes = [];
 
-        // 1. Pacientes Fijos (IDs 4 y 5)
+        // 1. Pacientes (IDs 8-10)
+        // Paciente 1 (ID 8)
         $pacientes[] = [
-            'user_id' => 4,
-            'primer_nombre' => 'Juan',
-            'primer_apellido' => 'Martínez',
+            'user_id' => 8,
+            'primer_nombre' => 'José',
+            'primer_apellido' => 'Méndez',
             'tipo_documento' => 'V',
-            'numero_documento' => '22333444',
-            'fecha_nac' => '1990-12-05',
+            'numero_documento' => '21000008',
+            'fecha_nac' => '1995-02-14',
             'estado_id' => 1,
             'ciudad_id' => 1,
             'municipio_id' => 1,
             'parroquia_id' => 1,
-            'direccion_detallada' => 'Sector La Trinidad, Calle Principal',
+            'direccion_detallada' => 'Barrio 5 de Julio',
             'prefijo_tlf' => '+58',
-            'numero_tlf' => '4245557766',
+            'numero_tlf' => '4240000008',
             'genero' => 'Masculino',
-            'ocupacion' => 'Ingeniero',
+            'ocupacion' => 'Estudiante',
             'estado_civil' => 'Soltero',
             'status' => true,
             'created_at' => $now,
             'updated_at' => $now,
         ];
 
+        // Paciente 2 (ID 9)
         $pacientes[] = [
-            'user_id' => 5,
-            'primer_nombre' => 'Laura',
-            'primer_apellido' => 'Hernández',
+            'user_id' => 9,
+            'primer_nombre' => 'Carmen',
+            'primer_apellido' => 'Ortiz',
             'tipo_documento' => 'V',
-            'numero_documento' => '33444555',
-            'fecha_nac' => '1985-07-22',
-            'estado_id' => 2,
-            'ciudad_id' => 3,
-            'municipio_id' => 3,
-            'parroquia_id' => 4,
-            'direccion_detallada' => 'Urbanización Mirador, Casa 25',
+            'numero_documento' => '22000009',
+            'fecha_nac' => '1960-09-30',
+            'estado_id' => 1,
+            'ciudad_id' => 1,
+            'municipio_id' => 1,
+            'parroquia_id' => 1,
+            'direccion_detallada' => 'Residencias Los Andes',
             'prefijo_tlf' => '+58',
-            'numero_tlf' => '4265554433',
+            'numero_tlf' => '4160000009',
             'genero' => 'Femenino',
-            'ocupacion' => 'Docente',
-            'estado_civil' => 'Casada',
+            'ocupacion' => 'Jubilada',
+            'estado_civil' => 'Viuda',
             'status' => true,
             'created_at' => $now,
             'updated_at' => $now,
         ];
 
-        // 2. Pacientes Generados (IDs 28-55) - 28 pacientes
-        for ($i = 0; $i < 28; $i++) {
-            $pacientes[] = [
-                'user_id' => 28 + $i,
-                'primer_nombre' => $faker->firstName,
-                'primer_apellido' => $faker->lastName,
-                'tipo_documento' => $faker->randomElement(['V', 'E']),
-                'numero_documento' => $faker->unique()->numberBetween(10000000, 30000000),
-                'fecha_nac' => $faker->dateTimeBetween('-80 years', '-1 year')->format('Y-m-d'),
-                'estado_id' => 1, // Usar 1 por simplicidad
-                'ciudad_id' => 1,
-                'municipio_id' => 1,
-                'parroquia_id' => 1,
-                'direccion_detallada' => $faker->address,
-                'prefijo_tlf' => '+58',
-                'numero_tlf' => '4' . $faker->randomElement(['12', '14', '16', '24', '26']) . $faker->numberBetween(1000000, 9999999),
-                'genero' => $faker->randomElement(['Masculino', 'Femenino']),
-                'ocupacion' => $faker->jobTitle,
-                'estado_civil' => $faker->randomElement(['Soltero', 'Casado', 'Divorciado', 'Viudo']),
-                'status' => true,
-                'created_at' => $now,
-                'updated_at' => $now,
-            ];
-        }
+        // Paciente 3 (ID 10)
+        $pacientes[] = [
+            'user_id' => 10,
+            'primer_nombre' => 'Luis',
+            'primer_apellido' => 'Silva',
+            'tipo_documento' => 'V',
+            'numero_documento' => '23000010',
+            'fecha_nac' => '2010-06-01',
+            'estado_id' => 1,
+            'ciudad_id' => 1,
+            'municipio_id' => 1,
+            'parroquia_id' => 1,
+            'direccion_detallada' => 'Urbanización del Este',
+            'prefijo_tlf' => '+58',
+            'numero_tlf' => '4120000010',
+            'genero' => 'Masculino',
+            'ocupacion' => 'Estudiante',
+            'estado_civil' => 'Soltero',
+            'status' => true,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ];
 
-        foreach (array_chunk($pacientes, 50) as $chunk) {
-            DB::table('pacientes')->insert($chunk);
-        }
+        DB::table('pacientes')->insert($pacientes);
     }
 }

@@ -14,6 +14,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
+use App\Models\Usuario;
+use App\Notifications\Admin\NuevoPagoRegistrado;
 
 class PagoController extends Controller
 {
@@ -153,6 +155,15 @@ class PagoController extends Controller
         // Enviar notificación si el pago fue confirmado automáticamente
         if ($pago->estado == 'Confirmado') {
             $this->enviarNotificacionPago($pago);
+        } else {
+            // Notificar a los administradores sobre el nuevo pago pendiente
+            $admins = Usuario::whereHas('administrador', function($q) {
+                $q->where('status', true);
+            })->get();
+            
+            foreach ($admins as $admin) {
+                $admin->notify(new NuevoPagoRegistrado($pago));
+            }
         }
 
         return redirect()->route('pagos.index')->with('success', 'Pago registrado exitosamente');
@@ -513,6 +524,15 @@ class PagoController extends Controller
 
     private function getEstadoInicial($metodoPagoId)
     {
+        $user = Auth::user();
+        
+        // Si es el paciente quien registra, SIEMPRE es pendiente, 
+        // independientemente del método (incluso efectivo)
+        if ($user->paciente) {
+            return 'Pendiente';
+        }
+
+        // Lógica para administradores
         $metodo = MetodoPago::find($metodoPagoId);
         
         if ($metodo && $metodo->requiere_confirmacion) {
@@ -684,7 +704,30 @@ class PagoController extends Controller
                            ->with('error', 'No se encuentra una tasa de cambio configurada. Contacte al administrador.');
         }
 
-        return view('paciente.pagos.registrar', compact('cita', 'metodosPago', 'tasaActual'));
+        // Obtener datos bancarios de la configuración
+        $configKeys = [
+            'banco_transferencia_banco', 'banco_transferencia_cuenta', 
+            'banco_transferencia_rif', 'banco_transferencia_titular',
+            'banco_pagomovil_banco', 'banco_pagomovil_telefono', 'banco_pagomovil_rif'
+        ];
+        
+        $configuraciones = \App\Models\Configuracion::whereIn('key', $configKeys)->pluck('value', 'key');
+        
+        $datosBancarios = [
+            'transferencia' => [
+                'banco' => $configuraciones['banco_transferencia_banco'] ?? 'No configurado',
+                'cuenta' => $configuraciones['banco_transferencia_cuenta'] ?? '',
+                'rif' => $configuraciones['banco_transferencia_rif'] ?? '',
+                'titular' => $configuraciones['banco_transferencia_titular'] ?? ''
+            ],
+            'pagomovil' => [
+                'banco' => $configuraciones['banco_pagomovil_banco'] ?? 'No configurado',
+                'telefono' => $configuraciones['banco_pagomovil_telefono'] ?? '',
+                'rif' => $configuraciones['banco_pagomovil_rif'] ?? ''
+            ]
+        ];
+
+        return view('paciente.pagos.registrar', compact('cita', 'metodosPago', 'tasaActual', 'datosBancarios'));
     }
 
     // Para pacientes - Registrar nuevo pago
