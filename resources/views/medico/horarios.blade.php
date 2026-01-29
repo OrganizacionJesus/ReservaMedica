@@ -12,9 +12,14 @@
         ]];
     }));
 
-    // Data de Reglas (Especialidades)
-    window.globalConsultorioRules = @json($consultorios->mapWithKeys(function($c) { 
-        return [$c->id => $c->especialidades->pluck('id')]; 
+    // Data de Reglas (Especialidades -> Consultorios)
+    // Mapea ID Especialidad => [ID Consultorio, ID Consultorio, ...]
+    window.especialidadRules = @json($consultorios->flatMap(function($c) {
+        return $c->especialidades->map(function($e) use ($c) {
+            return ['e_id' => $e->id, 'c_id' => $c->id];
+        });
+    })->groupBy('e_id')->map(function($items) {
+        return $items->pluck('c_id')->unique()->values();
     }));
 
     // Helper seguro para obtener horarios
@@ -57,9 +62,21 @@
                 if(this.manana.active) this.validateBounds('manana');
                 if(this.tarde.active) this.validateBounds('tarde');
                 
-                // Observadores para corrección automática y actualización dinámica
+                // Observadores para corrección automática de horas
                 this.$watch('manana.consultorio_id', () => this.validateBounds('manana'));
                 this.$watch('tarde.consultorio_id', () => this.validateBounds('tarde'));
+
+                // Observadores para reset de consultorio al cambiar especialidad
+                this.$watch('manana.especialidad_id', (val) => {
+                    if (this.manana.consultorio_id && !this.isConsultorioAllowed(val, this.manana.consultorio_id)) {
+                        this.manana.consultorio_id = '';
+                    }
+                });
+                this.$watch('tarde.especialidad_id', (val) => {
+                    if (this.tarde.consultorio_id && !this.isConsultorioAllowed(val, this.tarde.consultorio_id)) {
+                        this.tarde.consultorio_id = '';
+                    }
+                });
             },
 
             // Lógica de validación visual (Retorna clases CSS)
@@ -115,23 +132,54 @@
                 this.$nextTick(() => {
                     const cId = this[shift].consultorio_id;
                     const cData = window.getConsultorioData(cId);
-                    if (!cData) return;
+                    
+                    // 1. Determinar límites teóricos del turno
+                    let minLimit = (shift === 'manana') ? '00:00' : '12:00';
+                    let maxLimit = (shift === 'manana') ? '12:00' : '23:59';
 
-                    if (this[shift].inicio < cData.inicio) {
-                         this[shift].inicio = cData.inicio;
+                    // 2. Intersectar con límites del consultorio (si existe)
+                    if (cData) {
+                        if (cData.inicio > minLimit) minLimit = cData.inicio;
+                        if (cData.fin < maxLimit) maxLimit = cData.fin;
                     }
-                    if (this[shift].fin > cData.fin) {
-                        this[shift].fin = cData.fin;
+
+                    // Caso Borde: Consultorio incompatible con turno (ej. abre tarde para turno mañana)
+                    if (minLimit > maxLimit) {
+                        // Ajustar ambos al límite lógico más cercano para evitar inconsistencias
+                        // El usuario verá que no puede expandir el rango
+                        this[shift].inicio = maxLimit;
+                        this[shift].fin = maxLimit;
+                        return;
+                    }
+
+                    // 3. Aplicar correcciones estricas
+                    
+                    // Inicio no puede ser menor al mínimo permitido
+                    if (this[shift].inicio < minLimit) this[shift].inicio = minLimit;
+                    // Inicio no puede ser mayor al máximo permitido
+                    if (this[shift].inicio > maxLimit) this[shift].inicio = maxLimit;
+
+                    // Fin no puede ser mayor al máximo permitido
+                    if (this[shift].fin > maxLimit) this[shift].fin = maxLimit;
+                    // Fin no puede ser menor al mínimo permitido
+                    if (this[shift].fin < minLimit) this[shift].fin = minLimit;
+
+                    // 4. Coherencia Temporal: Inicio <= Fin
+                    if (this[shift].inicio > this[shift].fin) {
+                        this[shift].fin = this[shift].inicio;
                     }
                 });
             },
             
-            // Filtro de especialidades
-            isAllowed(consultorioId, especialidadId) {
-                if (!consultorioId) return true; 
-                const rules = window.globalConsultorioRules[consultorioId] || window.globalConsultorioRules[String(consultorioId)];
-                if (!rules) return true;
-                return rules.includes(parseInt(especialidadId));
+            // Filtro de consultorios por especialidad
+            isConsultorioAllowed(especialidadId, consultorioId) {
+                if (!especialidadId) return true; // Si no hay especialidad, mostrar todos
+                if (!consultorioId) return true;
+                
+                const allowed = window.especialidadRules[especialidadId] || window.especialidadRules[String(especialidadId)];
+                if (!allowed) return false;
+                
+                return allowed.includes(parseInt(consultorioId));
             }
         };
     };
@@ -208,7 +256,7 @@
                 @endphp
                 
                 <div class="card p-0 overflow-hidden hover:shadow-lg transition-shadow border border-gray-100 mb-4" 
-                     x-data="makeScheduleCard(@json($initData))">
+                     x-data='makeScheduleCard(@json($initData))'>
                      
                     <!-- Hidden Input for Active State (Calculated) -->
                     <input type="hidden" name="horarios[{{ $key }}][activo]" 
@@ -270,7 +318,7 @@
                     <div class="p-6">
                         
                         <!-- STATE 1: SUMMARY (Saved & Not Editing) -->
-                        <div x-show="!editing && active" class="space-y-4">
+                        <div x-show="!editing && active" x-cloak class="space-y-4">
                             @if($hManana)
                                 <div class="flex items-start gap-3 p-3 rounded-lg bg-blue-50/50 border border-blue-100">
                                     <div class="bg-blue-100 text-blue-600 p-2 rounded-md">
@@ -303,7 +351,7 @@
                         
 
                         <!-- STATE 3: EDITING FORM -->
-                        <div x-show="editing" x-transition class="space-y-6">
+                        <div x-show="editing" x-cloak x-transition class="space-y-6">
                             
                             <!-- Turno Mañana Toggle -->
                             <div class="border-l-4 border-blue-500 pl-4">
@@ -318,20 +366,7 @@
                                     <span class="font-bold text-gray-700">Turno Mañana</span>
                                 </label>
 
-                                <div x-show="manana_active" class="grid grid-cols-1 md:grid-cols-2 gap-3 animate-fade-in-down">
-                                    <div>
-                                        <label class="form-label text-xs">Consultorio</label>
-                                        <select name="horarios[{{ $key }}][manana_consultorio_id]" class="form-select text-sm"
-                                                x-model="manana.consultorio_id">
-                                            <option value="">Seleccione...</option>
-                                            @foreach($consultorios as $consultorio)
-                                                <option value="{{ $consultorio->id }}"
-                                                    {{ ($hManana && $hManana->consultorio_id == $consultorio->id) ? 'selected' : '' }}>
-                                                    {{ $consultorio->nombre }} ({{ \Carbon\Carbon::parse($consultorio->horario_inicio)->format('H:i') }} - {{ \Carbon\Carbon::parse($consultorio->horario_fin)->format('H:i') }})
-                                                </option>
-                                            @endforeach
-                                        </select>
-                                    </div>
+                                <div x-show="manana_active" x-cloak class="grid grid-cols-1 md:grid-cols-2 gap-3 animate-fade-in-down">
                                     <div>
                                         <label class="form-label text-xs">Especialidad</label>
                                         <select name="horarios[{{ $key }}][manana_especialidad_id]" class="form-select text-sm"
@@ -339,15 +374,28 @@
                                             <option value="">Seleccione...</option>
                                             @foreach($medico->especialidades as $especialidad)
                                                 <option value="{{ $especialidad->id }}" 
-                                                    x-show="isAllowed(manana.consultorio_id, '{{ $especialidad->id }}')"
                                                     {{ ($hManana && $hManana->especialidad_id == $especialidad->id) ? 'selected' : '' }}>
                                                     {{ $especialidad->nombre }}
                                                 </option>
                                             @endforeach
                                         </select>
+                                    </div>
+                                    <div>
+                                        <label class="form-label text-xs">Consultorio</label>
+                                        <select name="horarios[{{ $key }}][manana_consultorio_id]" class="form-select text-sm"
+                                                x-model="manana.consultorio_id">
+                                            <option value="">Seleccione...</option>
+                                            @foreach($consultorios as $consultorio)
+                                                <option value="{{ $consultorio->id }}"
+                                                    x-show="isConsultorioAllowed(manana.especialidad_id, '{{ $consultorio->id }}')"
+                                                    {{ ($hManana && $hManana->consultorio_id == $consultorio->id) ? 'selected' : '' }}>
+                                                    {{ $consultorio->nombre }} ({{ \Carbon\Carbon::parse($consultorio->horario_inicio)->format('H:i') }} - {{ \Carbon\Carbon::parse($consultorio->horario_fin)->format('H:i') }})
+                                                </option>
+                                            @endforeach
+                                        </select>
                                         <p class="text-xs text-info-600 mt-1" 
-                                           x-show="manana.consultorio_id && !isAllowed(manana.consultorio_id, $el.previousElementSibling.value)">
-                                            <!-- Simple feedback if selected option becomes invalid -->
+                                           x-show="manana.especialidad_id && manana.consultorio_id && !isConsultorioAllowed(manana.especialidad_id, manana.consultorio_id)">
+                                            Consultorio no disponible para la especialidad seleccionada
                                         </p>
                                     </div>
                                     <div>
@@ -389,20 +437,7 @@
                                     <span class="font-bold text-gray-700">Turno Tarde</span>
                                 </label>
                                 
-                                <div x-show="tarde_active" class="grid grid-cols-1 md:grid-cols-2 gap-3 animate-fade-in-down">
-                                    <div>
-                                        <label class="form-label text-xs">Consultorio</label>
-                                        <select name="horarios[{{ $key }}][tarde_consultorio_id]" class="form-select text-sm"
-                                                x-model="tarde.consultorio_id">
-                                            <option value="">Seleccione...</option>
-                                            @foreach($consultorios as $consultorio)
-                                                <option value="{{ $consultorio->id }}"
-                                                    {{ ($hTarde && $hTarde->consultorio_id == $consultorio->id) ? 'selected' : '' }}>
-                                                    {{ $consultorio->nombre }} ({{ \Carbon\Carbon::parse($consultorio->horario_inicio)->format('H:i') }} - {{ \Carbon\Carbon::parse($consultorio->horario_fin)->format('H:i') }})
-                                                </option>
-                                            @endforeach
-                                        </select>
-                                    </div>
+                                <div x-show="tarde_active" x-cloak class="grid grid-cols-1 md:grid-cols-2 gap-3 animate-fade-in-down">
                                     <div>
                                         <label class="form-label text-xs">Especialidad</label>
                                         <select name="horarios[{{ $key }}][tarde_especialidad_id]" class="form-select text-sm"
@@ -410,12 +445,29 @@
                                             <option value="">Seleccione...</option>
                                             @foreach($medico->especialidades as $especialidad)
                                                 <option value="{{ $especialidad->id }}" 
-                                                    x-show="isAllowed(tarde.consultorio_id, '{{ $especialidad->id }}')"
                                                     {{ ($hTarde && $hTarde->especialidad_id == $especialidad->id) ? 'selected' : '' }}>
                                                     {{ $especialidad->nombre }}
                                                 </option>
                                             @endforeach
                                         </select>
+                                    </div>
+                                    <div>
+                                        <label class="form-label text-xs">Consultorio</label>
+                                        <select name="horarios[{{ $key }}][tarde_consultorio_id]" class="form-select text-sm"
+                                                x-model="tarde.consultorio_id">
+                                            <option value="">Seleccione...</option>
+                                            @foreach($consultorios as $consultorio)
+                                                <option value="{{ $consultorio->id }}"
+                                                    x-show="isConsultorioAllowed(tarde.especialidad_id, '{{ $consultorio->id }}')"
+                                                    {{ ($hTarde && $hTarde->consultorio_id == $consultorio->id) ? 'selected' : '' }}>
+                                                    {{ $consultorio->nombre }} ({{ \Carbon\Carbon::parse($consultorio->horario_inicio)->format('H:i') }} - {{ \Carbon\Carbon::parse($consultorio->horario_fin)->format('H:i') }})
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                        <p class="text-xs text-info-600 mt-1" 
+                                           x-show="tarde.especialidad_id && tarde.consultorio_id && !isConsultorioAllowed(tarde.especialidad_id, tarde.consultorio_id)">
+                                            Consultorio no disponible para la especialidad seleccionada
+                                        </p>
                                     </div>
                                     <div>
                                         <label class="form-label text-xs">Inicio</label>
