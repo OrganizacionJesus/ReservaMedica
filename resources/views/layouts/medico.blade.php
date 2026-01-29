@@ -170,9 +170,9 @@
                 <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Gestión</p>
             </div>
             
-            <a href="{{ route('medicos.horarios', $medico->id ?? 0) }}" 
-               class="flex items-center px-3 py-2.5 rounded-lg transition-all duration-200 group {{ request()->routeIs('medicos.horarios') ? 'bg-emerald-600/20 text-emerald-400 ring-1 ring-emerald-500/30' : 'text-slate-400 hover:bg-white/5 hover:text-slate-200' }}">
-                <i class="bi bi-calendar-week-fill text-lg mr-3 {{ request()->routeIs('medicos.horarios') ? 'text-emerald-400' : 'text-slate-500 group-hover:text-slate-200 transition-colors' }}"></i>
+            <a href="{{ route('medico.agenda') }}" 
+               class="flex items-center px-3 py-2.5 rounded-lg transition-all duration-200 group {{ request()->routeIs('medico.agenda') ? 'bg-emerald-600/20 text-emerald-400 ring-1 ring-emerald-500/30' : 'text-slate-400 hover:bg-white/5 hover:text-slate-200' }}">
+                <i class="bi bi-calendar-week-fill text-lg mr-3 {{ request()->routeIs('medico.agenda') ? 'text-emerald-400' : 'text-slate-500 group-hover:text-slate-200 transition-colors' }}"></i>
                 <span class="font-medium text-sm">Mi Agenda</span>
             </a>
             

@@ -48,8 +48,13 @@ Route::get('/reset-password/{token}', [AuthController::class, 'showResetPassword
 Route::post('/reset-password', [AuthController::class, 'resetPassword'])->name('password.update');
 
 // AJAX Validation Routes for Register
-Route::post('/verificar-correo', [AuthController::class, 'verificarCorreo'])->name('validate.email');
-Route::post('/verificar-documento', [AuthController::class, 'getSecurityQuestions'])->name('validate.document'); // Reuse getSecurityQuestions as it checks existence
+// AJAX Validation Routes for Register (Legacy/Auth)
+Route::post('/verificar-correo', [AuthController::class, 'verificarCorreo'])->name('auth.verificar-correo');
+Route::post('/verificar-documento', [AuthController::class, 'getSecurityQuestions'])->name('auth.verificar-documento'); // Reuse getSecurityQuestions as it checks existence
+
+// Rutas de validación AJAX para Registro (usadas por register.blade.php)
+Route::post('/validate/email', [App\Http\Controllers\ValidationController::class, 'checkEmail'])->name('validate.email');
+Route::post('/validate/document', [App\Http\Controllers\ValidationController::class, 'checkDocument'])->name('validate.document');
 
 // Public Location Routes for Register (using closures to avoid middleware)
 Route::get('ubicacion/get-ciudades/{estadoId}', function($estadoId) {
@@ -276,6 +281,11 @@ Route::middleware(['auth'])->group(function () {
         // Preguntas de Seguridad Medico
         Route::get('/perfil/preguntas-seguridad', [MedicoController::class, 'showSecurityQuestions'])->name('medico.security-questions');
         Route::post('/perfil/preguntas-seguridad', [MedicoController::class, 'updateSecurityQuestions'])->name('medico.security-questions.update');
+
+        // Rutas de Agenda y Fechas Indisponibles
+        Route::get('/agenda', [MedicoController::class, 'agenda'])->name('medico.agenda');
+        Route::post('/fecha-indisponible', [MedicoController::class, 'storeFechaIndisponible'])->name('medico.fecha-indisponible.store');
+        Route::delete('/fecha-indisponible/{id}', [MedicoController::class, 'deleteFechaIndisponible'])->name('medico.fecha-indisponible.destroy');
 
         // Rutas de notificaciones del médico
         Route::prefix('notificaciones')->group(function () {

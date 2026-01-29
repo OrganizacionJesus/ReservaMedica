@@ -804,7 +804,7 @@ class MedicoController extends Controller
         $citasQuery = \App\Models\Cita::with(['paciente', 'pacienteEspecial', 'especialidad', 'consultorio'])
                       ->where('medico_id', $medico->id)
                       ->where('status', true)
-                      ->whereIn('estado_cita', ['Programada', 'Confirmada', 'En Progreso'])
+                      ->whereIn('estado_cita', ['Programada', 'Confirmada', 'En Progreso', 'Completada'])
                       ->whereBetween('fecha_cita', [$inicioSemana->toDateString(), $finSemana->toDateString()]);
         
         if ($filtroConsultorioId) {
