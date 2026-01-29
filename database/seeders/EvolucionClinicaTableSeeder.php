@@ -9,10 +9,14 @@ class EvolucionClinicaTableSeeder extends Seeder
 {
     public function run(): void
     {
+        $cita = DB::table('citas')->first();
+        
+        if (!$cita) return;
+
         DB::table('evolucion_clinica')->insert([
-            'cita_id' => 2,
-            'paciente_id' => 2,
-            'medico_id' => 2,
+            'cita_id' => $cita->id,
+            'paciente_id' => $cita->paciente_id,
+            'medico_id' => $cita->medico_id,
             'peso_kg' => 65.5,
             'talla_cm' => 165.0,
             'imc' => 24.1,

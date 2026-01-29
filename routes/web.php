@@ -488,6 +488,7 @@ Route::middleware(['auth'])->group(function () {
         
         // Métodos de Pago
         Route::get('metodos-pago', [ConfiguracionController::class, 'metodosPago'])->name('configuracion.metodos-pago');
+        Route::post('metodos-pago/bancarios', [ConfiguracionController::class, 'guardarDatosBancarios'])->name('configuracion.metodos-pago.bancarios');
         Route::post('metodos-pago', [ConfiguracionController::class, 'guardarMetodoPago'])->name('configuracion.metodos-pago.guardar');
         Route::put('metodos-pago/{id}', [ConfiguracionController::class, 'actualizarMetodoPago'])->name('configuracion.metodos-pago.actualizar');
         Route::delete('metodos-pago/{id}', [ConfiguracionController::class, 'eliminarMetodoPago'])->name('configuracion.metodos-pago.eliminar');

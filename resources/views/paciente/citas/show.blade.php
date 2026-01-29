@@ -230,11 +230,21 @@
                     Registre su pago para confirmar la cita
                 </p>
             @elseif($pagoPendiente)
-                <div class="alert alert-warning">
-                    <i class="bi bi-clock-history"></i>
+                @php
+                    $ultimoPagoPendiente = $pagosActivos->where('estado', 'Pendiente')->sortByDesc('created_at')->first();
+                    $esEfectivo = $ultimoPagoPendiente && $ultimoPagoPendiente->metodoPago->codigo == 'EFECT';
+                @endphp
+                
+                <div class="alert {{ $esEfectivo ? 'alert-info bg-blue-50 border-blue-200 text-blue-800' : 'alert-warning' }}">
+                    <i class="bi {{ $esEfectivo ? 'bi-cash-coin' : 'bi-clock-history' }} text-xl"></i>
                     <div class="text-sm">
-                        <p class="font-bold">Pago en Revisión</p>
-                        <p>Su pago está siendo verificado por nuestro equipo</p>
+                        @if($esEfectivo)
+                            <p class="font-bold">Pago Pendiente en Caja</p>
+                            <p>Diríjase a la caja del consultorio para completar su pago.</p>
+                        @else
+                            <p class="font-bold">Pago en Revisión</p>
+                            <p>Su pago está siendo verificado por nuestro equipo.</p>
+                        @endif
                     </div>
                 </div>
             @elseif($pagoConfirmado || $cita->estado_cita == 'Confirmada')

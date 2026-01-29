@@ -14,8 +14,13 @@ class HistoriaClinicaBaseTableSeeder extends Seeder
         $now = now();
         $historias = [];
 
-        // Generar historia para cada paciente (1 al 30)
-        for ($pacienteId = 1; $pacienteId <= 30; $pacienteId++) {
+        // Obtener IDs de pacientes existentes
+        $pacientesIds = DB::table('pacientes')->pluck('id')->toArray();
+
+        if (empty($pacientesIds)) return;
+
+        // Generar historia para cada paciente existente
+        foreach ($pacientesIds as $pacienteId) {
             
             $tieneAlergia = $faker->boolean(30);
             $tieneEnfermedad = $faker->boolean(20);
@@ -38,7 +43,7 @@ class HistoriaClinicaBaseTableSeeder extends Seeder
         }
 
         foreach (array_chunk($historias, 50) as $chunk) {
-            DB::table('historia_clinica_base')->insert($chunk); // O updateOrInsert si fuera necesario, pero migrate:fresh limpia todo
+            DB::table('historia_clinica_base')->insert($chunk); 
         }
     }
 }

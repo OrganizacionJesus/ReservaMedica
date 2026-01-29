@@ -14,16 +14,27 @@ class CitasTableSeeder extends Seeder
         $now = now();
         $citas = [];
 
+        // Obtener IDs existentes para evitar errores de FK
+        $pacientesIds = DB::table('pacientes')->pluck('id')->toArray();
+        $medicosIds = DB::table('medicos')->pluck('id')->toArray();
+        // Intentar obtener especialidades desde la relación medico_especialidad para mayor coherencia, o genéricas
+        // Por simplicidad, usamos todas las especialidades disponibles y el medico asignado
+        // (En un sistema real, validariamos que el medico tenga esa especialidad)
+        $especialidadesIds = DB::table('especialidades')->pluck('id')->toArray();
+        $consultoriosIds = DB::table('consultorios')->pluck('id')->toArray();
+
+        // Validar que existan datos
+        if (empty($pacientesIds) || empty($medicosIds) || empty($especialidadesIds) || empty($consultoriosIds)) {
+            return;
+        }
+
         // Generar 150 citas
         for ($i = 0; $i < 150; $i++) {
-            // Fecha aleatoria: últimos 2 meses a próximos 2 meses
+            // Fecha aleatoria
             $fecha = $faker->dateTimeBetween('-2 months', '+2 months');
             $horaInicio = $faker->randomElement(['08:00:00', '09:00:00', '10:00:00', '11:00:00', '14:00:00', '15:00:00', '16:00:00']);
-            
-            // Calcular hora fin (30 min después)
             $horaFin = date('H:i:s', strtotime($horaInicio) + 1800);
             
-            // Estado basado en fecha
             if ($fecha < $now) {
                 $estado = $faker->randomElement(['Completada', 'Cancelada', 'No Asistió']);
             } else {
@@ -31,10 +42,10 @@ class CitasTableSeeder extends Seeder
             }
 
             $citas[] = [
-                'paciente_id' => $faker->numberBetween(1, 30),
-                'medico_id' => $faker->numberBetween(1, 20),
-                'especialidad_id' => $faker->numberBetween(1, 20),
-                'consultorio_id' => $faker->numberBetween(1, 8),
+                'paciente_id' => $faker->randomElement($pacientesIds),
+                'medico_id' => $faker->randomElement($medicosIds),
+                'especialidad_id' => $faker->randomElement($especialidadesIds),
+                'consultorio_id' => $faker->randomElement($consultoriosIds),
                 'fecha_cita' => $fecha->format('Y-m-d'),
                 'hora_inicio' => $horaInicio,
                 'hora_fin' => $horaFin,
