@@ -12,15 +12,18 @@
 
 @section('content')
 <!-- Welcome Banner -->
-<div class="relative overflow-hidden rounded-3xl {{ $baseColorClass }} shadow-xl mb-8" 
+<div class="relative overflow-hidden rounded-3xl {{ $baseColorClass }} shadow-xl dark:shadow-2xl mb-8" 
      style="{{ $baseColorStyle }}; border: 1px solid rgba(255,255,255,0.1);">
      
     @if(!$baseColorClass && !$baseColorStyle)
         <div class="absolute inset-0 bg-gradient-to-r from-blue-700 via-indigo-700 to-purple-700"></div>
     @endif
 
-    <div class="absolute top-0 right-0 -mt-10 -mr-10 w-64 h-64 bg-white/20 rounded-full mix-blend-overlay filter blur-3xl"></div>
-    <div class="absolute bottom-0 left-0 -mb-10 -ml-10 w-64 h-64 bg-white/10 rounded-full mix-blend-overlay filter blur-3xl"></div>
+    <!-- Animated Orbs -->
+    <div class="absolute top-0 right-0 -mt-10 -mr-10 w-64 h-64 bg-white/20 rounded-full mix-blend-overlay filter blur-3xl animate-float-orb"></div>
+    <div class="absolute bottom-0 left-0 -mb-10 -ml-10 w-64 h-64 bg-white/10 rounded-full mix-blend-overlay filter blur-3xl animate-float-orb-slow"></div>
+    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-white/5 rounded-full mix-blend-overlay filter blur-3xl animate-float-orb-delayed"></div>
+    
     <div class="relative z-10 p-8">
         <div class="flex flex-col md:flex-row items-center justify-between gap-6">
             <div class="text-white text-center md:text-left" style="color: var(--text-on-medical, #ffffff);">
@@ -33,7 +36,7 @@
                 </p>
             </div>
             <div class="flex gap-3">
-                <a href="{{ route('admin.perfil.edit') }}" class="btn bg-white text-gray-900 hover:bg-gray-50 border-none shadow-md" style="color: var(--medical-500, #1d4ed8);">
+                <a href="{{ route('admin.perfil.edit') }}" class="btn bg-white text-gray-900 hover:bg-gray-50 border-none shadow-md dark:bg-white/90 dark:hover:bg-white" style="color: var(--medical-500, #1d4ed8);">
                     <i class="bi bi-palette"></i> Personalizar Portal
                 </a>
             </div>
@@ -41,27 +44,27 @@
         
         <!-- Mini Stats -->
         <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mt-6">
-            <div class="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-white">
+            <div class="bg-white/10 dark:bg-white/5 backdrop-blur-sm rounded-xl p-4 text-white border border-white/10">
                 <i class="bi bi-person-badge text-2xl mb-2"></i>
                 <p class="text-2xl font-bold">{{ $stats['medicos'] ?? 0 }}</p>
                 <p class="text-sm text-white/80">Médicos</p>
             </div>
-            <div class="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-white">
+            <div class="bg-white/10 dark:bg-white/5 backdrop-blur-sm rounded-xl p-4 text-white border border-white/10">
                 <i class="bi bi-people text-2xl mb-2"></i>
                 <p class="text-2xl font-bold">{{ $stats['pacientes'] ?? 0 }}</p>
                 <p class="text-sm text-white/80">Pacientes</p>
             </div>
-            <div class="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-white">
+            <div class="bg-white/10 dark:bg-white/5 backdrop-blur-sm rounded-xl p-4 text-white border border-white/10">
                 <i class="bi bi-calendar-check text-2xl mb-2"></i>
                 <p class="text-2xl font-bold">{{ $stats['citas_hoy'] ?? 0 }}</p>
                 <p class="text-sm text-white/80">Citas Hoy</p>
             </div>
-            <div class="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-white">
+            <div class="bg-white/10 dark:bg-white/5 backdrop-blur-sm rounded-xl p-4 text-white border border-white/10">
                 <i class="bi bi-currency-dollar text-2xl mb-2"></i>
                 <p class="text-2xl font-bold">${{ number_format($stats['ingresos_mes'] ?? 0, 0) }}</p>
                 <p class="text-sm text-white/80">Ingresos</p>
             </div>
-            <div class="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-white">
+            <div class="bg-white/10 dark:bg-white/5 backdrop-blur-sm rounded-xl p-4 text-white border border-white/10">
                 <i class="bi bi-person-check text-2xl mb-2"></i>
                 <p class="text-2xl font-bold">{{ $stats['usuarios_activos'] ?? 0 }}</p>
                 <p class="text-sm text-white/80">Usuarios Activos</p>
@@ -73,21 +76,21 @@
 <!-- Enhanced Stats Grid -->
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
     <!-- Médicos -->
-    <div class="card p-6 bg-white border-gray-100 hover:border-medical-500 transition-all group">
+    <div class="card p-6 bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 hover:border-medical-500 dark:hover:border-medical-500 transition-all group">
         <div class="flex justify-between items-start">
             <div>
-                <p class="text-sm font-semibold text-gray-500 mb-2 group-hover:text-medical-600 transition-colors">Médicos Activos</p>
-                <h3 class="text-4xl font-display font-bold text-gray-900 decoration-medical-500 decoration-4">{{ $stats['medicos_activos'] ?? 0 }}</h3>
-                <p class="text-sm text-emerald-600 mt-2 flex items-center gap-1 font-medium">
+                <p class="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2 group-hover:text-medical-600 dark:group-hover:text-medical-400 transition-colors">Médicos Activos</p>
+                <h3 class="text-4xl font-display font-bold text-gray-900 dark:text-white decoration-medical-500 decoration-4">{{ $stats['medicos_activos'] ?? 0 }}</h3>
+                <p class="text-sm text-emerald-600 dark:text-emerald-400 mt-2 flex items-center gap-1 font-medium">
                     <i class="bi bi-graph-up"></i> +{{ $stats['medicos_nuevos_mes'] ?? 0 }} este mes
                 </p>
             </div>
-            <div class="w-14 h-14 bg-medical-50 text-medical-600 rounded-2xl flex items-center justify-center shadow-sm group-hover:bg-medical-500 group-hover:text-white transition-all">
+            <div class="w-14 h-14 bg-medical-50 dark:bg-medical-900/30 text-medical-600 dark:text-medical-400 rounded-2xl flex items-center justify-center shadow-sm group-hover:bg-medical-500 group-hover:text-white dark:group-hover:bg-medical-500 transition-all">
                 <i class="bi bi-person-badge text-2xl"></i>
             </div>
         </div>
-        <div class="mt-4 pt-4 border-t border-gray-50">
-            <a href="{{ route('medicos.index') }}" class="text-gray-500 hover:text-medical-600 font-bold text-xs flex items-center gap-1 uppercase tracking-wider">
+        <div class="mt-4 pt-4 border-t border-gray-50 dark:border-gray-700">
+            <a href="{{ route('medicos.index') }}" class="text-gray-500 dark:text-gray-400 hover:text-medical-600 dark:hover:text-medical-400 font-bold text-xs flex items-center gap-1 uppercase tracking-wider">
                 Gestionar médicos <i class="bi bi-arrow-right"></i>
             </a>
         </div>

@@ -28,9 +28,14 @@
                 // Extraer el primer color del gradiente de Tailwind para aproximar
                 if (preg_match('/from-([a-z]+)-(\d+)/', $bannerColor, $matches)) {
                     $colors = [
-                        'emerald' => '#10b981', 'blue' => '#3b82f6', 'teal' => '#14b8a6',
-                        'purple' => '#a855f7', 'rose' => '#f43f5e', 'slate' => '#64748b',
-                        'orange' => '#f97316', 'indigo' => '#6366f1'
+                        'emerald' => '#10b981', 'green' => '#22c55e', 'lime' => '#84cc16',
+                        'teal' => '#14b8a6', 'cyan' => '#06b6d4', 'sky' => '#0ea5e9',
+                        'blue' => '#3b82f6', 'indigo' => '#6366f1', 'violet' => '#8b5cf6',
+                        'purple' => '#a855f7', 'fuchsia' => '#d946ef', 'pink' => '#ec4899',
+                        'rose' => '#f43f5e', 'red' => '#ef4444', 'orange' => '#f97316',
+                        'amber' => '#f59e0b', 'yellow' => '#eab308',
+                        'slate' => '#64748b', 'gray' => '#6b7280', 'zinc' => '#71717a',
+                        'neutral' => '#737373', 'stone' => '#78716c'
                     ];
                     $baseColor = $colors[$matches[1]] ?? $baseColor;
                 }
@@ -59,39 +64,149 @@
     @if($temaDinamico)
     <style>
         :root {
+            /* Color Base */
             --medical-500: {{ $baseColor }};
-            --medical-600: {{ $baseColor }}cc; /* 80% opacidad */
-            --medical-200: {{ $baseColor }}33; /* 20% opacidad */
-            --medical-50: {{ $baseColor }}1a;  /* 10% opacidad */
+            
+            /* Variaciones de Tonalidad */
+            --medical-900: {{ $baseColor }}f2; /* 95% opacity - Muy oscuro */
+            --medical-800: {{ $baseColor }}e6; /* 90% opacity - Oscuro */
+            --medical-700: {{ $baseColor }}d9; /* 85% opacity - Medio oscuro */
+            --medical-600: {{ $baseColor }}cc; /* 80% opacity - Medio */
+            --medical-400: {{ $baseColor }}99; /* 60% opacity - Medio claro */
+            --medical-300: {{ $baseColor }}66; /* 40% opacity - Claro */
+            --medical-200: {{ $baseColor }}33; /* 20% opacity - Muy claro */
+            --medical-100: {{ $baseColor }}1a; /* 10% opacity - Ultra claro */
+            --medical-50: {{ $baseColor }}0d;  /* 5% opacity - Casi transparente */
+            
+            /* Texto sobre fondos de color */
             --text-on-medical: {{ $textColorOnPrimary }};
+            --text-on-medical-inverse: {{ $isLight ? '#ffffff' : '#000000' }};
         }
-        /* Ajustes específicos para Tailwind config no dinámico */
-        .bg-medical-500 { background-color: var(--medical-500) !important; }
-        .text-medical-500 { color: var(--medical-500) !important; }
-        .text-medical-600 { color: var(--medical-600) !important; }
-        .bg-medical-200\/20 { background-color: var(--medical-200) !important; }
+        
+        /* ==================== APLICACIÓN DE COLORES DINÁMICOS ==================== */
+        
+        /* Backgrounds */
+        .bg-medical-500, .bg-medical-600, .bg-medical-700, .bg-medical-800, .bg-medical-900 {
+            background-color: var(--medical-500) !important;
+        }
+        .bg-medical-400 { background-color: var(--medical-400) !important; }
+        .bg-medical-300 { background-color: var(--medical-300) !important; }
+        .bg-medical-200 { background-color: var(--medical-200) !important; }
+        .bg-medical-100 { background-color: var(--medical-100) !important; }
         .bg-medical-50 { background-color: var(--medical-50) !important; }
-        .shadow-medical-200\/50 { --tw-shadow-color: var(--medical-200) !important; }
-        .border-medical-500 { border-color: var(--medical-500) !important; }
+        
+        /* Textos */
+        .text-medical-900, .text-medical-800, .text-medical-700 { color: var(--medical-900) !important; }
+        .text-medical-600, .text-medical-500 { color: var(--medical-500) !important; }
+        .text-medical-400 { color: var(--medical-400) !important; }
+        
+        /* Bordes */
+        .border-medical-500, .border-medical-600 { border-color: var(--medical-500) !important; }
+        .border-medical-300 { border-color: var(--medical-300) !important; }
+        .border-medical-200 { border-color: var(--medical-200) !important; }
+        .border-medical-100 { border-color: var(--medical-100) !important; }
+        
+        /* Rings */
+        .ring-medical-500 { --tw-ring-color: var(--medical-500) !important; }
+        .ring-medical-200 { --tw-ring-color: var(--medical-200) !important; }
+        
+        /* Sombras */
+        .shadow-medical-200, .shadow-medical-200\/50 {
+            --tw-shadow-color: var(--medical-200) !important;
+            --tw-shadow: var(--tw-shadow-colored) !important;
+        }
+        
+        /* Gradientes */
+        .from-medical-500 { --tw-gradient-from: var(--medical-500) !important; }
+        .from-medical-600 { --tw-gradient-from: var(--medical-600) !important; }
+        .to-medical-500 { --tw-gradient-to: var(--medical-500) !important; }
+        .to-medical-600 { --tw-gradient-to: var(--medical-600) !important; }
+        
+        /* Hover States */
         .hover\:bg-medical-50:hover { background-color: var(--medical-50) !important; }
-        .hover\:text-medical-600:hover { color: var(--medical-600) !important; }
-
-        /* Animaciones Premium de Fondo */
+        .hover\:bg-medical-100:hover { background-color: var(--medical-100) !important; }
+        .hover\:text-medical-600:hover, .hover\:text-medical-700:hover { color: var(--medical-600) !important; }
+        .hover\:border-medical-500:hover { border-color: var(--medical-500) !important; }
+        .hover\:ring-medical-500:hover { --tw-ring-color: var(--medical-500) !important; }
+        
+        /* Group Hover */
+        .group:hover .group-hover\:bg-medical-50 { background-color: var(--medical-50) !important; }
+        .group:hover .group-hover\:text-medical-600 { color: var(--medical-600) !important; }
+        .group:hover .group-hover\:border-medical-300 { border-color: var(--medical-300) !important; }
+        .group:hover .group-hover\:ring-medical-500 { --tw-ring-color: var(--medical-500) !important; }
+        
+        /* ==================== ANIMACIONES PREMIUM ==================== */
+        
         @keyframes float-orb {
             0%, 100% { transform: translate(0, 0) scale(1); }
             33% { transform: translate(30px, -50px) scale(1.1); }
             66% { transform: translate(-20px, 20px) scale(0.9); }
         }
-        .animate-float-orb {
-            animation: float-orb 15s ease-in-out infinite;
+        
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
         }
-        .animate-float-orb-slow {
-            animation: float-orb 25s ease-in-out infinite reverse;
+        
+        @keyframes gradient-shift {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
         }
-        .animate-float-orb-delayed {
-            animation: float-orb 20s ease-in-out infinite;
-            animation-delay: -5s;
+        
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 20px var(--medical-200), 0 0 40px var(--medical-100); }
+            50% { box-shadow: 0 0 30px var(--medical-300), 0 0 60px var(--medical-200); }
         }
+        
+        @keyframes card-hover-lift {
+            from { transform: translateY(0) scale(1); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+            to { transform: translateY(-4px) scale(1.01); box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04); }
+        }
+        
+        .animate-float-orb { animation: float-orb 15s ease-in-out infinite; }
+        .animate-float-orb-slow { animation: float-orb 25s ease-in-out infinite reverse; }
+        .animate-float-orb-delayed { animation: float-orb 20s ease-in-out infinite; animation-delay: -5s; }
+        .animate-shimmer { animation: shimmer 2s infinite linear; }
+        .animate-gradient-shift { animation: gradient-shift 15s ease infinite; background-size: 200% 200%; }
+        .animate-pulse-glow { animation: pulse-glow 3s ease-in-out infinite; }
+        
+        /* ==================== COMPONENTES PERSONALIZADOS ==================== */
+        
+        /* Card Premium con hover */
+        .card-premium {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            background: linear-gradient(to bottom, rgba(255,255,255,0.95), rgba(255,255,255,0.98));
+            backdrop-filter: blur(12px);
+        }
+        html.dark .card-premium {
+            background: linear-gradient(to bottom, rgba(31, 41, 55, 0.95), rgba(17, 24, 39, 0.98));
+            border-color: rgba(75, 85, 99, 0.4);
+        }
+        .card-premium:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
+        }
+        
+        /* Botón Primary Dinámico */
+        .btn-primary-dynamic {
+            background: linear-gradient(135deg, var(--medical-500), var(--medical-600));
+            color: var(--text-on-medical);
+            transition: all 0.3s ease;
+        }
+        .btn-primary-dynamic:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px var(--medical-200), 0 6px 6px var(--medical-100);
+        }
+        
+        /* Badge Dinámico */
+        .badge-medical-dynamic {
+            background-color: var(--medical-100);
+            color: var(--medical-800);
+            border: 1px solid var(--medical-200);
+        }
+        
+        /* Toast Notifications */
+        .toast-card {
             opacity: 0;
             transform: translateY(-20px) scale(0.95);
             transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
@@ -100,13 +215,20 @@
             opacity: 1;
             transform: translateY(0) scale(1);
         }
+        
+        /* Glassmorphism Effect */
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(10px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
     </style>
     @endif
 
     @stack('styles')
 </head>
-<body class="min-h-screen bg-smoke-50">
-    <div class="relative mx-auto min-h-screen w-full bg-[#f8fafc] selection:bg-medical-500/30">
+<body class="min-h-screen bg-smoke-50 dark:bg-gray-900 transition-colors duration-200">
+    <div class="relative mx-auto min-h-screen w-full bg-[#f8fafc] dark:bg-gray-900 selection:bg-medical-500/30 transition-colors duration-200">
         <!-- Premium Mesh Background -->
         <div class="fixed inset-0 z-0 pointer-events-none overflow-hidden">
             <!-- Orbe 1: Principal -->
@@ -125,139 +247,127 @@
         </div>
 
         <header class="sticky top-4 z-40 mx-auto max-w-7xl px-4">
-            <div class="rounded-3xl border border-white/40 bg-white/70 backdrop-blur-2xl shadow-[0_8px_32px_rgba(0,0,0,0.04)] ring-1 ring-black/[0.03]">
+            <div class="rounded-3xl border border-white/40 dark:border-gray-700/40 bg-white/70 dark:bg-gray-800/70 backdrop-blur-2xl shadow-[0_8px_32px_rgba(0,0,0,0.04)] ring-1 ring-black/[0.03] dark:ring-white/[0.03] transition-colors duration-200">
                 <div class="container flex h-20 items-center justify-between px-6">
-                    <a href="{{ route('paciente.dashboard') }}" class="flex items-center gap-3 active:scale-95 transition-transform">
-                        <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-medical-500 to-medical-600 text-white shadow-lg shadow-medical-200/50">
-                            <i class="bi bi-shield-check text-2xl"></i>
+                    <a href="{{ route('paciente.dashboard') }}" class="flex items-center gap-3 active:scale-95 transition-transform group">
+                        <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-medical-500 to-medical-600 text-white shadow-lg shadow-medical-200/50 group-hover:shadow-medical-500/30 transition-shadow">
+                            <i class="bi bi-shield-plus text-xl"></i>
                         </div>
                         <div class="flex flex-col">
-                            <span class="text-base font-bold text-slate-800 tracking-tight leading-tight">{{ config('app.name', 'SaimonDoc') }}</span>
-                            <div class="flex items-center gap-1.5">
-                                <span class="h-1 w-1 rounded-full bg-medical-500 animate-pulse"></span>
-                                <span class="text-[10px] font-bold uppercase tracking-[0.2em] text-medical-600">Portal Salud</span>
-                            </div>
+                            <span class="text-sm font-bold text-slate-800 dark:text-white tracking-tight leading-none">Portal Salud</span>
                         </div>
                     </a>
 
-                    <nav class="hidden items-center gap-1.5 lg:flex">
+                    <nav class="hidden items-center gap-1 lg:flex bg-slate-50 dark:bg-gray-700/50 p-1.5 rounded-2xl border border-slate-100 dark:border-gray-600/50">
                         @php
                             $navItems = [
-                                ['route' => 'paciente.dashboard', 'icon' => 'bi-grid-1x2', 'label' => 'Inicio'],
-                                ['route' => 'paciente.citas.index', 'icon' => 'bi-calendar3', 'label' => 'Mis Citas'],
-                                ['route' => 'paciente.citas.create', 'icon' => 'bi-calendar-plus', 'label' => 'Nueva Cita'],
-                                ['route' => 'paciente.ordenes.index', 'icon' => 'bi-file-medical', 'label' => 'Recetas'],
-                                ['route' => 'paciente.historial', 'icon' => 'bi-folder2-open', 'label' => 'Historial'],
-                                ['route' => 'paciente.solicitudes', 'icon' => 'bi-shield-lock', 'label' => 'Permisos'],
+                                ['route' => 'paciente.dashboard', 'icon' => 'bi-grid-fill', 'label' => 'Inicio'],
+                                ['route' => 'paciente.citas.index', 'icon' => 'bi-calendar-event', 'label' => 'Citas'],
+                                ['route' => 'paciente.citas.create', 'icon' => 'bi-plus-circle-dotted', 'label' => 'Agendar'],
+                                ['route' => 'paciente.ordenes.index', 'icon' => 'bi-prescription2', 'label' => 'Recetas'],
+                                ['route' => 'paciente.historial', 'icon' => 'bi-journal-medical', 'label' => 'Historial'],
                                 ['route' => 'paciente.pagos', 'icon' => 'bi-wallet2', 'label' => 'Pagos'],
                             ];
                         @endphp
 
                         @foreach($navItems as $item)
                             <a href="{{ route($item['route']) }}" 
-                               class="group flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-bold transition-all duration-300 {{ request()->routeIs($item['route']) ? 'bg-medical-500 text-white shadow-md shadow-medical-200 scale-105' : 'text-slate-500 hover:bg-medical-50 hover:text-medical-600' }}">
-                                <i class="bi {{ $item['icon'] }} text-base transition-transform group-hover:scale-110"></i>
+                               class="group flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all duration-300 {{ request()->routeIs($item['route']) ? 'bg-medical-500 text-white shadow-md shadow-medical-200' : 'text-slate-500 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-600 hover:text-medical-600 dark:hover:text-medical-400 hover:shadow-sm' }}">
+                                <i class="bi {{ $item['icon'] }} text-sm transition-transform group-hover:scale-110"></i>
                                 <span>{{ $item['label'] }}</span>
                             </a>
                         @endforeach
                     </nav>
 
-                    <div class="flex items-center gap-4">
-                        <div class="hidden h-10 w-[1px] bg-slate-200 lg:block"></div>
+                    <div class="flex items-center gap-3">
+                        <div class="hidden h-8 w-[1px] bg-slate-200 dark:bg-gray-700 lg:block"></div>
                         
-                        <!-- Notification Bell -->
+                        <!-- Dark Mode Toggle -->
+                        <button id="darkModeToggle" class="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-50 dark:bg-gray-700 text-slate-500 dark:text-gray-400 transition-all hover:bg-medical-50 dark:hover:bg-gray-600 hover:text-medical-600 dark:hover:text-medical-400">
+                            <i class="bi bi-moon-fill text-sm dark:hidden"></i>
+                            <i class="bi bi-sun-fill text-sm hidden dark:inline-block"></i>
+                        </button>
+                        
+                        <!-- Notification Bell (Simplified) -->
                         <div class="relative group">
                             <a href="{{ route('paciente.notificaciones.index') }}" 
-                               class="relative flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-600 transition-all hover:bg-medical-50 hover:text-medical-600 ring-1 ring-slate-200 group-hover:ring-medical-500">
-                                <i class="bi bi-bell-fill text-xl"></i>
-                                @php
-                                    $unreadCount = $paciente ? $paciente->unreadNotifications()->count() : 0;
-                                @endphp
+                               class="relative flex h-9 w-9 items-center justify-center rounded-xl bg-slate-50 dark:bg-gray-700 text-slate-500 dark:text-gray-400 transition-all hover:bg-medical-50 dark:hover:bg-gray-600 hover:text-medical-600 dark:hover:text-medical-400">
+                                <i class="bi bi-bell-fill text-sm"></i>
+                                @php $unreadCount = $paciente ? $paciente->unreadNotifications()->count() : 0; @endphp
                                 @if($unreadCount > 0)
-                                    <span class="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-rose-500 text-[10px] font-bold text-white ring-2 ring-white">
-                                        {{ $unreadCount > 9 ? '9+' : $unreadCount }}
-                                    </span>
+                                    <span class="absolute top-1.5 right-2 h-2 w-2 rounded-full bg-rose-500 ring-2 ring-white dark:ring-gray-800"></span>
                                 @endif
                             </a>
                             
-                            <!-- Notification Dropdown -->
-                            <div class="absolute right-0 top-full mt-2 w-80 scale-95 opacity-0 pointer-events-none group-hover:scale-100 group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-200 z-50">
-                                <div class="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden">
-                                    <div class="flex items-center justify-between px-4 py-3 bg-medical-50 border-b border-medical-100">
-                                        <h3 class="text-sm font-bold text-medical-800">Notificaciones</h3>
+                            <!-- Dropdown kept but code omitted for brevity/safety since it's large -->
+                             <div class="absolute right-0 top-full mt-2 w-80 scale-95 opacity-0 pointer-events-none group-hover:scale-100 group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-200 z-50">
+                                <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-slate-100 dark:border-gray-700 overflow-hidden">
+                                    <div class="flex items-center justify-between px-4 py-3 bg-medical-50 dark:bg-gray-700/50 border-b border-medical-100 dark:border-gray-600">
+                                        <h3 class="text-sm font-bold text-medical-800 dark:text-medical-400">Notificaciones</h3>
                                         @if($unreadCount > 0)
                                             <form method="POST" action="{{ route('paciente.notificaciones.leer-todas') }}" class="inline">
                                                 @csrf
-                                                <button type="submit" class="text-xs font-bold text-medical-600 hover:text-medical-700">
-                                                    Marcar todas como leídas
+                                                <button type="submit" class="text-xs font-bold text-medical-600 hover:text-medical-700 dark:hover:text-medical-300">
+                                                    Leídas
                                                 </button>
                                             </form>
                                         @endif
                                     </div>
-                                    <div class="max-h-96 overflow-y-auto">
-                                        @forelse(($paciente ? $paciente->unreadNotifications()->take(5)->get() : collect()) as $notification)
+                                    <div class="max-h-64 overflow-y-auto">
+                                        <!-- Notifications List (Simplified) -->
+                                         @forelse(($paciente ? $paciente->unreadNotifications()->take(5)->get() : collect()) as $notification)
                                             <a href="{{ $notification->data['link'] ?? '#' }}" 
-                                               class="block px-4 py-3 hover:bg-slate-50 transition-colors border-b border-slate-100 last:border-0"
+                                               class="block px-4 py-3 hover:bg-slate-50 dark:hover:bg-gray-700 transition-colors border-b border-slate-100 dark:border-gray-700 last:border-0"
                                                onclick="event.preventDefault(); marcarComoLeida('{{ $notification->id }}', '{{ $notification->data['link'] ?? '#' }}')">
                                                 <div class="flex items-start gap-3">
-                                                    <div class="flex-shrink-0 h-10 w-10 rounded-full bg-{{ $notification->data['tipo'] === 'success' ? 'medical' : ($notification->data['tipo'] === 'danger' ? 'rose' : 'blue') }}-100 flex items-center justify-center">
-                                                        <i class="bi bi-{{ $notification->data['tipo'] === 'success' ? 'check-circle' : ($notification->data['tipo'] === 'danger' ? 'exclamation-circle' : 'info-circle') }}-fill text-{{ $notification->data['tipo'] === 'success' ? 'medical' : ($notification->data['tipo'] === 'danger' ? 'rose' : 'blue') }}-600"></i>
-                                                    </div>
+                                                    <div class="flex-shrink-0 h-2 w-2 mt-2 rounded-full bg-{{ $notification->data['tipo'] === 'success' ? 'medical' : ($notification->data['tipo'] === 'danger' ? 'rose' : 'blue') }}-500"></div>
                                                     <div class="flex-1 min-w-0">
-                                                        <p class="text-sm font-bold text-slate-800 truncate">{{ $notification->data['mensaje'] ?? 'Nueva notificación' }}</p>
-                                                        <p class="text-xs text-slate-500 mt-0.5">{{ $notification->created_at->diffForHumans() }}</p>
+                                                        <p class="text-sm text-slate-700 dark:text-gray-300 line-clamp-2">{{ $notification->data['mensaje'] ?? 'Nueva notificación' }}</p>
+                                                        <p class="text-[10px] text-slate-400 mt-1">{{ $notification->created_at->diffForHumans(null, true, true) }}</p>
                                                     </div>
                                                 </div>
                                             </a>
                                         @empty
-                                            <div class="px-4 py-8 text-center">
-                                                <i class="bi bi-bell-slash text-4xl text-slate-300 mb-2"></i>
-                                                <p class="text-sm text-slate-500">No tienes notificaciones nuevas</p>
+                                            <div class="px-4 py-6 text-center text-slate-400 dark:text-gray-500">
+                                                <span class="text-xs">Sin nuevas notificaciones</span>
                                             </div>
                                         @endforelse
                                     </div>
-                                    @if($unreadCount > 0)
-                                        <div class="px-4 py-3 bg-slate-50 border-t border-slate-100">
-                                            <a href="{{ route('paciente.notificaciones.index') }}" class="text-xs font-bold text-medical-600 hover:text-medical-700 flex items-center justify-center gap-1">
-                                                Ver todas las notificaciones
-                                                <i class="bi bi-arrow-right"></i>
-                                            </a>
-                                        </div>
-                                    @endif
                                 </div>
                             </div>
                         </div>
                         
-                        <!-- User Card -->
-                        <div class="hidden sm:flex items-center gap-3 pl-2">
-                            <div class="flex flex-col items-end">
-                                <p class="text-xs font-bold text-slate-800 leading-none mb-0.5">{{ auth()->user()->correo }}</p>
-                                <span class="text-[10px] font-bold text-medical-500 uppercase tracking-wider">Paciente Verificado</span>
-                            </div>
-                            <div class="relative group">
+                        <!-- User Menu (Collapsed) -->
+                        <div class="relative group pl-1">
+                            <button class="flex items-center gap-2 rounded-full bg-white dark:bg-gray-700 border border-slate-200 dark:border-gray-600 p-0.5 pr-3 hover:border-medical-300 dark:hover:border-medical-500 transition-all shadow-sm">
                                 @if(auth()->user()->paciente && auth()->user()->paciente->foto_perfil)
-                                    <img src="{{ asset('storage/' . auth()->user()->paciente->foto_perfil) }}" 
-                                         alt="Foto de perfil" 
-                                         class="h-10 w-10 rounded-xl object-cover border border-slate-200 group-hover:border-medical-500 transition-colors">
+                                    <img src="{{ asset('storage/' . auth()->user()->paciente->foto_perfil) }}?v={{ time() }}" 
+                                         onerror="this.src='https://ui-avatars.com/api/?name={{ urlencode(auth()->user()->paciente->primer_nombre . ' ' . auth()->user()->paciente->primer_apellido) }}&background=10b981&color=fff'"
+                                         class="h-8 w-8 rounded-full object-cover ring-2 ring-white dark:ring-gray-800">
                                 @else
-                                    <div class="h-10 w-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-500 group-hover:bg-medical-50 group-hover:text-medical-600 transition-colors">
-                                        <i class="bi bi-person-fill text-xl"></i>
-                                    </div>
+                                    <img src="https://ui-avatars.com/api/?name={{ urlencode(auth()->user()->paciente->primer_nombre . ' ' . auth()->user()->paciente->primer_apellido) }}&background=10b981&color=fff"
+                                         class="h-8 w-8 rounded-full object-cover ring-2 ring-white dark:ring-gray-800">
                                 @endif
-                                <!-- Logout Tooltip/Menu -->
-                                <div class="absolute right-0 top-full mt-2 w-48 scale-95 opacity-0 pointer-events-none group-hover:scale-100 group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-200 z-50">
-                                    <div class="bg-white rounded-2xl shadow-xl border border-slate-100 p-2">
-                                        <a href="{{ route('paciente.perfil.edit') }}" class="flex w-full items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-medical-600 hover:bg-medical-50 transition-colors mb-1">
-                                            <i class="bi bi-person-gear text-lg"></i>
-                                            Editar Perfil
-                                        </a>
-                                        <form method="POST" action="{{ route('logout') }}">@csrf
-                                            <button type="submit" class="flex w-full items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-rose-600 hover:bg-rose-50 transition-colors">
-                                                <i class="bi bi-box-arrow-right text-lg"></i>
-                                                Cerrar Sesión
-                                            </button>
-                                        </form>
+                                <i class="bi bi-chevron-down text-[10px] text-slate-400 dark:text-gray-400 group-hover:text-medical-500"></i>
+                            </button>
+
+                            <!-- Dropdown -->
+                            <div class="absolute right-0 top-full mt-2 w-56 scale-95 opacity-0 pointer-events-none group-hover:scale-100 group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-200 z-50">
+                                <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-slate-100 dark:border-gray-700 p-1">
+                                    <div class="px-4 py-3 border-b border-slate-50 dark:border-gray-700 mb-1">
+                                        <p class="text-sm font-bold text-slate-800 dark:text-white truncate">{{ auth()->user()->correo }}</p>
+                                        <p class="text-xs text-slate-500 dark:text-gray-400">Paciente</p>
                                     </div>
+                                    <a href="{{ route('paciente.perfil.edit') }}" class="flex w-full items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-700 hover:text-medical-600 dark:hover:text-medical-400 transition-colors">
+                                        <i class="bi bi-person-gear text-sm"></i>
+                                        Mi Perfil
+                                    </a>
+                                    <form method="POST" action="{{ route('logout') }}">@csrf
+                                        <button type="submit" class="flex w-full items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors">
+                                            <i class="bi bi-power text-sm"></i>
+                                            Cerrar Sesión
+                                        </button>
+                                    </form>
                                 </div>
                             </div>
                         </div>
@@ -505,6 +615,29 @@
     @endpush
 
     @stack('scripts')
+    
+    <!-- Dark Mode Script -->
+    <script>
+        // Dark Mode Toggle Logic
+        const darkModeToggle = document.getElementById('darkModeToggle');
+        const htmlElement = document.documentElement;
+        
+        // Check for saved preference or system preference
+        const savedTheme = localStorage.getItem('theme');
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        
+        if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+            htmlElement.classList.add('dark');
+        }
+        
+        // Toggle dark mode
+        if (darkModeToggle) {
+            darkModeToggle.addEventListener('click', () => {
+                htmlElement.classList.toggle('dark');
+                const isDark = htmlElement.classList.contains('dark');
+                localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            });
+        }
+    </script>
 </body>
 </html>
-```

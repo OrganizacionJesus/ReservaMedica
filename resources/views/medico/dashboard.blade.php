@@ -16,28 +16,58 @@
 @endphp
 
 @if($medico->banner_perfil)
-<div class="relative overflow-hidden rounded-3xl shadow-xl mb-8 bg-cover bg-center group" 
-     style="background-image: url('{{ asset('storage/' . $medico->banner_perfil) }}');">
+<div class="relative overflow-hidden rounded-3xl shadow-xl mb-8 bg-cover bg-center group dark:shadow-2xl" 
+     style="background-image: url('{{ asset('storage/' . $medico->banner_perfil) }}'); border: 1px solid rgba(255,255,255,0.1);">
     <div class="absolute inset-0 bg-gray-900/60 transition-opacity group-hover:bg-gray-900/50"></div>
 @else
-<div class="relative overflow-hidden rounded-3xl shadow-xl mb-8 {{ $bannerStyle }}" style="{{ $customStyle }}">
+<div class="relative overflow-hidden rounded-3xl shadow-xl mb-8 {{ $bannerStyle }} dark:shadow-2xl" 
+     style="{{ $customStyle }}; border: 1px solid rgba(255,255,255,0.1);">
 @endif
-    <div class="absolute top-0 right-0 -mt-10 -mr-10 w-64 h-64 bg-white/20 rounded-full mix-blend-overlay filter blur-3xl"></div>
-    <div class="absolute bottom-0 left-0 -mb-10 -ml-10 w-64 h-64 bg-white/10 rounded-full mix-blend-overlay filter blur-3xl"></div>
-    <div class="relative z-10 p-8 flex flex-col md:flex-row items-center justify-between gap-6">
-        <div class="text-white">
-            <h2 class="text-3xl md:text-4xl font-display font-bold mb-2">
-                ¡Bienvenido, Dr. {{ $medico->primer_nombre ?? 'Médico' }}!
-            </h2>
-            <p class="text-white/90 text-lg flex items-center gap-2">
-                <i class="bi bi-calendar3"></i>
-                {{ \Carbon\Carbon::now()->isoFormat('dddd, D [de] MMMM [de] YYYY') }}
-            </p>
+    <!-- Animated Orbs -->
+    <div class="absolute top-0 right-0 -mt-10 -mr-10 w-64 h-64 bg-white/20 rounded-full mix-blend-overlay filter blur-3xl animate-float-orb"></div>
+    <div class="absolute bottom-0 left-0 -mb-10 -ml-10 w-64 h-64 bg-white/10 rounded-full mix-blend-overlay filter blur-3xl animate-float-orb-slow"></div>
+    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-white/5 rounded-full mix-blend-overlay filter blur-3xl animate-float-orb-delayed"></div>
+    
+    <div class="relative z-10 p-8">
+        <div class="flex flex-col md:flex-row items-center justify-between gap-6">
+            <div class="text-white text-center md:text-left" style="color: var(--text-on-medical, #ffffff);">
+                <h2 class="text-3xl md:text-4xl font-display font-bold mb-2">
+                    ¡Bienvenido, Dr. {{ $medico->primer_nombre ?? 'Médico' }}!
+                </h2>
+                <p class="text-white/90 text-lg flex items-center gap-2 justify-center md:justify-start" style="color: var(--text-on-medical, #ffffff); opacity: 0.9;">
+                    <i class="bi bi-calendar3"></i>
+                    {{ \Carbon\Carbon::now()->isoFormat('dddd, D [de] MMMM [de] YYYY') }}
+                </p>
+            </div>
+            <div class="flex gap-3">
+                <a href="{{ route('medico.perfil.edit') }}" class="btn bg-white text-gray-900 hover:bg-gray-50 border-none shadow-md dark:bg-white/90 dark:hover:bg-white" style="color: var(--medical-500, #1d4ed8);">
+                    <i class="bi bi-palette"></i> Personalizar Portal
+                </a>
+            </div>
         </div>
-        <div class="flex gap-3">
-            <a href="{{ route('citas.index') }}" class="btn bg-white/20 hover:bg-white/30 text-white border-none shadow-lg backdrop-blur-sm">
-                <i class="bi bi-plus-lg"></i> Nueva Evolución
-            </a>
+        
+        <!-- Mini Stats inside Banner -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+            <div class="bg-white/10 dark:bg-white/5 backdrop-blur-sm rounded-xl p-4 text-white border border-white/10">
+                <i class="bi bi-calendar-check text-2xl mb-2"></i>
+                <p class="text-2xl font-bold">{{ $stats['citas_hoy'] ?? 0 }}</p>
+                <p class="text-sm text-white/80">Citas Hoy</p>
+            </div>
+            <div class="bg-white/10 dark:bg-white/5 backdrop-blur-sm rounded-xl p-4 text-white border border-white/10">
+                <i class="bi bi-people text-2xl mb-2"></i>
+                <p class="text-2xl font-bold">{{ $stats['pacientes_mes'] ?? 0 }}</p>
+                <p class="text-sm text-white/80">Pacientes</p>
+            </div>
+            <div class="bg-white/10 dark:bg-white/5 backdrop-blur-sm rounded-xl p-4 text-white border border-white/10">
+                <i class="bi bi-file-medical text-2xl mb-2"></i>
+                <p class="text-2xl font-bold">{{ $stats['historias_pendientes'] ?? 0 }}</p>
+                <p class="text-sm text-white/80">Historias</p>
+            </div>
+            <div class="bg-white/10 dark:bg-white/5 backdrop-blur-sm rounded-xl p-4 text-white border border-white/10">
+                <i class="bi bi-clipboard-pulse text-2xl mb-2"></i>
+                <p class="text-2xl font-bold">{{ $stats['ordenes_pendientes'] ?? 0 }}</p>
+                <p class="text-sm text-white/80">Órdenes</p>
+            </div>
         </div>
     </div>
 </div>
@@ -45,20 +75,20 @@
 <!-- Enhanced Stats Grid -->
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
     <!-- Citas Hoy -->
-    <div class="card p-6 bg-medical-50 border-medical-200">
+    <div class="card p-6 bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 hover:border-medical-500 dark:hover:border-medical-500 transition-all group shadow-soft hover:shadow-lg">
         <div class="flex justify-between items-start">
             <div>
-                <p class="text-sm font-semibold text-medical-600 mb-2">Citas Hoy</p>
-                <h3 class="text-4xl font-display font-bold text-gray-900">{{ $stats['citas_hoy'] ?? 5 }}</h3>
-                <p class="text-sm text-gray-500 mt-2">{{ $stats['completadas_hoy'] ?? 2 }} completadas</p>
+                <p class="text-sm font-semibold text-medical-600 dark:text-medical-400 mb-2 group-hover:text-medical-700 dark:group-hover:text-medical-300 transition-colors">Citas Hoy</p>
+                <h3 class="text-4xl font-display font-bold text-gray-900 dark:text-white">{{ $stats['citas_hoy'] ?? 5 }}</h3>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">{{ $stats['completadas_hoy'] ?? 2 }} completadas</p>
             </div>
-            <div class="w-14 h-14 bg-medical-500 rounded-xl flex items-center justify-center shadow-lg shadow-medical-200">
+            <div class="w-14 h-14 bg-medical-500 dark:bg-medical-600 rounded-xl flex items-center justify-center shadow-lg shadow-medical-200 dark:shadow-medical-900/50 group-hover:scale-110 transition-transform">
                 <i class="bi bi-calendar-check text-white text-2xl"></i>
             </div>
         </div>
-        <div class="mt-4 pt-4 border-t border-medical-200">
+        <div class="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
             <a href="{{ route('citas.index') }}" 
-                class="text-medical-600 hover:text-medical-700 font-semibold text-sm flex items-center gap-1">
+                class="text-medical-600 dark:text-medical-400 hover:text-medical-700 dark:hover:text-medical-300 font-semibold text-sm flex items-center gap-1">
                 Ver agenda <i class="bi bi-arrow-right"></i>
             </a>
         </div>
