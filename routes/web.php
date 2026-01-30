@@ -193,6 +193,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/citas', [CitaController::class, 'store'])->name('paciente.citas.store');
         Route::get('/citas', [CitaController::class, 'index'])->name('paciente.citas.index');
         Route::get('/citas/{id}', [CitaController::class, 'show'])->name('paciente.citas.show');
+        Route::get('/citas/{id}/comprobante', [CitaController::class, 'comprobante'])->name('paciente.citas.comprobante');
         
         // Rutas de pago del paciente
         Route::get('/pagos/registrar/{cita}', [PagoController::class, 'mostrarRegistroPago'])->name('paciente.pagos.registrar');

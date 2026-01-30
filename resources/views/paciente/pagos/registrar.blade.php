@@ -73,13 +73,14 @@
 
     .method-card {
         background: white;
-        border: 2px solid #e2e8f0;
-        border-radius: 20px;
-        padding: 24px;
+        border: 3px solid #e2e8f0;
+        border-radius: 24px;
+        padding: 28px;
         cursor: pointer;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         position: relative;
         overflow: hidden;
+        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
     }
 
     .method-card::before {
@@ -88,22 +89,23 @@
         top: 0;
         left: 0;
         right: 0;
-        height: 4px;
-        background: linear-gradient(90deg, #10b981, #059669);
+        height: 5px;
+        background: linear-gradient(90deg, var(--medical-500), var(--medical-600));
         transform: scaleX(0);
-        transition: transform 0.3s ease;
+        transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
     .method-card:hover {
-        border-color: #10b981;
-        transform: translateY(-4px);
-        box-shadow: 0 12px 32px rgba(16, 185, 129, 0.15);
+        border-color: var(--medical-500);
+        transform: translateY(-6px) scale(1.02);
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1), 0 0 0 3px var(--medical-100);
     }
 
     .method-card.selected {
-        border-color: #10b981;
-        background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
-        box-shadow: 0 8px 24px rgba(16, 185, 129, 0.2);
+        background: linear-gradient(135deg, var(--medical-50), white);
+        border-color: var(--medical-500);
+        box-shadow: 0 0 0 4px var(--medical-100), 0 12px 40px var(--medical-200);
+        transform: translateY(-6px) scale(1.05);
     }
 
     .method-card.selected::before {
@@ -114,9 +116,9 @@
         position: absolute;
         top: 12px;
         right: 12px;
-        width: 24px;
-        height: 24px;
-        background: #10b981;
+        width: 28px;
+        height: 28px;
+        background: linear-gradient(135deg, var(--medical-500), var(--medical-600));
         border-radius: 50%;
         display: flex;
         align-items: center;
@@ -124,6 +126,7 @@
         opacity: 0;
         transform: scale(0);
         transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        box-shadow: 0 4px 12px var(--medical-200);
     }
 
     .method-card.selected .checkmark {
@@ -219,56 +222,91 @@
             </div>
         </div>
 
-        {{-- Summary Banner --}}
+        {{-- Summary Banner Premium con Gradiente Dinámico --}}
         <div class="mb-8" style="animation: fadeIn 0.6s ease-out 0.1s both;">
-            <div class="bg-blue-600 rounded-[2rem] p-8 shadow-xl shadow-blue-200 relative overflow-hidden">
-                <!-- Decorative background pattern -->
-                <div class="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full -mr-20 -mt-20 blur-3xl"></div>
-                <div class="absolute bottom-0 left-0 w-48 h-48 bg-indigo-500 opacity-20 rounded-full -ml-10 -mb-10 blur-2xl"></div>
+            <div class="rounded-[2rem] p-8 shadow-2xl relative overflow-hidden" 
+                 style="background: linear-gradient(135deg, var(--medical-500) 0%, var(--medical-600) 100%);">
+                
+                <!-- Orbes decorativos animados -->
+                <div class="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl animate-float-orb"></div>
+                <div class="absolute bottom-0 left-0 w-64 h-64 bg-white/5 rounded-full blur-2xl animate-float-orb-slow"></div>
+                <div class="absolute top-1/2 left-1/3 w-48 h-48 bg-white/10 rounded-full blur-3xl animate-float-orb-delayed"></div>
 
                 <div class="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
                     <div class="flex items-center gap-5">
-                        <div class="w-16 h-16 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center text-white font-bold text-2xl border border-white/20 shadow-inner">
+                        <div class="w-20 h-20 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center font-black text-3xl border-2 border-white/20 shadow-xl" 
+                             style="color: var(--text-on-medical) !important;">
                             {{ substr($cita->medico->primer_nombre, 0, 1) }}{{ substr($cita->medico->primer_apellido, 0, 1) }}
                         </div>
                         <div>
-                            <p class="text-blue-100 text-sm font-semibold tracking-wide uppercase opacity-80">Médico Tratante</p>
-                            <p class="text-white text-2xl font-bold tracking-tight">Dr. {{ $cita->medico->primer_nombre }} {{ $cita->medico->primer_apellido }}</p>
-                            <span class="inline-flex mt-2 px-3 py-1 bg-white/10 backdrop-blur-md rounded-lg text-xs font-semibold text-white border border-white/10">
+                            <p class="text-sm font-bold tracking-wide uppercase opacity-80" 
+                               style="color: var(--text-on-medical) !important;">Médico Tratante</p>
+                            <p class="text-3xl font-black tracking-tight mt-1" 
+                               style="color: var(--text-on-medical) !important; text-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                                Dr. {{ $cita->medico->primer_nombre }} {{ $cita->medico->primer_apellido }}
+                            </p>
+                            <span class="inline-flex mt-3 px-4 py-1.5 bg-white/10 backdrop-blur-md rounded-xl text-sm font-bold border border-white/20 shadow-lg"
+                                  style="color: var(--text-on-medical) !important;">
+                                <i class="bi bi-star-fill mr-2"></i>
                                 {{ $cita->especialidad->nombre }}
                             </span>
                         </div>
                     </div>
                     
-                    <div class="text-center md:text-right bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
-                        <p class="text-blue-50 text-xs font-bold uppercase tracking-wider mb-1">Total a Pagar</p>
-                        <div class="text-3xl font-black text-white tracking-tight">
-                            Bs. {{ number_format($cita->tarifa_total * $tasaActual->valor, 2) }}
+                    <div class="text-center md:text-right">
+                        <div class="bg-white/15 backdrop-blur-md rounded-2xl p-6 border-2 border-white/20 shadow-2xl">
+                            <p class="text-xs font-black uppercase tracking-wider mb-2" 
+                               style="color: var(--text-on-medical) !important; opacity: 0.8;">Total a Pagar</p>
+                            <div class="text-4xl font-black tracking-tight mb-2" 
+                                 style="color: var(--text-on-medical) !important; text-shadow: 0 2px 15px rgba(0,0,0,0.15);">
+                                Bs. {{ number_format($cita->tarifa_total * $tasaActual->valor, 2) }}
+                            </div>
+                            <p class="text-base font-bold" style="color: var(--text-on-medical) !important; opacity: 0.9;">
+                                ${{ number_format($cita->tarifa_total, 2) }} USD
+                            </p>
                         </div>
-                        <p class="text-blue-100 text-sm mt-1 font-medium">${{ number_format($cita->tarifa_total, 2) }} USD</p>
                     </div>
                 </div>
                 
-                <div class="grid grid-cols-3 gap-4 mt-8 pt-6 border-t border-white/10">
-                    <div class="flex items-center gap-3 text-white">
-                        <div class="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
-                            <i class="bi bi-calendar3 text-sm"></i>
+                <!-- Detalles de la cita -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-8 pt-6 border-t border-white/20">
+                    <div class="flex items-center gap-3 bg-white/10 backdrop-blur-sm rounded-xl px-4 py-3 border border-white/10 hover:bg-white/15 transition-colors">
+                        <div class="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center" style="color: var(--text-on-medical) !important;">
+                            <i class="bi bi-calendar3"></i>
                         </div>
-                        <span class="font-medium text-sm">{{ \Carbon\Carbon::parse($cita->fecha_cita)->format('d/m/Y') }}</span>
+                        <div>
+                            <p class="text-xs opacity-70 font-semibold uppercase" style="color: var(--text-on-medical) !important;">Fecha</p>
+                            <span class="font-black text-sm" style="color: var(--text-on-medical) !important;">
+                                {{ \Carbon\Carbon::parse($cita->fecha_cita)->format('d/m/Y') }}
+                            </span>
+                        </div>
                     </div>
-                    <div class="flex items-center gap-3 text-white">
-                        <div class="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
-                            <i class="bi bi-clock text-sm"></i>
+                    <div class="flex items-center gap-3 bg-white/10 backdrop-blur-sm rounded-xl px-4 py-3 border border-white/10 hover:bg-white/15 transition-colors">
+                        <div class="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center" style="color: var(--text-on-medical) !important;">
+                            <i class="bi bi-clock"></i>
                         </div>
-                        <span class="font-medium text-sm">{{ \Carbon\Carbon::parse($cita->hora_inicio)->format('h:i A') }}</span>
+                        <div>
+                            <p class="text-xs opacity-70 font-semibold uppercase" style="color: var(--text-on-medical) !important;">Hora</p>
+                            <span class="font-black text-sm" style="color: var(--text-on-medical) !important;">
+                                {{ \Carbon\Carbon::parse($cita->hora_inicio)->format('h:i A') }}
+                            </span>
+                        </div>
                     </div>
-                    <div class="flex items-center gap-3 text-white">
-                        <div class="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
-                            <i class="bi bi-currency-exchange text-sm"></i>
+                    <div class="flex items-center gap-3 bg-white/10 backdrop-blur-sm rounded-xl px-4 py-3 border border-white/10 hover:bg-white/15 transition-colors">
+                        <div class="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center" style="color: var(--text-on-medical) !important;">
+                            <i class="bi bi-currency-exchange"></i>
                         </div>
-                        <span class="font-medium text-sm">Tasa: {{ number_format($tasaActual->valor, 2) }}</span>
+                        <div>
+                            <p class="text-xs opacity-70 font-semibold uppercase" style="color: var(--text-on-medical) !important;">Tasa</p>
+                            <span class="font-black text-sm" style="color: var(--text-on-medical) !important;">
+                                {{ number_format($tasaActual->valor, 2) }} Bs/$
+                            </span>
+                        </div>
                     </div>
                 </div>
+                
+                <!-- Línea decorativa inferior -->
+                <div class="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-white/30 to-transparent"></div>
             </div>
         </div>
 

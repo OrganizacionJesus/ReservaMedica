@@ -3,624 +3,579 @@
 @section('title', 'Editar Mi Perfil')
 
 @section('content')
-<div class="max-w-5xl mx-auto">
-    <!-- Header -->
-    <div class="mb-8">
-        <div class="flex items-center gap-4 mb-2">
-            <a href="{{ route('paciente.dashboard') }}" class="btn btn-outline hover:bg-gray-100">
-                <i class="bi bi-arrow-left"></i>
-            </a>
-            <div>
-                <h1 class="text-3xl font-display font-bold text-gray-900">Editar Mi Perfil</h1>
-                <p class="text-gray-600 mt-1">Actualiza tu información personal</p>
+<!-- Header con Glassmorphism Premium -->
+<div class="relative bg-white dark:bg-gray-800 rounded-3xl p-6 lg:p-10 shadow-xl overflow-hidden mb-8 border border-slate-100 dark:border-gray-700 animate-fade-in-down">
+    <!-- Decorative Elements -->
+    <div class="absolute -top-24 -right-24 w-96 h-96 bg-medical-500/10 rounded-full blur-3xl pointer-events-none"></div>
+    <div class="absolute -bottom-24 -left-24 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
+    <div class="absolute top-1/2 left-1/3 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl pointer-events-none animate-pulse-slow"></div>
+
+    <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div>
+            <div class="flex items-center gap-2 mb-2">
+                <a href="{{ route('paciente.dashboard') }}" class="group w-8 h-8 rounded-full bg-white/50 hover:bg-white dark:bg-gray-700/50 dark:hover:bg-gray-700 flex items-center justify-center transition-all shadow-sm">
+                    <i class="bi bi-arrow-left text-slate-600 dark:text-gray-300 group-hover:text-medical-600 dark:group-hover:text-medical-400"></i>
+                </a>
+                <div class="h-6 w-px bg-slate-300 dark:bg-gray-600 mx-1"></div>
+                <div class="p-2 bg-medical-100 dark:bg-medical-900/30 rounded-lg text-medical-600 dark:text-medical-400">
+                    <i class="bi bi-person-gear text-xl"></i>
+                </div>
+            </div>
+            <h1 class="text-3xl md:text-4xl font-black text-slate-800 dark:text-white tracking-tight leading-tight">
+                Editar Perfil
+            </h1>
+            <p class="text-slate-500 dark:text-gray-400 text-lg mt-1 font-medium">Actualiza tu información personal y mantén tu cuenta segura.</p>
+        </div>
+        
+        <div class="hidden md:block">
+            <div class="relative group cursor-default">
+                 <div class="absolute inset-0 bg-medical-500 blur-xl opacity-20 group-hover:opacity-30 transition-opacity rounded-full"></div>
+                 <img src="{{ auth()->user()->paciente->foto_perfil ? asset('storage/' . auth()->user()->paciente->foto_perfil) : asset('images/default-avatar.png') }}" 
+                      onerror="this.src='https://ui-avatars.com/api/?name={{ urlencode(auth()->user()->paciente->primer_nombre) }}&background=10b981&color=fff'"
+                      class="relative w-24 h-24 rounded-full border-4 border-white dark:border-gray-800 shadow-2xl object-cover transform group-hover:scale-105 transition-transform duration-300">
+                 <div class="absolute bottom-1 right-1 w-6 h-6 bg-green-500 border-2 border-white dark:border-gray-800 rounded-full shadow-sm z-20" title="Activo"></div>
             </div>
         </div>
     </div>
+</div>
 
-    <form action="{{ route('paciente.perfil.update') }}" method="POST" enctype="multipart/form-data">
-        @csrf
-        @method('PUT')
+<form action="{{ route('paciente.perfil.update') }}" method="POST" enctype="multipart/form-data" class="max-w-7xl mx-auto">
+    @csrf
+    @method('PUT')
+    
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
         
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <!-- Main Content -->
-            <div class="lg:col-span-2 space-y-6">
-                
-                <!-- Información Personal -->
-                <div class="card p-6">
-                    <h3 class="text-lg font-display font-bold text-gray-900 mb-6 flex items-center gap-2">
-                        <i class="bi bi-person-badge text-emerald-600"></i>
-                        Información Personal
-                    </h3>
-                    
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <!-- Main Form Area -->
+        <div class="lg:col-span-8 space-y-6">
+            
+            <!-- SECTION 1: Personal Information -->
+            <div class="group bg-white dark:bg-gray-800 rounded-3xl p-0 border border-slate-100 dark:border-gray-700 shadow-sm hover:shadow-xl transition-all duration-300 relative overflow-hidden animate-slide-in-up" style="animation-delay: 0ms;">
+                <div class="absolute left-0 top-0 bottom-0 w-1.5 bg-medical-500"></div>
+                <div class="p-8">
+                    <div class="flex items-center gap-4 mb-8 pb-4 border-b border-slate-50 dark:border-gray-700/50">
+                        <div class="w-12 h-12 rounded-2xl bg-medical-50 dark:bg-medical-900/20 flex items-center justify-center text-medical-600 dark:text-medical-400 group-hover:scale-110 transition-transform duration-300 shadow-sm">
+                            <i class="bi bi-person-vcard text-2xl"></i>
+                        </div>
                         <div>
-                            <label class="form-label required">Primer Nombre</label>
-                            <input type="text" name="primer_nombre" class="input" 
-                                   value="{{ old('primer_nombre', $paciente->primer_nombre) }}" required>
-                            @error('primer_nombre')<span class="text-red-600 text-sm">{{ $message }}</span>@enderror
+                            <h3 class="text-xl font-bold text-slate-800 dark:text-white">Información Personal</h3>
+                            <p class="text-sm text-slate-500 dark:text-gray-400">Datos básicos de identificación.</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-6">
+                        <div class="space-y-1">
+                            <label class="text-xs font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider ml-1">Primer Nombre <span class="text-rose-500">*</span></label>
+                            <div class="relative group/input">
+                                <i class="bi bi-person absolute left-4 top-3.5 text-slate-400 group-focus-within/input:text-medical-500 transition-colors"></i>
+                                <input type="text" name="primer_nombre" value="{{ old('primer_nombre', $paciente->primer_nombre) }}" required
+                                       class="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-gray-900/50 border border-slate-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-medical-500 focus:border-medical-500 outline-none transition-all font-semibold text-slate-700 dark:text-gray-200 placeholder-slate-400">
+                            </div>
+                            @error('primer_nombre') <p class="text-xs text-rose-500 font-bold mt-1 ml-1"><i class="bi bi-exclamation-circle"></i> {{ $message }}</p> @enderror
                         </div>
 
-                        <div>
-                            <label class="form-label">Segundo Nombre</label>
-                            <input type="text" name="segundo_nombre" class="input" 
-                                   value="{{ old('segundo_nombre', $paciente->segundo_nombre) }}">
-                            @error('segundo_nombre')<span class="text-red-600 text-sm">{{ $message }}</span>@enderror
+                        <div class="space-y-1">
+                            <label class="text-xs font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider ml-1">Segundo Nombre</label>
+                            <input type="text" name="segundo_nombre" value="{{ old('segundo_nombre', $paciente->segundo_nombre) }}"
+                                   class="w-full px-4 py-3 bg-slate-50 dark:bg-gray-900/50 border border-slate-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-medical-500 focus:border-medical-500 outline-none transition-all font-medium text-slate-700 dark:text-gray-200">
                         </div>
 
-                        <div>
-                            <label class="form-label required">Primer Apellido</label>
-                            <input type="text" name="primer_apellido" class="input" 
-                                   value="{{ old('primer_apellido', $paciente->primer_apellido) }}" required>
-                            @error('primer_apellido')<span class="text-red-600 text-sm">{{ $message }}</span>@enderror
+                        <div class="space-y-1">
+                            <label class="text-xs font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider ml-1">Primer Apellido <span class="text-rose-500">*</span></label>
+                            <div class="relative group/input">
+                                <i class="bi bi-card-text absolute left-4 top-3.5 text-slate-400 group-focus-within/input:text-medical-500 transition-colors"></i>
+                                <input type="text" name="primer_apellido" value="{{ old('primer_apellido', $paciente->primer_apellido) }}" required
+                                       class="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-gray-900/50 border border-slate-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-medical-500 focus:border-medical-500 outline-none transition-all font-semibold text-slate-700 dark:text-gray-200">
+                            </div>
+                             @error('primer_apellido') <p class="text-xs text-rose-500 font-bold mt-1 ml-1"><i class="bi bi-exclamation-circle"></i> {{ $message }}</p> @enderror
                         </div>
 
-                        <div>
-                            <label class="form-label">Segundo Apellido</label>
-                            <input type="text" name="segundo_apellido" class="input" 
-                                   value="{{ old('segundo_apellido', $paciente->segundo_apellido) }}">
-                            @error('segundo_apellido')<span class="text-red-600 text-sm">{{ $message }}</span>@enderror
+                        <div class="space-y-1">
+                            <label class="text-xs font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider ml-1">Segundo Apellido</label>
+                            <input type="text" name="segundo_apellido" value="{{ old('segundo_apellido', $paciente->segundo_apellido) }}"
+                                   class="w-full px-4 py-3 bg-slate-50 dark:bg-gray-900/50 border border-slate-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-medical-500 focus:border-medical-500 outline-none transition-all font-medium text-slate-700 dark:text-gray-200">
                         </div>
 
-                        <div>
-                            <label class="form-label">Fecha de Nacimiento</label>
-                            <input type="date" name="fecha_nac" class="input" 
-                                   value="{{ old('fecha_nac', $paciente->fecha_nac) }}">
-                            @error('fecha_nac')<span class="text-red-600 text-sm">{{ $message }}</span>@enderror
+                         <div class="space-y-1">
+                            <label class="text-xs font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider ml-1">Fecha de Nacimiento</label>
+                            <input type="date" name="fecha_nac" value="{{ old('fecha_nac', $paciente->fecha_nac) }}"
+                                   class="w-full px-4 py-3 bg-slate-50 dark:bg-gray-900/50 border border-slate-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-medical-500 focus:border-medical-500 outline-none transition-all font-medium text-slate-700 dark:text-gray-200">
                         </div>
 
-                        <div>
-                            <label class="form-label">Género</label>
-                            <select name="genero" class="form-select">
-                                <option value="">Seleccione...</option>
-                                <option value="Masculino" {{ old('genero', $paciente->genero) == 'Masculino' ? 'selected' : '' }}>Masculino</option>
-                                <option value="Femenino" {{ old('genero', $paciente->genero) == 'Femenino' ? 'selected' : '' }}>Femenino</option>
-                                <option value="Otro" {{ old('genero', $paciente->genero) == 'Otro' ? 'selected' : '' }}>Otro</option>
-                            </select>
-                            @error('genero')<span class="text-red-600 text-sm">{{ $message }}</span>@enderror
+                         <div class="space-y-1">
+                            <label class="text-xs font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider ml-1">Género</label>
+                            <div class="relative">
+                                <select name="genero" class="w-full px-4 py-3 bg-slate-50 dark:bg-gray-900/50 border border-slate-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-medical-500 focus:border-medical-500 outline-none transition-all font-medium text-slate-700 dark:text-gray-200 appearance-none cursor-pointer">
+                                    <option value="">Seleccione...</option>
+                                    <option value="Masculino" {{ old('genero', $paciente->genero) == 'Masculino' ? 'selected' : '' }}>Masculino</option>
+                                    <option value="Femenino" {{ old('genero', $paciente->genero) == 'Femenino' ? 'selected' : '' }}>Femenino</option>
+                                    <option value="Otro" {{ old('genero', $paciente->genero) == 'Otro' ? 'selected' : '' }}>Otro</option>
+                                </select>
+                                <i class="bi bi-chevron-down absolute right-4 top-3.5 text-slate-400 pointer-events-none"></i>
+                            </div>
                         </div>
 
-                        <div>
-                            <label class="form-label">Ocupación</label>
-                            <input type="text" name="ocupacion" class="input" 
-                                   value="{{ old('ocupacion', $paciente->ocupacion) }}" placeholder="Ej: Ingeniero">
-                            @error('ocupacion')<span class="text-red-600 text-sm">{{ $message }}</span>@enderror
+                        <div class="space-y-1">
+                            <label class="text-xs font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider ml-1">Ocupación</label>
+                            <input type="text" name="ocupacion" value="{{ old('ocupacion', $paciente->ocupacion) }}" placeholder="Ej: Ingeniero, Estudiante..."
+                                   class="w-full px-4 py-3 bg-slate-50 dark:bg-gray-900/50 border border-slate-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-medical-500 focus:border-medical-500 outline-none transition-all font-medium text-slate-700 dark:text-gray-200">
                         </div>
 
-                        <div>
-                            <label class="form-label">Estado Civil</label>
-                            <select name="estado_civil" class="form-select">
-                                <option value="">Seleccione...</option>
-                                <option value="Soltero" {{ old('estado_civil', $paciente->estado_civil) == 'Soltero' ? 'selected' : '' }}>Soltero(a)</option>
-                                <option value="Casado" {{ old('estado_civil', $paciente->estado_civil) == 'Casado' ? 'selected' : '' }}>Casado(a)</option>
-                                <option value="Divorciado" {{ old('estado_civil', $paciente->estado_civil) == 'Divorciado' ? 'selected' : '' }}>Divorciado(a)</option>
-                                <option value="Viudo" {{ old('estado_civil', $paciente->estado_civil) == 'Viudo' ? 'selected' : '' }}>Viudo(a)</option>
-                                <option value="Unión Libre" {{ old('estado_civil', $paciente->estado_civil) == 'Unión Libre' ? 'selected' : '' }}>Unión Libre</option>
-                            </select>
-                            @error('estado_civil')<span class="text-red-600 text-sm">{{ $message }}</span>@enderror
+                         <div class="space-y-1">
+                            <label class="text-xs font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider ml-1">Estado Civil</label>
+                            <div class="relative">
+                                <select name="estado_civil" class="w-full px-4 py-3 bg-slate-50 dark:bg-gray-900/50 border border-slate-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-medical-500 focus:border-medical-500 outline-none transition-all font-medium text-slate-700 dark:text-gray-200 appearance-none cursor-pointer">
+                                    <option value="">Seleccione...</option>
+                                    <option value="Soltero" {{ old('estado_civil', $paciente->estado_civil) == 'Soltero' ? 'selected' : '' }}>Soltero(a)</option>
+                                    <option value="Casado" {{ old('estado_civil', $paciente->estado_civil) == 'Casado' ? 'selected' : '' }}>Casado(a)</option>
+                                    <option value="Divorciado" {{ old('estado_civil', $paciente->estado_civil) == 'Divorciado' ? 'selected' : '' }}>Divorciado(a)</option>
+                                    <option value="Viudo" {{ old('estado_civil', $paciente->estado_civil) == 'Viudo' ? 'selected' : '' }}>Viudo(a)</option>
+                                </select>
+                                <i class="bi bi-chevron-down absolute right-4 top-3.5 text-slate-400 pointer-events-none"></i>
+                            </div>
                         </div>
                     </div>
                 </div>
+            </div>
 
-                <!-- Información de Contacto -->
-                <div class="card p-6">
-                    <h3 class="text-lg font-display font-bold text-gray-900 mb-6 flex items-center gap-2">
-                        <i class="bi bi-telephone text-blue-600"></i>
-                        Información de Contacto
-                    </h3>
-                    
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- SECTION 2: Contact Info -->
+             <div class="group bg-white dark:bg-gray-800 rounded-3xl p-0 border border-slate-100 dark:border-gray-700 shadow-sm hover:shadow-xl transition-all duration-300 relative overflow-hidden animate-slide-in-up" style="animation-delay: 100ms;">
+                <div class="absolute left-0 top-0 bottom-0 w-1.5 bg-blue-500"></div>
+                <div class="p-8">
+                    <div class="flex items-center gap-4 mb-8 pb-4 border-b border-slate-50 dark:border-gray-700/50">
+                        <div class="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform duration-300 shadow-sm">
+                            <i class="bi bi-telephone text-2xl"></i>
+                        </div>
                         <div>
-                            <label class="form-label">Prefijo Teléfono</label>
-                            <select name="prefijo_tlf" class="form-select">
-                                <option value="">Seleccione...</option>
-                                <option value="+58" {{ old('prefijo_tlf', $paciente->prefijo_tlf) == '+58' ? 'selected' : '' }}>+58 (Venezuela)</option>
-                                <option value="+57" {{ old('prefijo_tlf', $paciente->prefijo_tlf) == '+57' ? 'selected' : '' }}>+57 (Colombia)</option>
-                                <option value="+1" {{ old('prefijo_tlf', $paciente->prefijo_tlf) == '+1' ? 'selected' : '' }}>+1 (USA/Canadá)</option>
-                                <option value="+34" {{ old('prefijo_tlf', $paciente->prefijo_tlf) == '+34' ? 'selected' : '' }}>+34 (España)</option>
-                            </select>
-                            @error('prefijo_tlf')<span class="text-red-600 text-sm">{{ $message }}</span>@enderror
+                            <h3 class="text-xl font-bold text-slate-800 dark:text-white">Contacto</h3>
+                            <p class="text-sm text-slate-500 dark:text-gray-400">Medios para comunicarnos contigo.</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                         <div class="space-y-1">
+                            <label class="text-xs font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider ml-1">Prefijo</label>
+                            <div class="relative">
+                                <select name="prefijo_tlf" class="w-full px-4 py-3 bg-slate-50 dark:bg-gray-900/50 border border-slate-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all font-medium text-slate-700 dark:text-gray-200 appearance-none cursor-pointer">
+                                    <option value="">Seleccione...</option>
+                                    <option value="+58" {{ old('prefijo_tlf', $paciente->prefijo_tlf) == '+58' ? 'selected' : '' }}>+58 (Venezuela)</option>
+                                    <option value="+57" {{ old('prefijo_tlf', $paciente->prefijo_tlf) == '+57' ? 'selected' : '' }}>+57 (Colombia)</option>
+                                    <option value="+1" {{ old('prefijo_tlf', $paciente->prefijo_tlf) == '+1' ? 'selected' : '' }}>+1 (USA/Canadá)</option>
+                                    <option value="+34" {{ old('prefijo_tlf', $paciente->prefijo_tlf) == '+34' ? 'selected' : '' }}>+34 (España)</option>
+                                </select>
+                                <i class="bi bi-chevron-down absolute right-4 top-3.5 text-slate-400 pointer-events-none"></i>
+                            </div>
                         </div>
 
-                        <div>
-                            <label class="form-label">Número de Teléfono</label>
-                            <input type="text" name="numero_tlf" class="input" 
-                                   value="{{ old('numero_tlf', $paciente->numero_tlf) }}" 
-                                   placeholder="4241234567">
-                            @error('numero_tlf')<span class="text-red-600 text-sm">{{ $message }}</span>@enderror
+                         <div class="space-y-1">
+                            <label class="text-xs font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider ml-1">Número Teléfono</label>
+                            <div class="relative group/input">
+                                <i class="bi bi-phone absolute left-4 top-3.5 text-slate-400 group-focus-within/input:text-blue-500 transition-colors"></i>
+                                <input type="text" name="numero_tlf" value="{{ old('numero_tlf', $paciente->numero_tlf) }}" placeholder="Ej: 4241234567"
+                                       class="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-gray-900/50 border border-slate-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all font-medium text-slate-700 dark:text-gray-200">
+                            </div>
                         </div>
                     </div>
                 </div>
+            </div>
 
-                <!-- Ubicación -->
-                <div class="card p-6">
-                    <h3 class="text-lg font-display font-bold text-gray-900 mb-6 flex items-center gap-2">
-                        <i class="bi bi-geo-alt text-purple-600"></i>
-                        Ubicación
-                    </h3>
-                    
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- SECTION 3: Location -->
+             <div class="group bg-white dark:bg-gray-800 rounded-3xl p-0 border border-slate-100 dark:border-gray-700 shadow-sm hover:shadow-xl transition-all duration-300 relative overflow-hidden animate-slide-in-up" style="animation-delay: 200ms;">
+                <div class="absolute left-0 top-0 bottom-0 w-1.5 bg-purple-500"></div>
+                <div class="p-8">
+                    <div class="flex items-center gap-4 mb-8 pb-4 border-b border-slate-50 dark:border-gray-700/50">
+                        <div class="w-12 h-12 rounded-2xl bg-purple-50 dark:bg-purple-900/20 flex items-center justify-center text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform duration-300 shadow-sm">
+                            <i class="bi bi-geo-alt text-2xl"></i>
+                        </div>
                         <div>
-                            <label class="form-label">Estado</label>
-                            <select name="estado_id" id="estado_id" class="form-select">
-                                <option value="">Seleccione...</option>
-                                @foreach($estados as $estado)
-                                <option value="{{ $estado->id_estado }}" {{ old('estado_id', $paciente->estado_id) == $estado->id_estado ? 'selected' : '' }}>
-                                    {{ $estado->estado }}
-                                </option>
-                                @endforeach
-                            </select>
-                            @error('estado_id')<span class="text-red-600 text-sm">{{ $message }}</span>@enderror
+                            <h3 class="text-xl font-bold text-slate-800 dark:text-white">Dirección y Ubicación</h3>
+                            <p class="text-sm text-slate-500 dark:text-gray-400">¿Dónde resides actualmente?</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                        <div class="space-y-1">
+                            <label class="text-xs font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider ml-1">Estado</label>
+                             <div class="relative">
+                                <select name="estado_id" id="estado_id" class="w-full px-4 py-3 bg-slate-50 dark:bg-gray-900/50 border border-slate-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all font-medium text-slate-700 dark:text-gray-200 appearance-none cursor-pointer">
+                                    <option value="">Seleccione...</option>
+                                    @foreach($estados as $estado)
+                                        <option value="{{ $estado->id_estado }}" {{ old('estado_id', $paciente->estado_id) == $estado->id_estado ? 'selected' : '' }}>
+                                            {{ $estado->estado }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                <i class="bi bi-chevron-down absolute right-4 top-3.5 text-slate-400 pointer-events-none"></i>
+                            </div>
                         </div>
 
-                        <div>
-                            <label class="form-label">Ciudad</label>
-                            <select name="ciudad_id" id="ciudad_id" class="form-select">
-                                <option value="">Seleccione...</option>
-                                @foreach($ciudades as $ciudad)
-                                <option value="{{ $ciudad->id_ciudad }}" {{ old('ciudad_id', $paciente->ciudad_id) == $ciudad->id_ciudad ? 'selected' : '' }}>
-                                    {{ $ciudad->ciudad }}
-                                </option>
-                                @endforeach
-                            </select>
-                            @error('ciudad_id')<span class="text-red-600 text-sm">{{ $message }}</span>@enderror
+                         <div class="space-y-1">
+                            <label class="text-xs font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider ml-1">Ciudad</label>
+                             <div class="relative">
+                                <select name="ciudad_id" id="ciudad_id" class="w-full px-4 py-3 bg-slate-50 dark:bg-gray-900/50 border border-slate-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all font-medium text-slate-700 dark:text-gray-200 appearance-none cursor-pointer disabled:opacity-50">
+                                    <option value="">Seleccione Estado primero...</option>
+                                     @foreach($ciudades as $ciudad)
+                                        <option value="{{ $ciudad->id_ciudad }}" {{ old('ciudad_id', $paciente->ciudad_id) == $ciudad->id_ciudad ? 'selected' : '' }}>
+                                            {{ $ciudad->ciudad }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                <i class="bi bi-chevron-down absolute right-4 top-3.5 text-slate-400 pointer-events-none"></i>
+                            </div>
                         </div>
 
-                        <div>
-                            <label class="form-label">Municipio</label>
-                            <select name="municipio_id" id="municipio_id" class="form-select">
-                                <option value="">Seleccione...</option>
-                                @foreach($municipios as $municipio)
-                                <option value="{{ $municipio->id_municipio }}" {{ old('municipio_id', $paciente->municipio_id) == $municipio->id_municipio ? 'selected' : '' }}>
-                                    {{ $municipio->municipio }}
-                                </option>
-                                @endforeach
-                            </select>
-                            @error('municipio_id')<span class="text-red-600 text-sm">{{ $message }}</span>@enderror
+                         <div class="space-y-1">
+                            <label class="text-xs font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider ml-1">Municipio</label>
+                             <div class="relative">
+                                <select name="municipio_id" id="municipio_id" class="w-full px-4 py-3 bg-slate-50 dark:bg-gray-900/50 border border-slate-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all font-medium text-slate-700 dark:text-gray-200 appearance-none cursor-pointer disabled:opacity-50">
+                                    <option value="">Seleccione Estado primero...</option>
+                                    @foreach($municipios as $municipio)
+                                        <option value="{{ $municipio->id_municipio }}" {{ old('municipio_id', $paciente->municipio_id) == $municipio->id_municipio ? 'selected' : '' }}>
+                                            {{ $municipio->municipio }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                <i class="bi bi-chevron-down absolute right-4 top-3.5 text-slate-400 pointer-events-none"></i>
+                            </div>
                         </div>
 
-                        <div>
-                            <label class="form-label">Parroquia</label>
-                            <select name="parroquia_id" id="parroquia_id" class="form-select">
-                                <option value="">Seleccione...</option>
-                                @foreach($parroquias as $parroquia)
-                                <option value="{{ $parroquia->id_parroquia }}" {{ old('parroquia_id', $paciente->parroquia_id) == $parroquia->id_parroquia ? 'selected' : '' }}>
-                                    {{ $parroquia->parroquia }}
-                                </option>
-                                @endforeach
-                            </select>
-                            @error('parroquia_id')<span class="text-red-600 text-sm">{{ $message }}</span>@enderror
+                         <div class="space-y-1">
+                            <label class="text-xs font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider ml-1">Parroquia</label>
+                             <div class="relative">
+                                <select name="parroquia_id" id="parroquia_id" class="w-full px-4 py-3 bg-slate-50 dark:bg-gray-900/50 border border-slate-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all font-medium text-slate-700 dark:text-gray-200 appearance-none cursor-pointer disabled:opacity-50">
+                                    <option value="">Seleccione Municipio primero...</option>
+                                     @foreach($parroquias as $parroquia)
+                                        <option value="{{ $parroquia->id_parroquia }}" {{ old('parroquia_id', $paciente->parroquia_id) == $parroquia->id_parroquia ? 'selected' : '' }}>
+                                            {{ $parroquia->parroquia }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                <i class="bi bi-chevron-down absolute right-4 top-3.5 text-slate-400 pointer-events-none"></i>
+                            </div>
                         </div>
+                    </div>
 
-                        <div class="md:col-span-2">
-                            <label class="form-label">Dirección Detallada</label>
-                            <textarea name="direccion_detallada" rows="3" class="input" 
-                                      placeholder="Calle, edificio, piso, apartamento...">{{ old('direccion_detallada', $paciente->direccion_detallada) }}</textarea>
-                            @error('direccion_detallada')<span class="text-red-600 text-sm">{{ $message }}</span>@enderror
+                     <div class="space-y-1">
+                        <label class="text-xs font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider ml-1">Dirección Detallada</label>
+                        <div class="relative group/input">
+                            <textarea name="direccion_detallada" rows="3" placeholder="Ej: Urbanización Los Mangos, Casa Nro 5..."
+                                   class="w-full px-4 py-3 bg-slate-50 dark:bg-gray-900/50 border border-slate-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all font-medium text-slate-700 dark:text-gray-200 resize-none">{{ old('direccion_detallada', $paciente->direccion_detallada) }}</textarea>
                         </div>
                     </div>
                 </div>
+            </div>
 
-                <!-- Cambiar Contraseña (Opcional) -->
-                <div class="card p-6">
-                    <h3 class="text-lg font-display font-bold text-gray-900 mb-6 flex items-center gap-2">
-                        <i class="bi bi-shield-lock text-amber-600"></i>
-                        Cambiar Contraseña (Opcional)
-                    </h3>
-                    
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label class="form-label">Nueva Contraseña</label>
-                            <input type="password" name="password" class="input" 
-                                   placeholder="Mínimo 8 caracteres">
-                            @error('password')<span class="text-red-600 text-sm">{{ $message }}</span>@enderror
+            <!-- SECTION 4: Security (Optional) -->
+            <div class="group bg-white dark:bg-gray-800 rounded-3xl p-0 border border-slate-100 dark:border-gray-700 shadow-sm hover:shadow-xl transition-all duration-300 relative overflow-hidden animate-slide-in-up" style="animation-delay: 300ms;">
+                <div class="absolute left-0 top-0 bottom-0 w-1.5 bg-amber-500"></div>
+                <div class="p-8">
+                    <div class="flex items-center gap-4 mb-8 pb-4 border-b border-slate-50 dark:border-gray-700/50">
+                        <div class="w-12 h-12 rounded-2xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center text-amber-600 dark:text-amber-400 group-hover:scale-110 transition-transform duration-300 shadow-sm">
+                            <i class="bi bi-shield-lock text-2xl"></i>
                         </div>
-
                         <div>
-                            <label class="form-label">Confirmar Contraseña</label>
-                            <input type="password" name="password_confirmation" class="input" 
-                                   placeholder="Repita la contraseña">
+                            <h3 class="text-xl font-bold text-slate-800 dark:text-white">Seguridad de la Cuenta</h3>
+                            <p class="text-sm text-slate-500 dark:text-gray-400">Actualiza tu contraseña si es necesario.</p>
                         </div>
                     </div>
-                    <p class="text-xs text-gray-500 mt-2 mb-4">
-                        <i class="bi bi-info-circle"></i> Deja estos campos en blanco si no deseas cambiar tu contraseña
-                    </p>
 
-                    <div class="pt-4 border-t border-gray-100">
-                        <a href="{{ route('paciente.security-questions') }}" class="flex items-center justify-between p-4 bg-amber-50 rounded-xl border border-amber-100 hover:bg-amber-100 transition-colors group">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+                         <div class="space-y-1">
+                            <label class="text-xs font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider ml-1">Nueva Contraseña</label>
+                             <div class="relative group/input">
+                                <i class="bi bi-lock absolute left-4 top-3.5 text-slate-400 group-focus-within/input:text-amber-500 transition-colors"></i>
+                                <input type="password" name="password" placeholder="Mínimo 8 caracteres"
+                                       class="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-gray-900/50 border border-slate-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-all font-medium text-slate-700 dark:text-gray-200">
+                            </div>
+                        </div>
+
+                         <div class="space-y-1">
+                            <label class="text-xs font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider ml-1">Confirmar Contraseña</label>
+                             <div class="relative group/input">
+                                <i class="bi bi-lock-fill absolute left-4 top-3.5 text-slate-400 group-focus-within/input:text-amber-500 transition-colors"></i>
+                                <input type="password" name="password_confirmation" placeholder="Repite la contraseña"
+                                       class="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-gray-900/50 border border-slate-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-all font-medium text-slate-700 dark:text-gray-200">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pt-4 border-t border-slate-100 dark:border-gray-700/50">
+                        <a href="{{ route('paciente.security-questions') }}" class="flex items-center justify-between p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-100 dark:border-amber-800/30 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors group cursor-pointer">
                             <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center text-amber-600 group-hover:bg-amber-200 transition-colors">
-                                    <i class="bi bi-question-shield text-xl"></i>
+                                <div class="w-10 h-10 rounded-lg bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center text-amber-600 dark:text-amber-400 group-hover:scale-110 transition-transform">
+                                    <i class="bi bi-shield-check text-xl"></i>
                                 </div>
                                 <div>
-                                    <h4 class="font-bold text-gray-900 text-sm">Preguntas de Seguridad</h4>
-                                    <p class="text-xs text-gray-600">Configura tus preguntas para recuperar acceso</p>
+                                    <h4 class="font-bold text-slate-800 dark:text-white text-sm">Preguntas de Seguridad</h4>
+                                    <p class="text-xs text-slate-500 dark:text-gray-400">Configura tus preguntas para recuperar el acceso</p>
                                 </div>
                             </div>
-                            <i class="bi bi-chevron-right text-gray-400 group-hover:text-amber-600 transition-colors"></i>
+                            <i class="bi bi-chevron-right text-slate-400 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors"></i>
                         </a>
                     </div>
                 </div>
-
             </div>
 
-            <!-- Sidebar -->
-            <div class="space-y-6">
-                
-                <!-- Foto de Perfil -->
-                <div class="card p-6">
-                    <h3 class="text-lg font-display font-bold text-gray-900 mb-4 flex items-center gap-2">
-                        <i class="bi bi-camera text-medical-600"></i>
-                        Foto de Perfil
-                    </h3>
-                    
-                    <div class="space-y-4">
-                        <!-- Preview -->
-                        <div class="flex justify-center">
-                            <div class="relative group">
-                                @if($paciente->foto_perfil)
-                                    <img id="preview_image" src="{{ asset('storage/' . $paciente->foto_perfil) }}" 
-                                         alt="Foto de perfil" 
-                                         class="w-32 h-32 rounded-full object-cover border-4 border-medical-100 shadow-lg">
-                                @else
-                                    <div id="preview_image" class="w-32 h-32 rounded-full bg-gradient-to-br from-medical-100 to-medical-50 flex items-center justify-center text-5xl text-medical-700 font-bold border-4 border-white shadow-lg">
-                                        {{ strtoupper(substr($paciente->primer_nombre, 0, 1)) }}
-                                    </div>
-                                @endif
-                                <div class="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                    <i class="bi bi-camera text-white text-2xl"></i>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Upload -->
-                        <div>
-                            <label for="foto_perfil" class="btn btn-outline w-full cursor-pointer hover:bg-medical-50">
-                                <i class="bi bi-upload mr-2"></i> Seleccionar Foto
-                            </label>
-                            <input type="file" id="foto_perfil" name="foto_perfil" class="hidden" 
-                                   accept="image/*" onchange="previewImage(event)">
-                            @error('foto_perfil')<span class="text-red-600 text-sm">{{ $message }}</span>@enderror
-                        </div>
-                        
-                        <p class="text-xs text-gray-500 text-center">
-                            JPG, PNG o GIF. Máximo 2MB
-                        </p>
-                    </div>
-                </div>
-
-                <!-- Banner de Perfil -->
-                <div class="card p-6">
-                    <h3 class="text-lg font-display font-bold text-gray-900 mb-6 flex items-center gap-2">
-                        <i class="bi bi-palette text-emerald-600"></i>
-                        Banner de Perfil
-                    </h3>
-                    
-                    <div class="space-y-6">
-                        <!-- Preview Banner -->
-                        <div id="banner_preview_container" class="relative h-28 rounded-2xl overflow-hidden border border-gray-100 shadow-inner group">
-                            @if($paciente->banner_perfil)
-                                <img id="preview_banner" src="{{ asset('storage/' . $paciente->banner_perfil) }}" 
-                                     class="w-full h-full object-cover">
-                            @else
-                                <div id="preview_banner_color" class="w-full h-full {{ $paciente->banner_color ?? 'bg-gradient-to-r from-emerald-100 via-green-100 to-blue-100' }}"
-                                     style="{{ str_contains($paciente->banner_color ?? '', '#') ? 'background-color: ' . $paciente->banner_color : '' }}">
-                                </div>
-                            @endif
-                            <div class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
-                                <span class="text-white text-xs font-bold uppercase tracking-wider">Vista Previa</span>
-                            </div>
-                        </div>
-
-                        <!-- Opciones de Color/Gradiente -->
-                        <div>
-                            <label class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 block">Colores y Gradientes</label>
-                            <div class="flex flex-wrap gap-3">
-                                <!-- Gradientes Predefinidos -->
-                                @php
-                                    $gradients = [
-                                        'bg-gradient-to-r from-emerald-100 via-green-100 to-blue-100',
-                                        'bg-gradient-to-r from-blue-600 to-indigo-700',
-                                        'bg-gradient-to-r from-emerald-500 to-teal-700',
-                                        'bg-gradient-to-r from-purple-500 to-indigo-600',
-                                        'bg-gradient-to-r from-rose-400 to-orange-500',
-                                        'bg-gradient-to-r from-slate-700 to-slate-900',
-                                    ];
-                                @endphp
-
-                                @foreach($gradients as $grad)
-                                    <button type="button" onclick="setBannerColor('{{ $grad }}')" 
-                                            class="w-8 h-8 rounded-full {{ $grad }} border-2 {{ ($paciente->banner_color == $grad) ? 'border-emerald-600 scale-110 shadow-lg' : 'border-white hover:scale-110' }} transition-all">
-                                    </button>
-                                @endforeach
-
-                                <!-- Custom Color Picker -->
-                                <div class="relative flex items-center">
-                                    <input type="color" id="custom_color_picker" 
-                                           onchange="setBannerColor(this.value)"
-                                           class="absolute inset-0 opacity-0 w-8 h-8 cursor-pointer">
-                                    <div class="w-8 h-8 rounded-full bg-white border-2 border-gray-200 flex items-center justify-center text-gray-400 hover:text-emerald-500 hover:border-emerald-500 transition-colors">
-                                        <i class="bi bi-plus-circle"></i>
-                                    </div>
-                                </div>
-
-                                <input type="hidden" name="banner_color" id="banner_color_input" value="{{ $paciente->banner_color }}">
-                            </div>
-                        </div>
-
-                        <!-- Tema Dinámico Toggle -->
-                        <div class="pt-4 border-t border-gray-100">
-                            <div class="flex items-center justify-between p-3 bg-medical-50 rounded-2xl border border-medical-100">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-10 h-10 rounded-xl bg-medical-100 flex items-center justify-center text-medical-600">
-                                        <i class="bi bi-magic text-xl"></i>
-                                    </div>
-                                    <div>
-                                        <h4 class="text-sm font-bold text-gray-900">Tema Dinámico</h4>
-                                        <p class="text-[10px] text-gray-500">Adaptar el portal a tu color elegido</p>
-                                    </div>
-                                </div>
-                                <label class="relative inline-flex items-center cursor-pointer">
-                                    <input type="checkbox" name="tema_dinamico" value="1" 
-                                           class="sr-only peer" {{ $paciente->tema_dinamico ? 'checked' : '' }}
-                                           onchange="updateDynamicPreview()">
-                                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-medical-500"></div>
-                                </label>
-                            </div>
-                        </div>
-
-                        <!-- Subir Imagen -->
-                        <div class="pt-4 border-t border-gray-100">
-                            <label class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 block">O subir una imagen personalizada</label>
-                            <div class="flex items-center gap-3">
-                                <label for="banner_perfil" class="btn btn-outline flex-1 cursor-pointer hover:bg-medical-50 text-sm">
-                                    <i class="bi bi-upload mr-2"></i> Seleccionar Imagen
-                                </label>
-                            </div>
-                            @error('banner_perfil')<span class="text-red-600 text-sm">{{ $message }}</span>@enderror
-                            <p class="text-[10px] text-gray-500 mt-2">Recomendado: 1200x300px. Máximo 3MB. Las imágenes tienen prioridad sobre los colores.</p>
-                        </div>
-                    </div>
-                </div>
-                <!-- Información del Sistema -->
-                <div class="card p-6 bg-gray-50">
-                    <h4 class="text-sm font-bold text-gray-700 mb-3">Información de la Cuenta</h4>
-                    <div class="space-y-2 text-sm">
-                        <div class="flex justify-between">
-                            <span class="text-gray-600">Email:</span>
-                            <span class="font-medium text-gray-900">{{ auth()->user()->correo }}</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-gray-600">Documento:</span>
-                            <span class="font-medium text-gray-900">{{ $paciente->tipo_documento }}-{{ $paciente->numero_documento }}</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-gray-600">Miembro desde:</span>
-                            <span class="font-medium text-gray-900">{{ auth()->user()->created_at->format('M Y') }}</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Actions -->
-                <div class="space-y-3">
-                    <button type="submit" class="btn btn-primary w-full shadow-lg shadow-emerald-200">
-                        <i class="bi bi-check-lg mr-2"></i>
-                        Guardar Cambios
-                    </button>
-                    <a href="{{ route('paciente.dashboard') }}" class="btn btn-outline w-full">
-                        <i class="bi bi-x-lg mr-2"></i>
-                        Cancelar
-                    </a>
-                </div>
-            </div>
         </div>
-    </form>
-</div>
+
+        <!-- Sidebar: Photo & Stats -->
+        <div class="lg:col-span-4 space-y-6">
+            
+            <!-- Photo Upload Card -->
+            <div class="bg-white dark:bg-gray-800 rounded-3xl p-8 border border-slate-100 dark:border-gray-700 shadow-lg hover:shadow-xl transition-all duration-300 relative group animate-fade-in">
+                <div class="text-center mb-6">
+                    <h3 class="text-lg font-bold text-slate-800 dark:text-white mb-1">Foto de Perfil</h3>
+                    <p class="text-xs text-slate-500 dark:text-gray-400">Esta imagen te representará en el sistema</p>
+                </div>
+                
+                <div class="flex justify-center mb-6">
+                    <div class="relative group/a cursor-pointer" onclick="document.getElementById('foto_perfil').click()">
+                        <div class="absolute -inset-1 bg-gradient-to-br from-medical-400 to-blue-500 rounded-full blur opacity-50 group-hover/a:opacity-75 transition duration-500"></div>
+                         @if($paciente->foto_perfil)
+                            <img id="preview_image" src="{{ asset('storage/' . $paciente->foto_perfil) }}" class="relative w-40 h-40 rounded-full object-cover border-4 border-white dark:border-gray-800 shadow-xl z-10 transition-transform transform group-hover/a:scale-105">
+                        @else
+                            <div id="preview_image_container" class="relative w-40 h-40 rounded-full bg-slate-100 dark:bg-gray-700 border-4 border-white dark:border-gray-800 shadow-xl z-10 flex items-center justify-center text-4xl text-slate-400 group-hover/a:scale-105 transition-transform">
+                                <i class="bi bi-camera"></i>
+                            </div>
+                        @endif
+                        <div class="absolute inset-x-0 bottom-0 py-2 bg-black/60 rounded-b-full z-20 opacity-0 group-hover/a:opacity-100 transition-opacity flex justify-center">
+                            <span class="text-white text-xs font-bold uppercase tracking-widest"><i class="bi bi-pencil shadow-sm"></i></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="text-center">
+                    <input type="file" id="foto_perfil" name="foto_perfil" class="hidden" accept="image/*" onchange="previewImage(event)">
+                    <button type="button" onclick="document.getElementById('foto_perfil').click()" 
+                            class="px-5 py-2.5 bg-slate-100 dark:bg-gray-700 text-slate-600 dark:text-gray-300 rounded-xl text-sm font-bold hover:bg-slate-200 dark:hover:bg-gray-600 transition-colors w-full">
+                        <i class="bi bi-cloud-upload mr-2"></i> Cambiar Imagen
+                    </button>
+                    <p class="text-[10px] text-slate-400 mt-2">JPG, PNG, WEBP max 2MB</p>
+                </div>
+            </div>
+
+            <!-- Banner Customization -->
+             <div class="bg-white dark:bg-gray-800 rounded-3xl p-8 border border-slate-100 dark:border-gray-700 shadow-sm hover:shadow-xl transition-all duration-300 animate-fade-in" style="animation-delay: 100ms;">
+                <div class="mb-4">
+                     <h3 class="text-lg font-bold text-slate-800 dark:text-white mb-1">Personalización</h3>
+                     <p class="text-xs text-slate-500 dark:text-gray-400">Elige un tema para tu dashboard</p>
+                </div>
+
+                <div class="mb-6">
+                    <div class="relative h-32 rounded-2xl overflow-hidden border border-slate-200 dark:border-gray-700 group/banner">
+                        <div id="banner_preview" class="absolute inset-0 bg-cover bg-center transition-all duration-300"
+                             style="@if($paciente->banner_perfil) background-image: url('{{ asset('storage/' . $paciente->banner_perfil) }}'); @else background-color: {{ $paciente->banner_color ?? '#10b981' }}; @endif">
+                             <!-- Dynamic Gradient/Image Preview -->
+                             @if(!$paciente->banner_perfil && $paciente->banner_color && !str_starts_with($paciente->banner_color, '#'))
+                                <div class="w-full h-full {{ $paciente->banner_color }}"></div>
+                             @endif
+                        </div>
+                        <div class="absolute inset-0 bg-black/10 group-hover/banner:bg-black/20 transition-colors"></div>
+                        <div class="absolute bottom-3 right-3">
+                            <button type="button" onclick="document.getElementById('banner_perfil').click()" 
+                                    class="p-2 bg-white/90 dark:bg-gray-800/90 text-slate-700 dark:text-gray-200 rounded-lg shadow-sm hover:scale-105 transition-transform text-xs font-bold flex items-center gap-2 backdrop-blur-sm">
+                                <i class="bi bi-image"></i> Cambiar Banner
+                            </button>
+                        </div>
+                        <input type="file" id="banner_perfil" name="banner_perfil" class="hidden" accept="image/*" onchange="previewBanner(event)">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-5 gap-2 mb-4">
+                    @php
+                        $colors = [
+                            // Cool & Calm
+                            'bg-gradient-to-r from-emerald-100 via-green-100 to-blue-100',
+                            'bg-gradient-to-r from-blue-100 via-indigo-100 to-purple-100',
+                            'bg-gradient-to-r from-cyan-500 to-blue-500',
+                            'bg-gradient-to-r from-sky-400 to-indigo-500',
+                            'bg-gradient-to-r from-teal-400 to-emerald-500',
+                            
+                            // Warm & Energetic
+                            'bg-gradient-to-r from-rose-400 to-orange-500',
+                            'bg-gradient-to-r from-amber-200 via-orange-300 to-red-400',
+                            'bg-gradient-to-r from-pink-500 to-rose-500',
+                            
+                            // Dark & Sophisticated
+                            'bg-gradient-to-r from-slate-700 to-slate-900',
+                            'bg-gradient-to-r from-gray-700 via-gray-900 to-black',
+                            'bg-gradient-to-r from-stone-500 to-stone-700',
+
+                            // Special
+                            'bg-gradient-to-r from-medical-500 to-teal-700',
+                            'bg-gradient-to-r from-indigo-400 to-cyan-400',
+                        ];
+                    @endphp
+                     @foreach($colors as $color)
+                        <button type="button" 
+                                onclick="setBannerColor('{{ $color }}')"
+                                class="w-8 h-8 rounded-full {{ $color }} border-2 {{ ($paciente->banner_color == $color) ? 'border-medical-500 shadow-md transform scale-110' : 'border-transparent hover:border-slate-300 hover:scale-105' }} transition-all focus:outline-none"></button>
+                    @endforeach
+                    
+                    <!-- Custom Color Picker -->
+                    <div class="relative w-8 h-8 rounded-full bg-white dark:bg-gray-700 border-2 border-slate-200 dark:border-gray-600 hover:border-medical-500 transition-colors flex items-center justify-center cursor-pointer overflow-hidden">
+                         <input type="color" id="custom_color_picker" 
+                                onchange="setBannerColor(this.value)"
+                                class="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10">
+                         <i class="bi bi-palette text-slate-400 dark:text-gray-300 text-sm"></i>
+                    </div>
+
+                    <input type="hidden" name="banner_color" id="banner_color_input" value="{{ $paciente->banner_color }}">
+                </div>
+
+                <div class="flex items-center justify-between p-4 bg-slate-50 dark:bg-gray-900/50 rounded-2xl border border-slate-100 dark:border-gray-700">
+                    <span class="text-sm font-bold text-slate-700 dark:text-gray-300">Tema Dinámico</span>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" name="tema_dinamico" value="1" class="sr-only peer" {{ $paciente->tema_dinamico ? 'checked' : '' }}>
+                        <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-medical-500"></div>
+                    </label>
+                </div>
+
+             </div>
+
+             <!-- Action Buttons (Sticky on Desktop) -->
+             <div class="sticky top-6 pt-6">
+                 <button type="submit" class="w-full py-4 bg-gradient-to-r from-medical-500 to-medical-600 hover:from-medical-600 hover:to-medical-700 text-white rounded-2xl font-black text-lg shadow-xl shadow-medical-500/30 hover:shadow-2xl hover:-translate-y-1 transition-all active:scale-95 flex items-center justify-center gap-2 group">
+                     <span>Guardar Cambios</span>
+                     <i class="bi bi-arrow-right group-hover:translate-x-1 transition-transform"></i>
+                 </button>
+                 
+                 <a href="{{ route('paciente.dashboard') }}" class="block w-full text-center mt-4 py-3 text-slate-500 dark:text-gray-400 font-bold hover:text-rose-500 transition-colors">
+                     Cancelar
+                 </a>
+             </div>
+        </div>
+
+    </div>
+</form>
 
 @push('scripts')
 <script>
     function previewImage(event) {
         const file = event.target.files[0];
-        const reader = new FileReader();
-        
-        reader.onload = function(e) {
-            const preview = document.getElementById('preview_image');
-            preview.innerHTML = `<img src="${e.target.result}" alt="Preview" class="w-32 h-32 rounded-full object-cover border-4 border-emerald-100 shadow-lg">`;
-        }
-        
-        if (file) {
-            reader.readAsDataURL(file);
-        }
-    }
+        if(!file) return;
 
-    // Mostrar alerta si la contraseña es igual a la actual
-    @if(session('error_password'))
-        document.addEventListener('DOMContentLoaded', () => {
-            if (typeof createToast === 'function') {
-                createToast('Seguridad', "{{ session('error_password') }}", 'danger');
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            // Update Sidebar Preview
+            const container = document.getElementById('preview_image_container');
+            const imgHtml = `<img id="preview_image" src="${e.target.result}" class="relative w-40 h-40 rounded-full object-cover border-4 border-white dark:border-gray-800 shadow-xl z-10 transition-transform transform group-hover/a:scale-105">`;
+            
+            if(container) {
+                container.outerHTML = imgHtml;
+            } else {
+                document.getElementById('preview_image').src = e.target.result;
             }
-        });
-    @endif
+
+            // Update Header Avatar
+            const headerAvatar = document.querySelector('.group img[src*="storage"], .group img[src*="ui-avatars"]');
+            if(headerAvatar) headerAvatar.src = e.target.result;
+        }
+        reader.readAsDataURL(file);
+    }
 
     function previewBanner(event) {
         const file = event.target.files[0];
+        if(!file) return;
+
         const reader = new FileReader();
-        
         reader.onload = function(e) {
-            const container = document.getElementById('banner_preview_container');
-            container.innerHTML = `
-                <img id="preview_banner" src="${e.target.result}" class="w-full h-full object-cover">
-                <div class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
-                    <span class="text-white text-xs font-bold uppercase tracking-wider">Vista Previa</span>
-                </div>
-            `;
+            const preview = document.getElementById('banner_preview');
+            preview.style.backgroundImage = `url('${e.target.result}')`;
+            preview.innerHTML = ''; // Clear colors
         }
-        
-        if (file) {
-            reader.readAsDataURL(file);
-        }
+        reader.readAsDataURL(file);
     }
 
     function setBannerColor(color) {
         document.getElementById('banner_color_input').value = color;
-        const container = document.getElementById('banner_preview_container');
+        const preview = document.getElementById('banner_preview');
         
-        // Remover imagen si existe en la vista previa
-        container.innerHTML = `
-            <div id="preview_banner_color" class="w-full h-full" style="${color.startsWith('#') ? 'background-color:'+color : ''}"></div>
-            <div class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
-                <span class="text-white text-xs font-bold uppercase tracking-wider">Vista Previa</span>
-            </div>
-        `;
-
-        const colorDiv = document.getElementById('preview_banner_color');
-        if (!color.startsWith('#')) {
-            colorDiv.className = 'w-full h-full ' + color;
-        }
-
-        // Marcar botones de color
-        document.querySelectorAll('[onclick^="setBannerColor"]').forEach(btn => {
-            btn.classList.remove('border-emerald-600', 'scale-110', 'shadow-lg');
-            btn.classList.add('border-white');
-        });
-        
-        // Resaltar el botón seleccionado si es gradiente
-        if (!color.startsWith('#')) {
-            const selectedBtn = Array.from(document.querySelectorAll('[onclick^="setBannerColor"]')).find(b => b.getAttribute('onclick').includes(color));
-            if (selectedBtn) {
-                selectedBtn.classList.remove('border-white');
-                selectedBtn.classList.add('border-emerald-600', 'scale-110', 'shadow-lg');
-            }
-        }
-
-        updateDynamicPreview();
-    }
-
-    function updateDynamicPreview() {
-        const isEnabled = document.querySelector('input[name="tema_dinamico"]').checked;
-        const color = document.getElementById('banner_color_input').value;
-        const root = document.documentElement;
-        
-        if (isEnabled && color) {
-            let baseColor = '#10b981';
-            let isLight = false;
-
-            if (color.startsWith('#')) {
-                baseColor = color;
-            } else if (color.includes('from-')) {
-                const match = color.match(/from-([a-z]+)-(\d+)/);
-                if (match) {
-                    const colors = {
-                        emerald: '#10b981', blue: '#3b82f6', teal: '#14b8a6',
-                        purple: '#a855f7', rose: '#f43f5e', slate: '#64748b',
-                        orange: '#f97316', indigo: '#6366f1'
-                    };
-                    baseColor = colors[match[1]] || baseColor;
-                }
-            }
-            
-            // Calcular luminancia para contraste
-            const hex = baseColor.replace('#', '');
-            const r = parseInt(hex.length === 3 ? hex[0] + hex[0] : hex.substring(0, 2), 16);
-            const g = parseInt(hex.length === 3 ? hex[1] + hex[1] : hex.substring(2, 4), 16);
-            const b = parseInt(hex.length === 3 ? hex[2] + hex[2] : hex.substring(4, 6), 16);
-            const luminance = (r * 0.299 + g * 0.587 + b * 0.114) / 255;
-            isLight = luminance > 0.6;
-            const textColor = isLight ? '#0f172a' : '#ffffff';
-
-            // Aplicar variables CSS en tiempo real
-            root.style.setProperty('--medical-500', baseColor);
-            
-            // Si no existen las clases dinámicas en el style tag, las inyectamos o actualizamos
-            let styleTag = document.getElementById('dynamic-preview-style');
-            if (!styleTag) {
-                styleTag = document.createElement('style');
-                styleTag.id = 'dynamic-preview-style';
-                document.head.appendChild(styleTag);
-            }
-            
-            styleTag.innerHTML = `
-                :root {
-                    --medical-500: ${baseColor};
-                    --medical-600: ${baseColor}cc;
-                    --medical-200: ${baseColor}33;
-                    --medical-50: ${baseColor}1a;
-                    --text-on-medical: ${textColor};
-                }
-                .bg-medical-500 { background-color: var(--medical-500) !important; }
-                .text-medical-500 { color: var(--medical-500) !important; }
-                .text-medical-600 { color: var(--medical-600) !important; }
-                .bg-medical-50 { background-color: var(--medical-50) !important; }
-                .border-medical-500 { border-color: var(--medical-500) !important; }
-                /* Forzar contraste en el preview del banner */
-                #banner_preview_container { color: var(--text-on-medical) !important; }
-
-                /* Animaciones para el preview en vivo */
-                @keyframes float-orb {
-                    0%, 100% { transform: translate(0, 0) scale(1); }
-                    33% { transform: translate(30px, -50px) scale(1.1); }
-                    66% { transform: translate(-20px, 20px) scale(0.9); }
-                }
-                .animate-float-orb { animation: float-orb 15s ease-in-out infinite; }
-                .animate-float-orb-slow { animation: float-orb 25s ease-in-out infinite reverse; }
-                .animate-float-orb-delayed { animation: float-orb 20s ease-in-out infinite; animation-delay: -5s; }
-            `;
+        // If it's a gradient class
+        if(!color.startsWith('#')) {
+             preview.style.backgroundImage = 'none';
+             preview.innerHTML = `<div class="w-full h-full ${color}"></div>`;
         } else {
-            const styleTag = document.getElementById('dynamic-preview-style');
-            if (styleTag) styleTag.innerHTML = '';
-            root.style.removeProperty('--medical-500');
-            root.style.removeProperty('--text-on-medical');
+             preview.style.backgroundImage = 'none';
+             preview.style.backgroundColor = color;
+             preview.innerHTML = '';
         }
+
+        // Validate buttons
+        const buttons = document.querySelectorAll('[onclick^="setBannerColor"]');
+        buttons.forEach(btn => {
+             btn.classList.remove('border-medical-500', 'shadow-md', 'transform', 'scale-110');
+             btn.classList.add('border-transparent');
+             if(btn.className.includes(color)) {
+                  btn.classList.remove('border-transparent');
+                  btn.classList.add('border-medical-500', 'shadow-md', 'transform', 'scale-110');
+             }
+        });
     }
 
-    function removeBannerImage() {
-        if(confirm('¿Deseas eliminar la imagen de banner actual? El color seleccionado se usará en su lugar.')) {
-            // Esto se manejaría mejor con un campo hidden para marcar eliminación, 
-            // pero por ahora limpiamos la vista previa y el backend mantendrá el color si no se sube nueva imagen.
-            setBannerColor(document.getElementById('banner_color_input').value || 'bg-gradient-to-r from-emerald-100 via-green-100 to-blue-100');
-            // Nota: En una app real, deberías enviar un flag al backend para borrar el archivo.
-        }
+    // Dynamic Selects
+    const locations = {
+        estado: document.getElementById('estado_id'),
+        ciudad: document.getElementById('ciudad_id'),
+        municipio: document.getElementById('municipio_id'),
+        parroquia: document.getElementById('parroquia_id')
+    };
+
+    locations.estado.addEventListener('change', function() {
+        if(!this.value) return;
+        
+        // Reset and Load Cities
+        resetSelect(locations.ciudad);
+        loadData(`{{ url('ubicacion/get-ciudades') }}/${this.value}`, locations.ciudad);
+
+        // Reset and Load Municipios
+        resetSelect(locations.municipio);
+        loadData(`{{ url('ubicacion/get-municipios') }}/${this.value}`, locations.municipio);
+
+        resetSelect(locations.parroquia, 'Seleccione Municipio primero...');
+    });
+
+    locations.municipio.addEventListener('change', function() {
+        if(!this.value) return;
+        
+        resetSelect(locations.parroquia);
+        loadData(`{{ url('ubicacion/get-parroquias') }}/${this.value}`, locations.parroquia);
+    });
+
+    function resetSelect(element, placeholder = 'Seleccione...') {
+        element.innerHTML = `<option value="">${placeholder}</option>`;
+        element.disabled = true;
     }
 
-    // AJAX para cargar datos de ubicación
-    document.getElementById('estado_id').addEventListener('change', function() {
-        const estadoId = this.value;
-        if (estadoId) {
-            fetch(`{{ url('ubicacion/get-ciudades') }}/${estadoId}`)
-                .then(response => response.json())
-                .then(data => {
-                    const ciudadSelect = document.getElementById('ciudad_id');
-                    ciudadSelect.innerHTML = '<option value="">Seleccione...</option>';
-                    data.forEach(item => {
-                        ciudadSelect.innerHTML += `<option value="${item.id_ciudad}">${item.ciudad}</option>`;
-                    });
+    function loadData(url, element) {
+        fetch(url)
+            .then(res => res.json())
+            .then(data => {
+                element.disabled = false;
+                const keyNameName = Object.keys(data[0]).find(k => !k.startsWith('id_'));
+                const keyIdName = Object.keys(data[0]).find(k => k.startsWith('id_'));
+                
+                data.forEach(item => {
+                    element.innerHTML += `<option value="${item[keyIdName]}">${item[keyNameName]}</option>`;
                 });
-
-            fetch(`{{ url('ubicacion/get-municipios') }}/${estadoId}`)
-                .then(response => response.json())
-                .then(data => {
-                    const municipioSelect = document.getElementById('municipio_id');
-                    municipioSelect.innerHTML = '<option value="">Seleccione...</option>';
-                    data.forEach(item => {
-                        municipioSelect.innerHTML += `<option value="${item.id_municipio}">${item.municipio}</option>`;
-                    });
-                });
-        }
-    });
-
-    document.getElementById('municipio_id').addEventListener('change', function() {
-        const municipioId = this.value;
-        if (municipioId) {
-            fetch(`{{ url('ubicacion/get-parroquias') }}/${municipioId}`)
-                .then(response => response.json())
-                .then(data => {
-                    const parroquiaSelect = document.getElementById('parroquia_id');
-                    parroquiaSelect.innerHTML = '<option value="">Seleccione...</option>';
-                    data.forEach(item => {
-                        parroquiaSelect.innerHTML += `<option value="${item.id_parroquia}">${item.parroquia}</option>`;
-                    });
-                });
-        }
-    });
+            });
+    }
 </script>
+<style>
+    @keyframes slide-in-up {
+        0% { transform: translateY(20px); opacity: 0; }
+        100% { transform: translateY(0); opacity: 1; }
+    }
+    .animate-slide-in-up {
+        animation: slide-in-up 0.5s ease-out forwards;
+    }
+    .animate-fade-in-down {
+         animation: fadeInDown 0.8s ease-out;
+    }
+    @keyframes fadeInDown {
+        from { opacity: 0; transform: translateY(-20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+</style>
 @endpush
+
 @endsection
