@@ -322,7 +322,7 @@ class MedicoController extends Controller
 
     public function horarios($id)
     {
-        $medico = Medico::findOrFail($id);
+        $medico = Medico::with('especialidades')->findOrFail($id);
         
         // 1. Obtener los horarios activos del médico
         $horarios = \App\Models\MedicoConsultorio::where('medico_id', $id)
@@ -473,54 +473,26 @@ class MedicoController extends Controller
                         if (!empty($dayData['manana_inicio']) && !empty($dayData['manana_fin']) && !empty($dayData['manana_consultorio_id'])) {
                             $diasActivosFormulario[] = ['dia' => $diaSemanaDb, 'turno' => 'mañana'];
                             
-                            // Buscar si ya existe un registro para este día+turno con status=1
-                            $existente = \App\Models\MedicoConsultorio::where('medico_id', $id)
-                                ->where('dia_semana', $diaSemanaDb)
-                                ->where('turno', 'mañana')
-                                ->where('status', true)
-                                ->first();
-                            
                             $nuevoConsultorioId = $dayData['manana_consultorio_id'];
                             $nuevaEspecialidadId = $dayData['manana_especialidad_id'] ?? null;
                             $nuevoInicio = $dayData['manana_inicio'];
                             $nuevoFin = $dayData['manana_fin'];
-                            
-                            if ($existente) {
-                                // Comparar si todos los campos son iguales
-                                $esIgual = $existente->consultorio_id == $nuevoConsultorioId
-                                        && $existente->especialidad_id == $nuevaEspecialidadId
-                                        && $existente->horario_inicio == $nuevoInicio
-                                        && $existente->horario_fin == $nuevoFin;
-                                
-                                if (!$esIgual) {
-                                    // Campos diferentes: desactivar el anterior y crear nuevo
-                                    $existente->update(['status' => false]);
-                                    
-                                    \App\Models\MedicoConsultorio::create([
-                                        'medico_id' => $id,
-                                        'consultorio_id' => $nuevoConsultorioId,
-                                        'especialidad_id' => $nuevaEspecialidadId,
-                                        'dia_semana' => $diaSemanaDb,
-                                        'turno' => 'mañana',
-                                        'horario_inicio' => $nuevoInicio,
-                                        'horario_fin' => $nuevoFin,
-                                        'status' => true
-                                    ]);
-                                }
-                                // Si es igual, no hacer nada (mantener el registro actual)
-                            } else {
-                                // No existe registro activo, crear nuevo
-                                \App\Models\MedicoConsultorio::create([
+
+                            // Update existing or create new record (Upsert) to avoid Unique Constraint Violation
+                            \App\Models\MedicoConsultorio::updateOrCreate(
+                                [
                                     'medico_id' => $id,
+                                    'dia_semana' => $diaSemanaDb,
+                                    'turno' => 'mañana'
+                                ],
+                                [
                                     'consultorio_id' => $nuevoConsultorioId,
                                     'especialidad_id' => $nuevaEspecialidadId,
-                                    'dia_semana' => $diaSemanaDb,
-                                    'turno' => 'mañana',
                                     'horario_inicio' => $nuevoInicio,
                                     'horario_fin' => $nuevoFin,
                                     'status' => true
-                                ]);
-                            }
+                                ]
+                            );
                         }
                     }
 
@@ -529,54 +501,26 @@ class MedicoController extends Controller
                         if (!empty($dayData['tarde_inicio']) && !empty($dayData['tarde_fin']) && !empty($dayData['tarde_consultorio_id'])) {
                             $diasActivosFormulario[] = ['dia' => $diaSemanaDb, 'turno' => 'tarde'];
                             
-                            // Buscar si ya existe un registro para este día+turno con status=1
-                            $existente = \App\Models\MedicoConsultorio::where('medico_id', $id)
-                                ->where('dia_semana', $diaSemanaDb)
-                                ->where('turno', 'tarde')
-                                ->where('status', true)
-                                ->first();
-                            
                             $nuevoConsultorioId = $dayData['tarde_consultorio_id'];
                             $nuevaEspecialidadId = $dayData['tarde_especialidad_id'] ?? null;
                             $nuevoInicio = $dayData['tarde_inicio'];
                             $nuevoFin = $dayData['tarde_fin'];
-                            
-                            if ($existente) {
-                                // Comparar si todos los campos son iguales
-                                $esIgual = $existente->consultorio_id == $nuevoConsultorioId
-                                        && $existente->especialidad_id == $nuevaEspecialidadId
-                                        && $existente->horario_inicio == $nuevoInicio
-                                        && $existente->horario_fin == $nuevoFin;
-                                
-                                if (!$esIgual) {
-                                    // Campos diferentes: desactivar el anterior y crear nuevo
-                                    $existente->update(['status' => false]);
-                                    
-                                    \App\Models\MedicoConsultorio::create([
-                                        'medico_id' => $id,
-                                        'consultorio_id' => $nuevoConsultorioId,
-                                        'especialidad_id' => $nuevaEspecialidadId,
-                                        'dia_semana' => $diaSemanaDb,
-                                        'turno' => 'tarde',
-                                        'horario_inicio' => $nuevoInicio,
-                                        'horario_fin' => $nuevoFin,
-                                        'status' => true
-                                    ]);
-                                }
-                                // Si es igual, no hacer nada (mantener el registro actual)
-                            } else {
-                                // No existe registro activo, crear nuevo
-                                \App\Models\MedicoConsultorio::create([
+
+                            // Update existing or create new record (Upsert) to avoid Unique Constraint Violation
+                            \App\Models\MedicoConsultorio::updateOrCreate(
+                                [
                                     'medico_id' => $id,
+                                    'dia_semana' => $diaSemanaDb,
+                                    'turno' => 'tarde'
+                                ],
+                                [
                                     'consultorio_id' => $nuevoConsultorioId,
                                     'especialidad_id' => $nuevaEspecialidadId,
-                                    'dia_semana' => $diaSemanaDb,
-                                    'turno' => 'tarde',
                                     'horario_inicio' => $nuevoInicio,
                                     'horario_fin' => $nuevoFin,
                                     'status' => true
-                                ]);
-                            }
+                                ]
+                            );
                         }
                     }
                 }
