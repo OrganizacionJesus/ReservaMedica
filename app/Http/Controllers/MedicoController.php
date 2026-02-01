@@ -63,10 +63,32 @@ class MedicoController extends Controller
                                               ->where('status', true)
                                               ->distinct('paciente_id')
                                               ->count('paciente_id'),
-            'pacientes_nuevos' => 0, // Placeholder
-            'historias_pendientes' => 0, // Placeholder
-            'ordenes_pendientes' => 0, // Placeholder
-            'laboratorios_pendientes' => 0, // Placeholder
+            // Pacientes nuevos este mes (creados este mes y atendidos por este médico)
+            'pacientes_nuevos' => \App\Models\Paciente::whereMonth('created_at', $hoy->month)
+                                                      ->whereYear('created_at', $hoy->year)
+                                                      ->whereHas('citas', function($q) use ($medico, $hoy) {
+                                                          $q->where('medico_id', $medico->id)
+                                                            ->whereMonth('fecha_cita', $hoy->month)
+                                                            ->whereYear('fecha_cita', $hoy->year);
+                                                      })
+                                                      ->count(),
+            // Historias pendientes (Citas completadas sin evolución registrada)
+            'historias_pendientes' => \App\Models\Cita::where('medico_id', $medico->id)
+                                                      ->whereIn('estado_cita', ['Completada', 'En Progreso'])
+                                                      ->doesntHave('evolucionClinica')
+                                                      ->where('status', true)
+                                                      ->count(),
+            // Órdenes médicas pendientes
+            'ordenes_pendientes' => \App\Models\OrdenMedica::where('medico_id', $medico->id)
+                                                           ->where('estado_orden', 'Pendiente')
+                                                           ->where('status', true)
+                                                           ->count(),
+            // Laboratorios pendientes
+            'laboratorios_pendientes' => \App\Models\OrdenMedica::where('medico_id', $medico->id)
+                                                               ->where('tipo_orden', 'Laboratorio')
+                                                               ->where('estado_orden', 'Pendiente')
+                                                               ->where('status', true)
+                                                               ->count(),
         ];
 
         return view('medico.dashboard', compact('citasHoy', 'proximasCitas', 'stats'));
@@ -487,10 +509,13 @@ class MedicoController extends Controller
                             
                             if ($existente) {
                                 // Comparar si todos los campos son iguales
+                                $dbInicio = \Carbon\Carbon::parse($existente->horario_inicio)->format('H:i');
+                                $dbFin = \Carbon\Carbon::parse($existente->horario_fin)->format('H:i');
+                                
                                 $esIgual = $existente->consultorio_id == $nuevoConsultorioId
                                         && $existente->especialidad_id == $nuevaEspecialidadId
-                                        && $existente->horario_inicio == $nuevoInicio
-                                        && $existente->horario_fin == $nuevoFin;
+                                        && $dbInicio == $nuevoInicio
+                                        && $dbFin == $nuevoFin;
                                 
                                 if (!$esIgual) {
                                     // Campos diferentes: desactivar el anterior y crear nuevo
@@ -543,10 +568,13 @@ class MedicoController extends Controller
                             
                             if ($existente) {
                                 // Comparar si todos los campos son iguales
+                                $dbInicio = \Carbon\Carbon::parse($existente->horario_inicio)->format('H:i');
+                                $dbFin = \Carbon\Carbon::parse($existente->horario_fin)->format('H:i');
+
                                 $esIgual = $existente->consultorio_id == $nuevoConsultorioId
                                         && $existente->especialidad_id == $nuevaEspecialidadId
-                                        && $existente->horario_inicio == $nuevoInicio
-                                        && $existente->horario_fin == $nuevoFin;
+                                        && $dbInicio == $nuevoInicio
+                                        && $dbFin == $nuevoFin;
                                 
                                 if (!$esIgual) {
                                     // Campos diferentes: desactivar el anterior y crear nuevo

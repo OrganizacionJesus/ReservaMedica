@@ -59,7 +59,7 @@
         <div class="mt-4 pt-4 border-t border-medical-200">
             <a href="{{ route('citas.index') }}" 
                 class="text-medical-600 hover:text-medical-700 font-semibold text-sm flex items-center gap-1">
-                Ver agenda <i class="bi bi-arrow-right"></i>
+                Ver Citas <i class="bi bi-arrow-right"></i>
             </a>
         </div>
     </div>
@@ -148,11 +148,11 @@
                     <div class="flex gap-4">
                         <!-- Time Badge -->
                         <div class="flex-shrink-0 text-center">
-                            <div class="p-3 rounded-xl {{ $cita->status == 'confirmada' ? 'bg-emerald-100' : 'bg-amber-100' }}">
-                                <span class="block text-2xl font-bold {{ $cita->status == 'confirmada' ? 'text-emerald-700' : 'text-amber-700' }}">
+                            <div class="p-3 rounded-xl {{ $cita->estado_cita == 'Confirmada' ? 'bg-emerald-100' : 'bg-amber-100' }}">
+                                <span class="block text-2xl font-bold {{ $cita->estado_cita == 'Confirmada' ? 'text-emerald-700' : 'text-amber-700' }}">
                                     {{ \Carbon\Carbon::parse($cita->hora_inicio)->format('H:i') }}
                                 </span>
-                                <span class="block text-xs {{ $cita->status == 'confirmada' ? 'text-emerald-600' : 'text-amber-600' }}">
+                                <span class="block text-xs {{ $cita->estado_cita == 'Confirmada' ? 'text-emerald-600' : 'text-amber-600' }}">
                                     {{ \Carbon\Carbon::parse($cita->hora_inicio)->format('A') }}
                                 </span>
                             </div>
@@ -167,10 +167,10 @@
                                     </h4>
                                     <p class="text-sm text-gray-600">{{ $cita->paciente->cedula }}</p>
                                 </div>
-                                @if($cita->status == 'confirmada')
+                                @if($cita->estado_cita == 'Confirmada')
                                 <span class="badge badge-success">Confirmada</span>
-                                @elseif($cita->status == 'pendiente')
-                                <span class="badge badge-warning">Pendiente</span>
+                                @elseif($cita->estado_cita == 'Programada')
+                                <span class="badge badge-warning">Programada</span>
                                 @endif
                             </div>
 

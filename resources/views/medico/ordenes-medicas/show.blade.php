@@ -65,10 +65,7 @@
                         </div>
                         <div class="flex-1">
                             <h4 class="text-xl font-bold text-gray-900">
-                                {{ $orden->nombre_paciente }}
-                            </h4>
-                            <h4 class="text-xl font-bold text-gray-900">
-                                {{ $orden->nombre_paciente }}
+                                {{ $orden->paciente->primer_nombre }} {{ $orden->paciente->primer_apellido }}
                             </h4>
                             <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-2 text-sm">
                                 <div>

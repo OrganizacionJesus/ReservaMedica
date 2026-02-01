@@ -544,8 +544,8 @@ class PacienteController extends Controller
 
     public function historiaClinica($id)
     {
-        $paciente = Paciente::with('historiaClinicaBase')->findOrFail($id);
-        return view('pacientes.historia-clinica', compact('paciente'));
+        // Redirigir al controlador especializado de Historia Clínica
+        return redirect()->route('historia-clinica.base.show', $id);
     }
 
     public function actualizarHistoriaClinica(Request $request, $id)
