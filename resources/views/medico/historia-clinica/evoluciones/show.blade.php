@@ -7,7 +7,7 @@
     <!-- Header -->
     <div class="flex items-center justify-between">
         <div class="flex items-center gap-4">
-            <a href="{{ url('historia-clinica/evoluciones') }}" class="btn btn-outline">
+            <a href="{{ route('historia-clinica.evoluciones.general') }}" class="btn btn-outline">
                 <i class="bi bi-arrow-left"></i>
             </a>
             <div>
