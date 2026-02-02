@@ -2,31 +2,38 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
 class RolesTableSeeder extends Seeder
 {
-    public function run()
+    public function run(): void
     {
         $roles = [
-            ['nombre' => 'Administrador', 'descripcion' => 'Acceso completo al sistema'],
-            ['nombre' => 'Médico', 'descripcion' => 'Acceso médico para citas y pacientes'],
-            ['nombre' => 'Paciente', 'descripcion' => 'Acceso paciente para solicitar citas'],
+            [
+                'nombre' => 'Root',
+                'descripcion' => 'Administrador principal del sistema con acceso total y privilegios de configuración global',
+            ],
+            [
+                'nombre' => 'Administrador',
+                'descripcion' => 'Administrador de la clínica con permisos para gestionar usuarios, consultorios y configuraciones',
+            ],
+            [
+                'nombre' => 'Médico',
+                'descripcion' => 'Profesional médico con acceso a consultas, historias clínicas y gestión de citas',
+            ],
+            [
+                'nombre' => 'Paciente',
+                'descripcion' => 'Usuario paciente con acceso a solicitar citas, ver su historial médico y gestionar su perfil',
+            ],
         ];
 
         foreach ($roles as $rol) {
-            // Usar updateOrCreate para evitar duplicados
-            DB::table('roles')->updateOrInsert(
-                ['nombre' => $rol['nombre']], // Condición para buscar
-                [
-                    'descripcion' => $rol['descripcion'],
-                    'status' => true,
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]
-            );
+            DB::table('roles')->insert(array_merge($rol, [
+                'status' => true,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]));
         }
     }
 }

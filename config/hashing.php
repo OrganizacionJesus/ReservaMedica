@@ -2,22 +2,6 @@
 
 return [
 
-    'driver' => 'md5-double',
-    
-    'md5-double' => [
-        'driver' => 'md5-double',
-    ],
-    
-    'bcrypt' => [
-        'rounds' => env('BCRYPT_ROUNDS', 10),
-    ],
-
-    'argon' => [
-        'memory' => 65536,
-        'threads' => 1,
-        'time' => 4,
-    ],
-
     /*
     |--------------------------------------------------------------------------
     | Default Hash Driver
@@ -31,7 +15,7 @@ return [
     |
     */
 
-   
+    'driver' => 'bcrypt',
 
     /*
     |--------------------------------------------------------------------------
@@ -45,7 +29,7 @@ return [
     */
 
     'bcrypt' => [
-        'rounds' => env('BCRYPT_ROUNDS', 12),
+        'rounds' => env('BCRYPT_ROUNDS', 10),
         'verify' => true,
     ],
 

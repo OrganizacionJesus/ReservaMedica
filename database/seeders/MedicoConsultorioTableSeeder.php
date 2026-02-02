@@ -15,19 +15,19 @@ class MedicoConsultorioTableSeeder extends Seeder
         $horarios = [];
         $dias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
 
-        // Médicos 1-20
-        for ($medicoId = 1; $medicoId <= 20; $medicoId++) {
-            // Asignar a 1-3 consultorios
-            $numConsultorios = $faker->numberBetween(1, 3);
+        // Médicos 1-12
+        for ($medicoId = 1; $medicoId <= 12; $medicoId++) {
+            // Asignar a 1 consultorio para evitar choques de horario
+            $numConsultorios = 1;
             $consultoriosIds = $faker->randomElements(range(1, 8), $numConsultorios);
 
             foreach ($consultoriosIds as $consultorioId) {
                 // Asignar días de trabajo en este consultorio (1-3 días)
                 $diasTrabajo = $faker->randomElements($dias, $faker->numberBetween(1, 3));
-                
+
                 foreach ($diasTrabajo as $dia) {
                     $turno = $faker->randomElement(['mañana', 'tarde', 'completo']);
-                    
+
                     if ($turno === 'mañana') {
                         $inicio = '08:00:00';
                         $fin = '12:00:00';
@@ -53,7 +53,7 @@ class MedicoConsultorioTableSeeder extends Seeder
                 }
             }
         }
-        
+
         // Insertar en chunks para evitar problemas de memoria
         foreach (array_chunk($horarios, 100) as $chunk) {
             DB::table('medico_consultorio')->insert($chunk);
