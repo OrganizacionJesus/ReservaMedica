@@ -1264,6 +1264,36 @@ class CitaController extends Controller
         return redirect()->back()->with('success', 'Estado de la cita actualizado correctamente');
     }
 
+    public function comprobante($id)
+    {
+        $cita = Cita::with(['medico.especialidad', 'consultorio', 'paciente', 'facturaPaciente.pagos', 'facturaPaciente.tasa'])->findOrFail($id);
+        $user = auth()->user();
+
+        // Verificación de seguridad básica para pacientes
+        if ($user->rol_id == 3) {
+            $paciente = $user->paciente;
+            if (!$paciente) abort(403);
+
+            $esPropio = $cita->paciente_id == $paciente->id;
+            $esTercero = false;
+
+            if (!$esPropio) {
+                 $representante = Representante::where('tipo_documento', $paciente->tipo_documento)
+                                               ->where('numero_documento', $paciente->numero_documento)
+                                               ->first();
+                 if ($representante) {
+                      $esTercero = $representante->pacientesEspeciales()->where('paciente_id', $cita->paciente_id)->exists();
+                 }
+            }
+
+            if (!$esPropio && !$esTercero) {
+                abort(403, 'No tiene permiso para ver este comprobante.');
+            }
+        }
+
+        return view('paciente.citas.comprobante', compact('cita'));
+    }
+
     // =========================================================================
     // API ENDPOINTS
     // =========================================================================
@@ -1310,23 +1340,35 @@ class CitaController extends Controller
     /**
      * Obtener consultorios por especialidad
      */
-    public function getConsultoriosPorEspecialidad($especialidadId)
-    {
-        $especialidad = Especialidad::find($especialidadId);
-        
-        if (!$especialidad) {
-            return response()->json([]);
-        }
-        
-        $consultorios = $especialidad->consultorios()
-            ->where('especialidad_consultorio.status', true)
-            ->where('consultorios.status', true)
-            ->orderBy('nombre')
-            ->get(['consultorios.id', 'consultorios.nombre', 'consultorios.direccion_detallada', 'consultorios.estado_id']);
-        
-        return response()->json($consultorios);
+    public function getConsultoriosPorEspecialidad($especialidadId, Request $request)
+{
+    Log::info('Buscando consultorios', ['especialidad' => $especialidadId, 'medico' => $request->medico_id]);
+    
+    $especialidad = Especialidad::find($especialidadId);
+    
+    if (!$especialidad) {
+        return response()->json([]);
     }
     
+    $medicoId = $request->medico_id;
+
+    $query = $especialidad->consultorios()
+        ->where('especialidad_consultorio.status', true)
+        ->where('consultorios.status', true);
+
+    // If medico_id is provided, filter consultories where this doctor works
+    if ($medicoId) {
+        $query->whereHas('medicos', function($q) use ($medicoId) {
+            $q->where('medicos.id', $medicoId)
+              ->where('medico_consultorio.status', true);
+        });
+    }
+
+    $consultorios = $query->orderBy('nombre')
+        ->get(['consultorios.id', 'consultorios.nombre', 'consultorios.direccion_detallada', 'consultorios.estado_id']);
+    
+    return response()->json($consultorios);
+}    
     /**
      * Obtener médicos por especialidad y consultorio
      */
@@ -1341,12 +1383,14 @@ class CitaController extends Controller
                 $q->where('especialidades.id', $especialidadId)
                   ->where('medico_especialidad.status', true);
             })
-            ->whereHas('consultorios', function($q) use ($consultorioId) {
+        ->when($consultorioId, function($query) use ($consultorioId) {
+            $query->whereHas('consultorios', function($q) use ($consultorioId) {
                 $q->where('consultorios.id', $consultorioId)
                   ->where('medico_consultorio.status', true);
-            })
-            ->where('status', true)
-            ->get();
+            });
+        })
+        ->where('status', true)
+        ->get();
         
         Log::info('Médicos encontrados: ' . $medicos->count());
         
