@@ -48,8 +48,13 @@ Route::get('/reset-password/{token}', [AuthController::class, 'showResetPassword
 Route::post('/reset-password', [AuthController::class, 'resetPassword'])->name('password.update');
 
 // AJAX Validation Routes for Register
-Route::post('/verificar-correo', [AuthController::class, 'verificarCorreo'])->name('validate.email');
-Route::post('/verificar-documento', [AuthController::class, 'getSecurityQuestions'])->name('validate.document'); // Reuse getSecurityQuestions as it checks existence
+// AJAX Validation Routes for Register (Legacy/Auth)
+Route::post('/verificar-correo', [AuthController::class, 'verificarCorreo'])->name('auth.verificar-correo');
+Route::post('/verificar-documento', [AuthController::class, 'getSecurityQuestions'])->name('auth.verificar-documento'); // Reuse getSecurityQuestions as it checks existence
+
+// Rutas de validación AJAX para Registro (usadas por register.blade.php)
+Route::post('/validate/email', [App\Http\Controllers\ValidationController::class, 'checkEmail'])->name('validate.email');
+Route::post('/validate/document', [App\Http\Controllers\ValidationController::class, 'checkDocument'])->name('validate.document');
 
 // Public Location Routes for Register (using closures to avoid middleware)
 Route::get('ubicacion/get-ciudades/{estadoId}', function($estadoId) {
@@ -188,6 +193,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/citas', [CitaController::class, 'store'])->name('paciente.citas.store');
         Route::get('/citas', [CitaController::class, 'index'])->name('paciente.citas.index');
         Route::get('/citas/{id}', [CitaController::class, 'show'])->name('paciente.citas.show');
+        Route::get('/citas/{id}/comprobante', [CitaController::class, 'comprobante'])->name('paciente.citas.comprobante');
         
         // Rutas de pago del paciente
         Route::get('/pagos/registrar/{cita}', [PagoController::class, 'mostrarRegistroPago'])->name('paciente.pagos.registrar');
@@ -276,6 +282,11 @@ Route::middleware(['auth'])->group(function () {
         // Preguntas de Seguridad Medico
         Route::get('/perfil/preguntas-seguridad', [MedicoController::class, 'showSecurityQuestions'])->name('medico.security-questions');
         Route::post('/perfil/preguntas-seguridad', [MedicoController::class, 'updateSecurityQuestions'])->name('medico.security-questions.update');
+
+        // Rutas de Agenda y Fechas Indisponibles
+        Route::get('/agenda', [MedicoController::class, 'agenda'])->name('medico.agenda');
+        Route::post('/fecha-indisponible', [MedicoController::class, 'storeFechaIndisponible'])->name('medico.fecha-indisponible.store');
+        Route::delete('/fecha-indisponible/{id}', [MedicoController::class, 'deleteFechaIndisponible'])->name('medico.fecha-indisponible.destroy');
 
         // Rutas de notificaciones del médico
         Route::prefix('notificaciones')->group(function () {
@@ -478,6 +489,7 @@ Route::middleware(['auth'])->group(function () {
         
         // Métodos de Pago
         Route::get('metodos-pago', [ConfiguracionController::class, 'metodosPago'])->name('configuracion.metodos-pago');
+        Route::post('metodos-pago/bancarios', [ConfiguracionController::class, 'guardarDatosBancarios'])->name('configuracion.metodos-pago.bancarios');
         Route::post('metodos-pago', [ConfiguracionController::class, 'guardarMetodoPago'])->name('configuracion.metodos-pago.guardar');
         Route::put('metodos-pago/{id}', [ConfiguracionController::class, 'actualizarMetodoPago'])->name('configuracion.metodos-pago.actualizar');
         Route::delete('metodos-pago/{id}', [ConfiguracionController::class, 'eliminarMetodoPago'])->name('configuracion.metodos-pago.eliminar');

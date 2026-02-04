@@ -93,7 +93,7 @@
     </style>
     @stack('styles')
 </head>
-<body class="min-h-screen bg-smoke-50 font-sans antialiased">
+<body class="min-h-screen bg-smoke-50 dark:bg-gray-900 font-sans antialiased transition-colors duration-200">
     <!-- Background Ambiance -->
     <div class="fixed inset-0 z-[-1] overflow-hidden pointer-events-none">
         <div class="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full animate-float-orb blur-[120px]"
@@ -106,7 +106,7 @@
     <div id="sidebarOverlay" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 hidden lg:hidden"></div>
     
     <!-- Sidebar -->
-    <aside id="sidebar" class="fixed top-0 left-0 h-screen w-64 shadow-2xl z-50 transform -translate-x-full lg:translate-x-0 transition-transform duration-300 ease-in-out flex flex-col border-r border-white/5" 
+    <aside id="sidebar" class="fixed top-0 left-0 h-screen w-64 shadow-2xl z-50 transform -translate-x-full lg:translate-x-0 transition-transform duration-300 ease-in-out flex flex-col border-r border-white/5 dark:border-gray-800" 
            style="background: var(--sidebar-bg, linear-gradient(180deg, #0f172a 0%, #020617 100%));">
         <!-- Sidebar Header -->
         <div class="h-20 flex items-center px-6 border-b border-white/5 bg-white/5 backdrop-blur-sm">
@@ -170,9 +170,9 @@
                 <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Gestión</p>
             </div>
             
-            <a href="{{ route('medicos.horarios', $medico->id ?? 0) }}" 
-               class="flex items-center px-3 py-2.5 rounded-lg transition-all duration-200 group {{ request()->routeIs('medicos.horarios') ? 'bg-emerald-600/20 text-emerald-400 ring-1 ring-emerald-500/30' : 'text-slate-400 hover:bg-white/5 hover:text-slate-200' }}">
-                <i class="bi bi-calendar-week-fill text-lg mr-3 {{ request()->routeIs('medicos.horarios') ? 'text-emerald-400' : 'text-slate-500 group-hover:text-slate-200 transition-colors' }}"></i>
+            <a href="{{ route('medico.agenda') }}" 
+               class="flex items-center px-3 py-2.5 rounded-lg transition-all duration-200 group {{ request()->routeIs('medico.agenda') ? 'bg-emerald-600/20 text-emerald-400 ring-1 ring-emerald-500/30' : 'text-slate-400 hover:bg-white/5 hover:text-slate-200' }}">
+                <i class="bi bi-calendar-week-fill text-lg mr-3 {{ request()->routeIs('medico.agenda') ? 'text-emerald-400' : 'text-slate-500 group-hover:text-slate-200 transition-colors' }}"></i>
                 <span class="font-medium text-sm">Mi Agenda</span>
             </a>
             
@@ -187,9 +187,9 @@
                 <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Cuenta</p>
             </div>
             
-            <a href="{{ route('medicos.show', $medico->id ?? 0) }}" 
-               class="flex items-center px-3 py-2.5 rounded-lg transition-all duration-200 group {{ request()->routeIs('medicos.show') || request()->is('*/medico/perfil*') ? 'bg-emerald-600/20 text-emerald-400 ring-1 ring-emerald-500/30' : 'text-slate-400 hover:bg-white/5 hover:text-slate-200' }}">
-                <i class="bi bi-person-fill text-lg mr-3 {{ request()->routeIs('medicos.show') || request()->is('*/medico/perfil*') ? 'text-emerald-400' : 'text-slate-500 group-hover:text-slate-200 transition-colors' }}"></i>
+            <a href="{{ route('medico.perfil.edit') }}" 
+               class="flex items-center px-3 py-2.5 rounded-lg transition-all duration-200 group {{ request()->routeIs('medico.perfil.edit') ? 'bg-emerald-600/20 text-emerald-400 ring-1 ring-emerald-500/30' : 'text-slate-400 hover:bg-white/5 hover:text-slate-200' }}">
+                <i class="bi bi-person-fill text-lg mr-3 {{ request()->routeIs('medico.perfil.edit') ? 'text-emerald-400' : 'text-slate-500 group-hover:text-slate-200 transition-colors' }}"></i>
                 <span class="font-medium text-sm">Mi Perfil</span>
             </a>
             
@@ -228,18 +228,24 @@
     <!-- Main Content -->
     <main class="lg:ml-64 min-h-screen">
         <!-- Top Bar -->
-        <header class="sticky top-0 z-30 bg-white/80 backdrop-blur-lg border-b border-gray-200 shadow-sm">
+        <header class="sticky top-0 z-30 bg-white/80 dark:bg-gray-800/80 backdrop-blur-lg border-b border-gray-200 dark:border-gray-700 shadow-sm transition-colors duration-200">
             <div class="px-4 lg:px-6 h-16 flex items-center justify-between">
                 <!-- Left: Mobile toggle & Title -->
                 <div class="flex items-center gap-4">
                     <button id="sidebarToggle" class="lg:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors">
                         <i class="bi bi-list text-2xl text-gray-700"></i>
                     </button>
-                    <h1 class="text-lg lg:text-xl font-display font-bold text-gray-900">@yield('title', 'Dashboard')</h1>
+                    <h1 class="text-lg lg:text-xl font-display font-bold text-gray-900 dark:text-white">@yield('title', 'Dashboard')</h1>
                 </div>
                 
-                <!-- Right: Notifications & User -->
+                <!-- Right: Dark Mode, Notifications & User -->
                 <div class="flex items-center gap-3">
+                    <!-- Dark Mode Toggle -->
+                    <button id="darkModeToggle" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <i class="bi bi-moon-fill text-xl text-gray-700 dark:hidden dark:text-gray-300"></i>
+                        <i class="bi bi-sun-fill text-xl text-gray-300 hidden dark:inline-block"></i>
+                    </button>
+                    
                     <!-- Notifications -->
                 <div class="relative" id="notificaciones-container">
                     <button id="notificaciones-btn" class="p-2 rounded-lg hover:bg-gray-100 transition-colors relative">
@@ -706,5 +712,29 @@
     </script>
 
     @stack('scripts')
+    
+    <!-- Dark Mode Script -->
+    <script>
+        // Dark Mode Toggle Logic
+        const darkModeToggle = document.getElementById('darkModeToggle');
+        const htmlElement = document.documentElement;
+        
+        // Check for saved preference or system preference
+        const savedTheme = localStorage.getItem('theme');
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        
+        if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+            htmlElement.classList.add('dark');
+        }
+        
+        // Toggle dark mode
+        if (darkModeToggle) {
+            darkModeToggle.addEventListener('click', () => {
+                htmlElement.classList.toggle('dark');
+                const isDark = htmlElement.classList.contains('dark');
+                localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            });
+        }
+    </script>
 </body>
 </html>

@@ -3,94 +3,143 @@
 @section('title', 'Mis Citas')
 
 @section('content')
-<div class="space-y-6">
-    <!-- Header -->
-    <div class="flex items-center justify-between">
-        <div>
-            <h1 class="text-3xl font-display font-bold text-gray-900">Mis Citas</h1>
-            <p class="text-gray-600 mt-1">Agenda y gestiona tus consultas médicas</p>
-        </div>
-        <a href="{{ route('paciente.citas.create') }}" class="btn btn-primary shadow-lg shadow-emerald-200 hover:shadow-emerald-300 transition-all">
-            <i class="bi bi-plus-lg mr-2"></i>
-            <span>Nueva Cita</span>
-        </a>
-    </div>
-
-    <!-- Stats Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div class="card p-4 bg-gradient-to-br from-blue-50 to-white border-blue-100 shadow-sm hover:shadow-md transition-shadow">
-            <div class="flex items-center gap-4">
-                <div class="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center shadow-sm">
-                    <i class="bi bi-calendar-check text-blue-600 text-xl"></i>
+<div class="space-y-8 relative">
+    
+    <!-- Premium Header -->
+    <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-white to-slate-50 dark:from-gray-800 dark:to-gray-900 border border-slate-200 dark:border-gray-700 shadow-xl">
+        <!-- Background Effects -->
+        <div class="absolute top-0 right-0 w-64 h-64 bg-medical-500/10 dark:bg-medical-400/10 blur-[80px] rounded-full pointer-events-none"></div>
+        <div class="absolute bottom-0 left-0 w-48 h-48 bg-blue-500/10 dark:bg-blue-400/10 blur-[60px] rounded-full pointer-events-none"></div>
+        
+        <div class="relative z-10 p-6 md:p-8 flex flex-col md:flex-row items-center justify-between gap-6">
+            <div class="flex items-center gap-6">
+                <div class="relative group">
+                    <div class="absolute inset-0 bg-medical-500/20 dark:bg-medical-400/20 blur-xl rounded-full group-hover:blur-2xl transition-all duration-500"></div>
+                    <div class="relative h-16 w-16 md:h-20 md:w-20 rounded-2xl bg-gradient-to-br from-medical-500 to-medical-600 flex items-center justify-center text-white shadow-lg shadow-medical-200 dark:shadow-none transform group-hover:scale-105 transition-all duration-300">
+                        <i class="bi bi-calendar2-check text-3xl md:text-4xl animate-pulse-slow"></i>
+                    </div>
                 </div>
                 <div>
-                    <p class="text-3xl font-bold text-gray-900">{{ ($citas ?? collect())->filter(fn($c) => in_array($c->estado_cita, ['Programada', 'Confirmada']))->count() }}</p>
-                    <p class="text-sm font-medium text-gray-600">Citas Próximas</p>
+                    <h1 class="text-2xl md:text-3xl font-bold text-slate-800 dark:text-white tracking-tight">Mis Citas</h1>
+                    <p class="text-slate-500 dark:text-gray-400 font-medium mt-1">Agenda y gestiona tus consultas médicas</p>
                 </div>
-            </div>
-        </div>
-        <div class="card p-4 bg-gradient-to-br from-emerald-50 to-white border-emerald-100 shadow-sm hover:shadow-md transition-shadow">
-            <div class="flex items-center gap-4">
-                <div class="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center shadow-sm">
-                    <i class="bi bi-check-circle text-emerald-600 text-xl"></i>
-                </div>
-                <div>
-                    <p class="text-3xl font-bold text-gray-900">{{ ($citas ?? collect())->where('estado_cita', 'Completada')->count() }}</p>
-                    <p class="text-sm font-medium text-gray-600">Completadas</p>
-                </div>
-            </div>
-        </div>
-        <div class="card p-4 bg-gradient-to-br from-red-50 to-white border-red-100 shadow-sm hover:shadow-md transition-shadow">
-            <div class="flex items-center gap-4">
-                <div class="w-12 h-12 rounded-xl bg-red-100 flex items-center justify-center shadow-sm">
-                    <i class="bi bi-x-circle text-red-600 text-xl"></i>
-                </div>
-                <div>
-                    <p class="text-3xl font-bold text-gray-900">{{ ($citas ?? collect())->filter(fn($c) => in_array($c->estado_cita, ['Cancelada', 'No Asistió']))->count() }}</p>
-                    <p class="text-sm font-medium text-gray-600">Canceladas</p>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Filtros -->
-    @if(isset($pacientesEspeciales) && $pacientesEspeciales->count() > 0)
-    <div class="card p-4 border border-gray-100 shadow-sm">
-        <div class="flex flex-wrap items-center gap-4">
-            <div class="flex-1 min-w-[200px]">
-                <label class="text-xs font-bold text-gray-500 uppercase mb-1 block">Tipo de Cita</label>
-                <select id="filtro-tipo" class="select select-bordered select-sm w-full" onchange="filtrarCitas()">
-                    <option value="todas">Todas las citas</option>
-                    <option value="propia">Solo citas propias</option>
-                    <option value="terceros">Solo citas para terceros</option>
-                </select>
             </div>
             
-            <div id="filtro-paciente-container" class="flex-1 min-w-[200px] hidden">
-                <label class="text-xs font-bold text-gray-500 uppercase mb-1 block">Paciente Especial</label>
-                <select id="filtro-paciente" class="select select-bordered select-sm w-full" onchange="filtrarCitas()">
-                    <option value="">Todos los pacientes</option>
-                    @foreach($pacientesEspeciales ?? [] as $pe)
-                    <option value="{{ $pe->id }}">{{ $pe->primer_nombre }} {{ $pe->primer_apellido }}</option>
-                    @endforeach
-                </select>
+            <a href="{{ route('paciente.citas.create') }}" class="btn-primary-dynamic group flex items-center gap-3 px-6 py-3.5 rounded-xl font-bold shadow-lg shadow-medical-200/50 dark:shadow-none hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+                <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-white/20 text-white group-hover:scale-110 transition-transform">
+                    <i class="bi bi-plus-lg text-lg"></i>
+                </div>
+                <span>Nueva Cita</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Stats Cards Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Próximas -->
+        <div class="card-premium relative overflow-hidden rounded-3xl p-6 border border-white/40 dark:border-gray-700/50 min-h-[140px] flex items-center justify-between group">
+            <div class="absolute inset-0 bg-gradient-to-br from-blue-50/50 to-transparent dark:from-blue-900/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <div>
+                <p class="text-sm font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider mb-1">Próximas</p>
+                <h3 class="text-4xl font-black text-slate-800 dark:text-white">
+                    {{ ($citas ?? collect())->filter(fn($c) => in_array($c->estado_cita, ['Programada', 'Confirmada']))->count() }}
+                </h3>
+            </div>
+            <div class="h-16 w-16 rounded-2xl bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center text-2xl shadow-inner group-hover:scale-110 transition-transform duration-300">
+                <i class="bi bi-calendar-check"></i>
+            </div>
+        </div>
+
+        <!-- Completadas -->
+        <div class="card-premium relative overflow-hidden rounded-3xl p-6 border border-white/40 dark:border-gray-700/50 min-h-[140px] flex items-center justify-between group">
+            <div class="absolute inset-0 bg-gradient-to-br from-emerald-50/50 to-transparent dark:from-emerald-900/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <div>
+                <p class="text-sm font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider mb-1">Completadas</p>
+                <h3 class="text-4xl font-black text-slate-800 dark:text-white">
+                    {{ ($citas ?? collect())->where('estado_cita', 'Completada')->count() }}
+                </h3>
+            </div>
+            <div class="h-16 w-16 rounded-2xl bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-2xl shadow-inner group-hover:scale-110 transition-transform duration-300">
+                <i class="bi bi-check-circle"></i>
+            </div>
+        </div>
+
+        <!-- Canceladas -->
+        <div class="card-premium relative overflow-hidden rounded-3xl p-6 border border-white/40 dark:border-gray-700/50 min-h-[140px] flex items-center justify-between group">
+            <div class="absolute inset-0 bg-gradient-to-br from-rose-50/50 to-transparent dark:from-rose-900/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <div>
+                <p class="text-sm font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider mb-1">Canceladas</p>
+                <h3 class="text-4xl font-black text-slate-800 dark:text-white">
+                    {{ ($citas ?? collect())->filter(fn($c) => in_array($c->estado_cita, ['Cancelada', 'No Asistió']))->count() }}
+                </h3>
+            </div>
+            <div class="h-16 w-16 rounded-2xl bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 flex items-center justify-center text-2xl shadow-inner group-hover:scale-110 transition-transform duration-300">
+                <i class="bi bi-x-circle"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters Section -->
+    @if(isset($pacientesEspeciales) && $pacientesEspeciales->count() > 0)
+    <div class="card-premium rounded-2xl p-4 border border-slate-200 dark:border-gray-700 bg-white/50 dark:bg-gray-800/50 backdrop-blur-md">
+        <div class="flex flex-wrap items-center gap-4">
+            <div class="flex-1 min-w-[200px]">
+                <label class="text-xs font-bold text-slate-500 dark:text-gray-400 uppercase mb-1.5 block ml-1">Tipo de Cita</label>
+                <div class="relative">
+                    <select id="filtro-tipo" class="w-full pl-4 pr-10 py-2.5 rounded-xl border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-slate-700 dark:text-gray-200 text-sm font-bold shadow-sm focus:border-medical-500 focus:ring-medical-500 cursor-pointer appearance-none transition-colors" onchange="filtrarCitas()">
+                        <option value="todas">Todas las citas</option>
+                        <option value="propia">Solo citas propias</option>
+                        <option value="terceros">Solo citas para terceros</option>
+                    </select>
+                    <i class="bi bi-chevron-down absolute right-4 top-3 text-slate-400 pointer-events-none text-xs"></i>
+                </div>
+            </div>
+            
+            <div id="filtro-paciente-container" class="flex-1 min-w-[200px] hidden animate-in fade-in slide-in-from-left-2 duration-300">
+                <label class="text-xs font-bold text-slate-500 dark:text-gray-400 uppercase mb-1.5 block ml-1">Paciente Especial</label>
+                <div class="relative">
+                    <select id="filtro-paciente" class="w-full pl-4 pr-10 py-2.5 rounded-xl border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-slate-700 dark:text-gray-200 text-sm font-bold shadow-sm focus:border-medical-500 focus:ring-medical-500 cursor-pointer appearance-none transition-colors" onchange="filtrarCitas()">
+                        <option value="">Todos los pacientes</option>
+                        @foreach($pacientesEspeciales ?? [] as $pe)
+                        <option value="{{ $pe->id }}">{{ $pe->primer_nombre }} {{ $pe->primer_apellido }}</option>
+                        @endforeach
+                    </select>
+                    <i class="bi bi-chevron-down absolute right-4 top-3 text-slate-400 pointer-events-none text-xs"></i>
+                </div>
             </div>
         </div>
     </div>
     @endif
 
-    <!-- Tabs -->
-    <div class="card p-6 border-gray-200">
-        <div class="flex flex-wrap gap-2 border-b border-gray-200 pb-0 mb-6">
-            <button class="tab-button active px-4 py-2 text-sm font-medium border-b-2 border-emerald-500 text-emerald-600 transition-colors" data-tab="proximas">
-                <i class="bi bi-calendar-check mr-2"></i>Próximas
-            </button>
-            <button class="tab-button px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 transition-colors" data-tab="realizadas">
-                <i class="bi bi-clock-history mr-2"></i>Realizadas
-            </button>
-            <button class="tab-button px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 transition-colors" data-tab="canceladas">
-                <i class="bi bi-x-circle mr-2"></i>Canceladas
-            </button>
+    <!-- Main Content Area with Tabs -->
+    <div class="rounded-3xl bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 shadow-xl overflow-hidden">
+        <!-- Tabs Header -->
+        <div class="border-b border-slate-100 dark:border-gray-700 bg-slate-50/50 dark:bg-gray-800/50 px-6 pt-6">
+            <div class="flex flex-wrap gap-6">
+                <button class="tab-button active group relative pb-4 px-2 text-sm font-bold text-medical-600 dark:text-medical-400 transition-colors" data-tab="proximas">
+                    <span class="flex items-center gap-2 relative z-10">
+                        <i class="bi bi-calendar-check text-lg"></i>
+                        Próximas
+                    </span>
+                    <div class="absolute bottom-0 left-0 h-0.5 w-full bg-medical-500 transform scale-x-100 transition-transform duration-300 origin-left"></div>
+                </button>
+
+                <button class="tab-button group relative pb-4 px-2 text-sm font-bold text-slate-500 dark:text-gray-400 hover:text-slate-700 dark:hover:text-gray-200 transition-colors" data-tab="realizadas">
+                    <span class="flex items-center gap-2 relative z-10">
+                        <i class="bi bi-clock-history text-lg"></i>
+                        Realizadas
+                    </span>
+                    <div class="absolute bottom-0 left-0 h-0.5 w-full bg-slate-300 dark:bg-gray-600 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"></div>
+                </button>
+
+                <button class="tab-button group relative pb-4 px-2 text-sm font-bold text-slate-500 dark:text-gray-400 hover:text-rose-600 dark:hover:text-rose-400 transition-colors" data-tab="canceladas">
+                    <span class="flex items-center gap-2 relative z-10">
+                        <i class="bi bi-x-circle text-lg"></i>
+                        Canceladas
+                    </span>
+                    <div class="absolute bottom-0 left-0 h-0.5 w-full bg-rose-500 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"></div>
+                </button>
+            </div>
         </div>
 
         @php
@@ -101,275 +150,121 @@
             $citasCanceladas = ($citas ?? collect())->whereIn('estado_cita', ['Cancelada', 'No Asistió']);
         @endphp
 
-        <!-- Próximas Citas Tab -->
-        <div id="tab-proximas" class="tab-content">
-            <div class="space-y-4">
-                @forelse($citasProximas as $cita)
-                <div class="card cita-card p-6 hover:shadow-lg transition-all border border-gray-100 hover:border-blue-200 group relative" 
-                     data-tipo="{{ $cita->tipo_cita_display ?? 'propia' }}"
-                     data-paciente-especial="{{ $cita->paciente_especial_info->id ?? '' }}">
-
-                    @php
-                        $ultimoPago = $cita->facturaPaciente ? $cita->facturaPaciente->pagos->where('status', true)->sortByDesc('created_at')->first() : null;
-                        $pagoStatus = $ultimoPago ? $ultimoPago->estado : null;
-                    @endphp
-
-                    @if($pagoStatus == 'Rechazado')
-                        <div class="absolute top-4 right-6 flex items-center gap-2 px-3 py-1 bg-red-50 rounded-full border border-red-100 shadow-sm z-10 transition-transform group-hover:scale-105">
-                            <span class="relative flex h-2 w-2">
-                                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                                <span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
-                            </span>
-                            <p class="text-[9px] font-bold text-red-600 uppercase tracking-wider">
-                                Pago Rechazado
-                                @if($ultimoPago->comentarios)
-                                    <span class="mx-1 text-red-300">|</span>
-                                    <span class="normal-case font-medium text-red-500 italic">"{{ Str::limit($ultimoPago->comentarios, 35) }}"</span>
-                                @endif
-                            </p>
-                        </div>
-                    @endif
-
-                    <div class="flex flex-col md:flex-row gap-6">
-                        <!-- Date Box -->
-                        <div class="text-center p-4 bg-blue-50 rounded-xl w-full md:w-24 flex-shrink-0 group-hover:bg-blue-100 transition-colors">
-                            <p class="text-3xl font-bold text-blue-600">
-                                {{ \Carbon\Carbon::parse($cita->fecha_cita)->format('d') }}
-                            </p>
-                            <p class="text-sm text-blue-700 font-medium uppercase">
-                                {{ \Carbon\Carbon::parse($cita->fecha_cita)->isoFormat('MMM') }}
-                            </p>
-                            <p class="text-xs text-blue-400 mt-1 font-bold">
-                                {{ \Carbon\Carbon::parse($cita->fecha_cita)->isoFormat('YYYY') }}
-                            </p>
-                        </div>
-
-                        <!-- Cita Info -->
-                        <div class="flex-1">
-                            <div class="flex items-start justify-between mb-3">
-                                <div>
-                                    <h3 class="text-xl font-bold text-gray-900 group-hover:text-blue-700 transition-colors">{{ $cita->especialidad->nombre ?? 'Consulta General' }}</h3>
-                                    <p class="text-gray-600 flex items-center gap-2 mt-1">
-                                        <i class="bi bi-person-badge text-blue-600"></i>
-                                        Dr. {{ $cita->medico->primer_nombre ?? 'N/A' }} {{ $cita->medico->primer_apellido ?? '' }}
-                                    </p>
-                                </div>
-                                <div class="flex flex-col items-end gap-2">
-                                    @if($cita->tipo_cita_display == 'terceros' && $cita->paciente_especial_info)
-                                    <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-700 border border-purple-200">
-                                        <i class="bi bi-person-heart"></i>
-                                        {{ $cita->paciente_especial_info->primer_nombre ?? '' }} {{ $cita->paciente_especial_info->primer_apellido ?? '' }}
-                                    </span>
-                                    @endif
-
-                                    @php
-                                        $badgeColor = match($cita->estado_cita) {
-                                            'Confirmada' => 'success',
-                                            'Programada' => 'warning',
-                                            'En Progreso' => 'info',
-                                            default => 'gray'
-                                        };
-                                    @endphp
-                                    <span class="badge badge-{{ $badgeColor }} uppercase font-bold tracking-wide text-xs">
-                                        {{ $cita->estado_cita }}
-                                    </span>
-
-                                    @if($cita->facturaPaciente && $cita->facturaPaciente->pagos->where('status', true)->count() > 0)
-                                        @php
-                                            $pagoBadge = match($pagoStatus) {
-                                                'Confirmado' => 'success',
-                                                'Pendiente' => 'warning',
-                                                'Rechazado' => 'danger',
-                                                default => 'gray'
-                                            };
-                                        @endphp
-                                        @if($pagoStatus != 'Rechazado')
-                                        <div class="flex items-center gap-1 mt-1">
-                                            <span class="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Pago:</span>
-                                            <span class="badge badge-{{ $pagoBadge }} uppercase font-bold tracking-wide text-[10px] py-0 h-4">
-                                                {{ $pagoStatus }}
-                                            </span>
-                                        </div>
-                                        @endif
-                                    @elseif($cita->facturaPaciente && $cita->estado_cita != 'Cancelada')
-                                        <div class="flex items-center gap-1 mt-1">
-                                            <span class="badge badge-danger uppercase font-bold tracking-wide text-[10px] py-0 h-4">
-                                                PAGO PENDIENTE
-                                            </span>
-                                        </div>
-                                    @endif
-                                </div>
+        <div class="p-6 md:p-8">
+            <!-- Tab: Próximas -->
+            <div id="tab-proximas" class="tab-content animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <div class="space-y-4">
+                    @forelse($citasProximas as $cita)
+                        @include('paciente.citas.partials.card-cita', ['cita' => $cita, 'tipo' => 'proxima'])
+                    @empty
+                        <div class="flex flex-col items-center justify-center py-16 text-center">
+                            <div class="h-24 w-24 bg-slate-50 dark:bg-gray-700 rounded-full flex items-center justify-center mb-6 shadow-inner">
+                                <i class="bi bi-calendar-plus text-4xl text-slate-300 dark:text-gray-500"></i>
                             </div>
-
-                            <div class="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm mt-4">
-                                <div class="flex items-center gap-2 text-gray-700 bg-gray-50 p-2 rounded-lg">
-                                    <i class="bi bi-clock text-blue-600"></i>
-                                    <span class="font-medium">{{ \Carbon\Carbon::parse($cita->hora_inicio)->format('h:i A') }}</span>
-                                </div>
-                                <div class="flex items-center gap-2 text-gray-700 bg-gray-50 p-2 rounded-lg col-span-2 md:col-span-1">
-                                    <i class="bi bi-building text-blue-600"></i>
-                                    <span class="truncate">{{ $cita->consultorio->nombre ?? 'Consultorio' }}</span>
-                                </div>
-                            </div>
-
-                            @if($cita->motivo)
-                            <div class="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-100">
-                                <p class="text-xs text-gray-500 font-bold uppercase mb-1">Motivo Consulta</p>
-                                <p class="text-sm text-gray-600">"{{ Str::limit($cita->motivo, 100) }}"</p>
-                            </div>
-                            @endif
-
-                            @if($cita->observaciones)
-                            <div class="mt-3 p-3 bg-yellow-50 rounded-lg border border-yellow-100">
-                                <p class="text-xs text-yellow-600 font-bold uppercase mb-1">Observaciones</p>
-                                <p class="text-sm text-gray-600 italic">"{{ Str::limit($cita->observaciones, 100) }}"</p>
-                            </div>
-                            @endif
-
-                            <div class="mt-4 pt-4 border-t border-gray-100 flex flex-wrap justify-end gap-2">
-                                {{-- Botón Ver Detalle --}}
-                                <a href="{{ route('paciente.citas.show', $cita->id) }}" class="btn btn-sm btn-outline hover:bg-emerald-50 text-emerald-600 border-emerald-200 hover:border-emerald-300">
-                                    Ver Detalles <i class="bi bi-arrow-right ml-1"></i>
-                                </a>
-
-                                {{-- Botón Realizar Pago --}}
-                                @php
-                                    $tienePago = $cita->facturaPaciente && $cita->facturaPaciente->pagos->count() > 0;
-                                    $pagoPendiente = $cita->facturaPaciente && $cita->facturaPaciente->pagos->where('status', true)->where('estado', 'Pendiente')->count() > 0;
-                                    $pagoConfirmado = $cita->facturaPaciente && $cita->facturaPaciente->pagos->where('status', true)->where('estado', 'Confirmado')->count() > 0;
-                                @endphp
-
-                                @if(!$pagoConfirmado && !$pagoPendiente && !in_array($cita->estado_cita, ['Cancelada', 'No Asistió']))
-                                    <a href="{{ route('paciente.pagos.registrar', $cita->id) }}" class="btn btn-sm btn-primary shadow-sm shadow-emerald-200">
-                                        <i class="bi bi-credit-card mr-1"></i> Realizar Pago
-                                    </a>
-                                @endif
-
-                                {{-- Botón Cancelar Cita --}}
-                                @if(in_array($cita->estado_cita, ['Programada', 'Confirmada']))
-                                    <button onclick="openCancelModal({{ $cita->id }})" class="btn btn-sm btn-outline text-rose-600 hover:bg-rose-50 border-rose-200 hover:border-rose-300">
-                                        <i class="bi bi-x-circle mr-1"></i> Cancelar
-                                    </button>
-                                @endif
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                @empty
-                <div class="text-center py-12 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
-                    <div class="w-16 h-16 mx-auto bg-white rounded-full flex items-center justify-center mb-4 shadow-sm">
-                        <i class="bi bi-calendar-plus text-3xl text-gray-400"></i>
-                    </div>
-                    <p class="text-gray-900 font-medium mb-1">No tienes citas próximas</p>
-                    <p class="text-sm text-gray-500 mb-6">¿Necesitas atención médica?</p>
-                    <a href="{{ route('paciente.citas.create') }}" class="btn btn-primary btn-sm">
-                        Agenda tu cita ahora
-                    </a>
-                </div>
-                @endforelse
-            </div>
-        </div>
-
-        <!-- Realizadas Tab -->
-        <div id="tab-realizadas" class="tab-content hidden">
-            <div class="space-y-4">
-                @forelse($citasRealizadas as $cita)
-                <div class="card cita-card p-6 bg-white border border-gray-200 hover:border-emerald-300 transition-colors"
-                     data-tipo="{{ $cita->tipo_cita_display ?? 'propia' }}"
-                     data-paciente-especial="{{ $cita->paciente_especial_info->id ?? '' }}">
-                    <div class="flex items-start justify-between">
-                        <div>
-                            <div class="flex items-center gap-2">
-                                <h3 class="font-bold text-gray-900 text-lg">{{ $cita->especialidad->nombre ?? 'Consulta' }}</h3>
-                                @if($cita->tipo_cita_display == 'terceros' && $cita->paciente_especial_info)
-                                <span class="badge badge-purple text-xs">
-                                    {{ $cita->paciente_especial_info->primer_nombre ?? '' }}
-                                </span>
-                                @endif
-                            </div>
-                            <p class="text-sm text-gray-600 mt-1 font-medium">
-                                Dr. {{ $cita->medico->primer_nombre ?? '' }} {{ $cita->medico->primer_apellido ?? '' }}
-                            </p>
-                            <p class="text-xs text-gray-500 mt-2 flex items-center gap-2">
-                                <i class="bi bi-calendar"></i> {{ \Carbon\Carbon::parse($cita->fecha_cita)->format('d M Y') }} 
-                                <span class="mx-1">•</span>
-                                <i class="bi bi-clock"></i> {{ \Carbon\Carbon::parse($cita->hora_inicio)->format('h:i A') }}
-                            </p>
-                        </div>
-                        <div class="flex flex-col gap-2 items-end">
-                            <span class="badge badge-success uppercase text-xs font-bold">Completada</span>
-                            
-                            @if($cita->facturaPaciente && $cita->facturaPaciente->pagos->where('status', true)->count() > 0)
-                                @php
-                                    $pago = $cita->facturaPaciente->pagos->where('status', true)->first();
-                                @endphp
-                                <span class="badge badge-{{ $pago->estado == 'Confirmado' ? 'success' : ($pago->estado == 'Rechazado' ? 'danger' : 'warning') }} uppercase text-[10px] py-0 h-4">
-                                    Pago: {{ $pago->estado }}
-                                </span>
-                            @endif
-
-                            <a href="{{ route('paciente.citas.show', $cita->id) }}" class="btn btn-xs btn-ghost text-emerald-600">
-                                Ver Detalle
+                            <h3 class="text-xl font-bold text-slate-800 dark:text-white mb-2">No tienes citas próximas</h3>
+                            <p class="text-slate-500 dark:text-gray-400 max-w-md mx-auto mb-8">¿Necesitas atención médica? Agenda una nueva cita con nuestros especialistas.</p>
+                            <a href="{{ route('paciente.citas.create') }}" class="btn-primary-dynamic px-8 py-3 rounded-xl font-bold shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all">
+                                Agendar Cita Ahora
                             </a>
                         </div>
-                    </div>
-                    @if($cita->observaciones)
-                    <div class="mt-3 pt-3 border-t border-gray-100">
-                        <p class="text-xs text-gray-500 font-bold uppercase">Observaciones:</p>
-                        <p class="text-sm text-gray-600 italic">"{{ Str::limit($cita->observaciones, 100) }}"</p>
-                    </div>
-                    @endif
+                    @endforelse
                 </div>
-                @empty
-                <div class="text-center py-12 text-gray-500 bg-gray-50 rounded-2xl border border-gray-100">
-                    <p>No hay registro de citas realizadas.</p>
+            </div>
+
+            <!-- Tab: Realizadas -->
+            <div id="tab-realizadas" class="tab-content hidden animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <div class="space-y-4">
+                    @forelse($citasRealizadas as $cita)
+                        @include('paciente.citas.partials.card-cita', ['cita' => $cita, 'tipo' => 'realizada'])
+                    @empty
+                        <div class="flex flex-col items-center justify-center py-16 text-center">
+                            <i class="bi bi-journal-medical text-5xl text-slate-200 dark:text-gray-700 mb-4"></i>
+                            <p class="text-slate-400 dark:text-gray-500 font-medium">No hay historial de citas realizadas</p>
+                        </div>
+                    @endforelse
                 </div>
-                @endforelse
+            </div>
+
+            <!-- Tab: Canceladas -->
+            <div id="tab-canceladas" class="tab-content hidden animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <div class="space-y-4">
+                    @forelse($citasCanceladas as $cita)
+                        @include('paciente.citas.partials.card-cita', ['cita' => $cita, 'tipo' => 'cancelada'])
+                    @empty
+                        <div class="flex flex-col items-center justify-center py-16 text-center">
+                            <i class="bi bi-calendar-x text-5xl text-slate-200 dark:text-gray-700 mb-4"></i>
+                            <p class="text-slate-400 dark:text-gray-500 font-medium">No hay citas canceladas recientes</p>
+                        </div>
+                    @endforelse
+                </div>
             </div>
         </div>
+    </div>
+</div>
 
-        <!-- Canceladas Tab -->
-        <div id="tab-canceladas" class="tab-content hidden">
-            <div class="space-y-4">
-                @forelse($citasCanceladas as $cita)
-                <div class="card cita-card p-6 bg-gray-50 opacity-75 hover:opacity-100 transition-opacity border border-gray-200"
-                     data-tipo="{{ $cita->tipo_cita_display ?? 'propia' }}"
-                     data-paciente-especial="{{ $cita->paciente_especial_info->id ?? '' }}">
-                    <div class="flex items-start justify-between">
-                        <div>
-                            <div class="flex items-center gap-2">
-                                <h3 class="font-bold text-gray-900 line-through">{{ $cita->especialidad->nombre ?? 'Consulta' }}</h3>
+<!-- Modal Cancelación Premium -->
+<div id="modalCancelacion" class="fixed inset-0 z-50 hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <!-- Backdrop con Glassmorphism -->
+    <div class="fixed inset-0 bg-slate-900/60 dark:bg-black/80 backdrop-blur-sm transition-opacity opacity-0" id="modalBackdrop"></div>
+
+    <div class="fixed inset-0 z-10 w-screen overflow-y-auto">
+        <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+            <!-- Modal Panel -->
+            <div class="relative transform overflow-hidden rounded-3xl bg-white dark:bg-gray-800 text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-lg scale-95 opacity-0" id="modalPanel">
+                
+                <!-- Decorative Top Bar -->
+                <div class="h-2 w-full bg-gradient-to-r from-rose-500 via-red-500 to-orange-500"></div>
+
+                <div class="px-6 py-8 sm:p-8">
+                    <div class="flex flex-col items-center text-center">
+                        <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-rose-50 dark:bg-rose-900/30 mb-6 ring-4 ring-rose-50/50 dark:ring-rose-900/20">
+                            <i class="bi bi-calendar2-x-fill text-3xl text-rose-600 dark:text-rose-400"></i>
+                        </div>
+                        <h3 class="text-2xl font-bold text-slate-900 dark:text-white" id="modal-title">¿Cancelar esta cita?</h3>
+                        <p class="mt-2 text-sm text-slate-500 dark:text-gray-400 font-medium">
+                            Lamentamos que no puedas asistir. Por favor, indícanos el motivo para ayudarnos a mejorar.
+                        </p>
+                    </div>
+
+                    <div class="mt-8 space-y-5">
+                        <div class="space-y-2">
+                            <label for="motivo_cancelacion_input" class="text-xs font-bold text-slate-700 dark:text-gray-300 uppercase tracking-wide ml-1">Motivo Principal</label>
+                            <div class="relative">
+                                <select id="motivo_cancelacion_input" class="block w-full rounded-xl border-slate-200 dark:border-gray-600 bg-slate-50 dark:bg-gray-700 py-3 pl-4 pr-10 text-slate-800 dark:text-white font-bold focus:border-rose-500 focus:ring-rose-500 transition-colors appearance-none" required>
+                                    <option value="" class="text-gray-400">Seleccione un motivo...</option>
+                                    <option value="Salud">Problemas de Salud</option>
+                                    <option value="Trabajo">Motivos Laborales</option>
+                                    <option value="Personal">Asuntos Personales</option>
+                                    <option value="Transporte">Problemas de Transporte</option>
+                                    <option value="Economico">Motivos Económicos</option>
+                                    <option value="Otro">Otro</option>
+                                </select>
+                                <i class="bi bi-chevron-down absolute right-4 top-3.5 text-slate-400 text-xs pointer-events-none"></i>
                             </div>
-                            <p class="text-sm text-gray-600 mt-1">
-                                Dr. {{ $cita->medico->primer_nombre ?? '' }} {{ $cita->medico->primer_apellido ?? '' }}
-                            </p>
-                            <p class="text-xs text-gray-500 mt-1">
-                                Programada para: {{ \Carbon\Carbon::parse($cita->fecha_cita)->format('d/m/Y') }}
-                            </p>
                         </div>
-                        <div class="flex flex-col gap-1 items-end">
-                            <span class="badge badge-danger uppercase text-xs font-bold">{{ $cita->estado_cita }}</span>
-                            @if($cita->facturaPaciente && $cita->facturaPaciente->pagos->where('status', true)->count() > 0)
-                                <span class="badge badge-gray uppercase text-[10px] py-0 h-4 opacity-50">
-                                    Pago: {{ $cita->facturaPaciente->pagos->where('status', true)->first()->estado }}
-                                </span>
-                            @endif
+
+                        <div class="space-y-2">
+                            <label for="explicacion_input" class="text-xs font-bold text-slate-700 dark:text-gray-300 uppercase tracking-wide ml-1">Detalles Adicionales</label>
+                            <textarea id="explicacion_input" rows="3" 
+                                class="block w-full rounded-xl border-slate-200 dark:border-gray-600 bg-slate-50 dark:bg-gray-700 px-4 py-3 text-slate-800 dark:text-white placeholder:text-slate-400 dark:placeholder:text-gray-500 focus:bg-white dark:focus:bg-gray-900 focus:border-rose-500 focus:ring-rose-500 transition-all resize-none shadow-sm"
+                                placeholder="Escribe aquí los detalles..."
+                                oninput="document.getElementById('motivo_error').classList.add('hidden')" required></textarea>
                         </div>
+
+                        <p id="motivo_error" class="hidden text-xs font-bold text-rose-500 flex items-center justify-center gap-1 bg-rose-50 dark:bg-rose-900/30 p-2 rounded-lg">
+                            <i class="bi bi-exclamation-circle-fill"></i> Debes completar todos los campos
+                        </p>
                     </div>
-                    @if($cita->observaciones)
-                    <div class="mt-4 p-3 bg-red-50 rounded-lg border border-red-100">
-                        <p class="text-xs text-red-600 font-bold uppercase mb-1">Motivo Cancelación / Notas</p>
-                        <p class="text-sm text-gray-700 italic">"{{ Str::limit($cita->observaciones, 150) }}"</p>
-                    </div>
-                    @else
-                    <div class="mt-2 text-xs text-gray-400 italic">Sin motivo especificado</div>
-                    @endif
                 </div>
-                @empty
-                 <div class="text-center py-12 text-gray-500 bg-gray-50 rounded-2xl border border-gray-100">
-                    <p>No tienes citas canceladas.</p>
+
+                <div class="bg-slate-50 dark:bg-gray-700/50 px-6 py-4 sm:flex sm:flex-row-reverse sm:px-8 gap-3 border-t border-slate-100 dark:border-gray-700">
+                    <button id="confirmCancelBtn" type="button" onclick="confirmarCancelacion()" class="inline-flex w-full justify-center rounded-xl bg-rose-600 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-rose-200 dark:shadow-none hover:bg-rose-700 sm:w-auto hover:-translate-y-0.5 transition-all">
+                        Confirmar Cancelación
+                    </button>
+                    <button type="button" onclick="closeCancelModal()" class="mt-3 inline-flex w-full justify-center rounded-xl bg-white dark:bg-gray-800 px-5 py-3 text-sm font-bold text-slate-700 dark:text-gray-300 shadow-sm ring-1 ring-inset ring-slate-300 dark:ring-gray-600 hover:bg-slate-50 dark:hover:bg-gray-700 sm:mt-0 sm:w-auto hover:-translate-y-0.5 transition-all">
+                        Volver
+                    </button>
                 </div>
-                @endforelse
             </div>
         </div>
     </div>
@@ -377,39 +272,104 @@
 
 @push('scripts')
 <script>
-    // Tab switching
-    document.querySelectorAll('.tab-button').forEach(button => {
-        button.addEventListener('click', () => {
-            document.querySelectorAll('.tab-button').forEach(b => {
-                b.classList.remove('active', 'border-emerald-500', 'text-emerald-600');
-                b.classList.add('border-transparent', 'text-gray-500');
+    // Tab switching logic with local storage persistence
+    document.addEventListener('DOMContentLoaded', () => {
+        const tabs = document.querySelectorAll('.tab-button');
+        const contents = document.querySelectorAll('.tab-content');
+        
+        // Restore active tab
+        const savedTab = localStorage.getItem('activeCitasTab') || 'proximas';
+        activateTab(savedTab);
+
+        tabs.forEach(button => {
+            button.addEventListener('click', () => {
+                const tabId = button.dataset.tab;
+                activateTab(tabId);
+                localStorage.setItem('activeCitasTab', tabId);
             });
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
-            button.classList.add('active', 'border-emerald-500', 'text-emerald-600');
-            button.classList.remove('border-transparent', 'text-gray-500');
-            document.getElementById('tab-' + button.dataset.tab).classList.remove('hidden');
         });
+
+        function activateTab(tabId) {
+            // Update buttons
+            tabs.forEach(btn => {
+                const isActive = btn.dataset.tab === tabId;
+                const underline = btn.querySelector('.absolute');
+                
+                if (isActive) {
+                    btn.classList.add('active', 'text-medical-600', 'dark:text-medical-400');
+                    btn.classList.remove('text-slate-500', 'dark:text-gray-400');
+                    underline.classList.replace('scale-x-0', 'scale-x-100');
+                } else {
+                    btn.classList.remove('active', 'text-medical-600', 'dark:text-medical-400');
+                    btn.classList.add('text-slate-500', 'dark:text-gray-400');
+                    underline.classList.replace('scale-x-100', 'scale-x-0');
+                }
+            });
+
+            // Update content
+            contents.forEach(content => {
+                if (content.id === `tab-${tabId}`) {
+                    content.classList.remove('hidden');
+                } else {
+                    content.classList.add('hidden');
+                }
+            });
+        }
     });
 
-    // Custom Modal Logic
+    // Filtering Logic
+    function filtrarCitas() {
+        const tipoFiltro = document.getElementById('filtro-tipo').value;
+        const pacienteFiltro = document.getElementById('filtro-paciente')?.value || '';
+        const containerPaciente = document.getElementById('filtro-paciente-container');
+        
+        if (containerPaciente) {
+            if (tipoFiltro === 'terceros') containerPaciente.classList.remove('hidden');
+            else containerPaciente.classList.add('hidden');
+        }
+        
+        document.querySelectorAll('.cita-card-wrapper').forEach(card => {
+            const tipoCita = card.dataset.tipo;
+            const pacienteEspecialId = card.dataset.pacienteEspecial;
+            let mostrar = true;
+            
+            if (tipoFiltro === 'propia' && tipoCita !== 'propia') mostrar = false;
+            if (tipoFiltro === 'terceros' && tipoCita !== 'terceros') mostrar = false;
+            if (tipoFiltro === 'terceros' && pacienteFiltro && pacienteEspecialId !== pacienteFiltro) mostrar = false;
+            
+            if (mostrar) {
+                card.style.display = '';
+                // Add simple fade in
+                card.classList.add('animate-in', 'fade-in');
+            } else {
+                card.style.display = 'none';
+            }
+        });
+    }
+
+    // Modern Modal Logic
     let currentCitaId = null;
+    const modal = document.getElementById('modalCancelacion');
+    const backdrop = document.getElementById('modalBackdrop');
+    const panel = document.getElementById('modalPanel');
 
     function openCancelModal(citaId) {
         currentCitaId = citaId;
-        const modal = document.getElementById('modalCancelacion');
-        const modalContent = modal.querySelector('.modal-content');
         modal.classList.remove('hidden');
-        setTimeout(() => {
-            modal.classList.remove('opacity-0');
-            modalContent.classList.remove('scale-95', 'opacity-0');
-        }, 10);
+        
+        // Animating entrance
+        requestAnimationFrame(() => {
+            backdrop.classList.remove('opacity-0');
+            panel.classList.remove('opacity-0', 'scale-95');
+            panel.classList.add('opacity-100', 'scale-100');
+        });
     }
 
     function closeCancelModal() {
-        const modal = document.getElementById('modalCancelacion');
-        const modalContent = modal.querySelector('.modal-content');
-        modal.classList.add('opacity-0');
-        modalContent.classList.add('scale-95', 'opacity-0');
+        backdrop.classList.add('opacity-0');
+        panel.classList.remove('opacity-100', 'scale-100');
+        panel.classList.add('opacity-0', 'scale-95');
+
         setTimeout(() => {
             modal.classList.add('hidden');
             currentCitaId = null;
@@ -425,6 +385,10 @@
 
         if (!motivo || !explicacion) {
             document.getElementById('motivo_error').classList.remove('hidden');
+            // Shake effect
+            const panel = document.getElementById('modalPanel');
+            panel.classList.add('animate-pulse'); // Simple shake replacement
+            setTimeout(() => panel.classList.remove('animate-pulse'), 500);
             return;
         }
 
@@ -448,93 +412,19 @@
             const data = await response.json();
 
             if (response.ok && data.success !== false) {
-                // Success feedback and reload
-                btn.innerHTML = '<i class="bi bi-check-lg mr-2"></i> ¡Hecho!';
+                btn.classList.replace('bg-rose-600', 'bg-emerald-500');
+                btn.innerHTML = '<i class="bi bi-check-lg mr-2"></i> Confirmado';
                 setTimeout(() => location.reload(), 1000);
             } else {
-                alert(data.message || 'No se pudo cancelar la cita');
-                btn.disabled = false;
-                btn.innerHTML = originalText;
+                throw new Error(data.message || 'Error al cancelar');
             }
         } catch (error) {
             console.error(error);
-            alert('Hubo un problema de conexión');
+            alert('Error: ' + error.message);
             btn.disabled = false;
             btn.innerHTML = originalText;
         }
     }
-
-    function filtrarCitas() {
-        const tipoFiltro = document.getElementById('filtro-tipo').value;
-        const pacienteFiltro = document.getElementById('filtro-paciente')?.value || '';
-        const containerPaciente = document.getElementById('filtro-paciente-container');
-        
-        if (containerPaciente) {
-            if (tipoFiltro === 'terceros') containerPaciente.classList.remove('hidden');
-            else containerPaciente.classList.add('hidden');
-        }
-        
-        document.querySelectorAll('.cita-card').forEach(card => {
-            const tipoCita = card.dataset.tipo;
-            const pacienteEspecialId = card.dataset.pacienteEspecial;
-            let mostrar = true;
-            if (tipoFiltro === 'propia' && tipoCita !== 'propia') mostrar = false;
-            if (tipoFiltro === 'terceros' && tipoCita !== 'terceros') mostrar = false;
-            if (tipoFiltro === 'terceros' && pacienteFiltro && pacienteEspecialId !== pacienteFiltro) mostrar = false;
-            card.style.display = mostrar ? '' : 'none';
-        });
-    }
 </script>
-
-<!-- Custom Modal: Cancelar Cita -->
-<div id="modalCancelacion" class="fixed inset-0 z-50 hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
-    <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onclick="closeCancelModal()"></div>
-    <div class="modal-content relative bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden transform scale-95 opacity-0 transition-all duration-300 border border-gray-100">
-        <div class="h-2 bg-gradient-to-r from-red-500 to-rose-600"></div>
-        <div class="p-8">
-            <div class="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mb-6 ring-4 ring-red-50/50">
-                <i class="bi bi-calendar-x-fill text-red-500 text-3xl"></i>
-            </div>
-            <h3 class="text-2xl font-display font-bold text-gray-900 mb-2">¿Cancelar esta cita?</h3>
-            <p class="text-gray-500 mb-6 font-medium">Lamentamos que no puedas asistir. Por favor, indícanos el motivo de la cancelación para reagendarte pronto.</p>
-            <div class="space-y-4">
-                <div class="form-control">
-                    <label for="motivo_cancelacion_input" class="text-sm font-bold text-gray-700 ml-1 mb-1 block">Motivo Principal</label>
-                    <select id="motivo_cancelacion_input" class="select select-bordered w-full bg-gray-50 focus:bg-white transition-colors" required>
-                        <option value="">Seleccione un motivo...</option>
-                        <option value="Salud">Problemas de Salud</option>
-                        <option value="Trabajo">Motivos Laborales</option>
-                        <option value="Personal">Asuntos Personales</option>
-                        <option value="Transporte">Problemas de Transporte</option>
-                        <option value="Economico">Motivos Económicos</option>
-                        <option value="Otro">Otro</option>
-                    </select>
-                </div>
-
-                <div class="form-control">
-                    <label for="explicacion_input" class="text-sm font-bold text-gray-700 ml-1 mb-1 block">Explícanos un poco más</label>
-                    <textarea id="explicacion_input" rows="3" 
-                        class="w-full px-4 py-3 rounded-xl border-gray-200 bg-gray-50 text-gray-900 focus:bg-white focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all resize-none placeholder:text-gray-400"
-                        placeholder="Detalles adicionales..."
-                        oninput="document.getElementById('motivo_error').classList.add('hidden')" required></textarea>
-                </div>
-
-                <p id="motivo_error" class="hidden text-xs font-bold text-red-500 mt-1 flex items-center gap-1">
-                    <i class="bi bi-exclamation-circle"></i> Debes completar todos los campos
-                </p>
-            </div>
-            <div class="flex gap-3 mt-8">
-                <button onclick="closeCancelModal()" 
-                    class="flex-1 px-6 py-3.5 rounded-xl font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-all active:scale-95">
-                    Volver
-                </button>
-                <button id="confirmCancelBtn" onclick="confirmarCancelacion()" 
-                    class="flex-1 px-6 py-3.5 rounded-xl font-bold text-white bg-red-600 hover:bg-red-700 shadow-lg shadow-red-200 transition-all active:scale-95 flex items-center justify-center">
-                    Confirmar
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
 @endpush
 @endsection

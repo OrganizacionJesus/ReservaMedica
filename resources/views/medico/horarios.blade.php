@@ -12,9 +12,20 @@
         ]];
     }));
 
-    // Data de Reglas (Especialidades)
-    window.globalConsultorioRules = @json($consultorios->mapWithKeys(function($c) { 
-        return [$c->id => $c->especialidades->pluck('id')]; 
+    // FULL CATALOGS FOR UI (Injected from Controller)
+    window.catalogs = {
+        especialidades: @json($medico->especialidades),
+        consultorios: @json($consultorios)
+    };
+
+    // Data de Reglas (Especialidades -> Consultorios)
+    // Mapea ID Especialidad => [ID Consultorio, ID Consultorio, ...]
+    window.especialidadRules = @json($consultorios->flatMap(function($c) {
+        return $c->especialidades->map(function($e) use ($c) {
+            return ['e_id' => $e->id, 'c_id' => $c->id];
+        });
+    })->groupBy('e_id')->map(function($items) {
+        return $items->pluck('c_id')->unique()->values();
     }));
 
     // Helper seguro para obtener horarios
@@ -36,6 +47,7 @@
                 especialidad_id: data.manana.especialidad_id ? String(data.manana.especialidad_id) : '',
                 inicio: data.manana.inicio || '08:00',
                 fin: data.manana.fin || '12:00',
+                step: 'summary' // summary, specialty, consultory
             },
             tarde: {
                 active: !!data.tarde.active,
@@ -43,6 +55,7 @@
                 especialidad_id: data.tarde.especialidad_id ? String(data.tarde.especialidad_id) : '',
                 inicio: data.tarde.inicio || '14:00',
                 fin: data.tarde.fin || '18:00',
+                step: 'summary' // summary, specialty, consultory
             },
 
             // Computed Helpers para compatibilidad
@@ -57,10 +70,87 @@
                 if(this.manana.active) this.validateBounds('manana');
                 if(this.tarde.active) this.validateBounds('tarde');
                 
-                // Observadores para corrección automática y actualización dinámica
+                // Observadores para corrección automática de horas
                 this.$watch('manana.consultorio_id', () => this.validateBounds('manana'));
                 this.$watch('tarde.consultorio_id', () => this.validateBounds('tarde'));
+
+                // Observadores para reset de consultorio al cambiar especialidad
+                this.$watch('manana.especialidad_id', (val) => {
+                    if (this.manana.consultorio_id && !this.isConsultorioAllowed(val, this.manana.consultorio_id)) {
+                        this.manana.consultorio_id = '';
+                    }
+                });
+                this.$watch('tarde.especialidad_id', (val) => {
+                    if (this.tarde.consultorio_id && !this.isConsultorioAllowed(val, this.tarde.consultorio_id)) {
+                        this.tarde.consultorio_id = '';
+                    }
+                });
             },
+
+            // --- WIZARD ACTIONS ---
+            
+            // Iniciar edición de una selección
+            startSelection(shift, type) {
+                // type: 'specialty' or 'consultory'
+                this[shift].step = type;
+            },
+
+            // Seleccionar item y limpiar paso
+            selectItem(shift, type, id) {
+                if (type === 'specialty') {
+                    this[shift].especialidad_id = String(id);
+                    // Auto-advance logic: if consultory is empty or invalid, go to consultory
+                    if (!this[shift].consultorio_id || !this.isConsultorioAllowed(id, this[shift].consultorio_id)) {
+                         this[shift].consultorio_id = '';
+                         this[shift].step = 'consultory';
+                    } else {
+                        this[shift].step = 'summary';
+                    }
+                } else if (type === 'consultory') {
+                    this[shift].consultorio_id = String(id);
+                    this[shift].step = 'summary';
+                }
+            },
+
+            cancelSelection(shift) {
+                this[shift].step = 'summary';
+            },
+
+            // --- DATA HELPERS ---
+            
+            getSpecialtyName(id) {
+                if (!id) return 'Seleccionar Especialidad';
+                const s = window.catalogs.especialidades.find(x => x.id == id);
+                return s ? s.nombre : 'Desconocida';
+            },
+
+            getConsultoryName(id) {
+                if (!id) return 'Seleccionar Consultorio';
+                const c = window.catalogs.consultorios.find(x => x.id == id);
+                return c ? c.nombre : 'Desconocido';
+            },
+            
+            getConsultoryDetails(id) {
+                 if (!id) return '';
+                 const c = window.catalogs.consultorios.find(x => x.id == id);
+                 return c ? `${c.direccion || ''} (${c.horario_inicio}-${c.horario_fin})` : '';
+            },
+
+            // Obtener lista filtrada para el grid
+            getAvailableOptions(shift, type) {
+                if (type === 'specialty') {
+                    return window.catalogs.especialidades;
+                } else if (type === 'consultory') {
+                    const specId = this[shift].especialidad_id;
+                    if (!specId) return window.catalogs.consultorios; // Should ideally limit, but ok
+                    
+                    // Filter using rules
+                    const allowedIds = window.especialidadRules[specId] || [];
+                    return window.catalogs.consultorios.filter(c => allowedIds.includes(c.id));
+                }
+                return [];
+            },
+
 
             // Lógica de validación visual (Retorna clases CSS)
             getStatusClass(shift, tipo) {
@@ -115,23 +205,54 @@
                 this.$nextTick(() => {
                     const cId = this[shift].consultorio_id;
                     const cData = window.getConsultorioData(cId);
-                    if (!cData) return;
+                    
+                    // 1. Determinar límites teóricos del turno
+                    let minLimit = (shift === 'manana') ? '00:00' : '12:00';
+                    let maxLimit = (shift === 'manana') ? '12:00' : '23:59';
 
-                    if (this[shift].inicio < cData.inicio) {
-                         this[shift].inicio = cData.inicio;
+                    // 2. Intersectar con límites del consultorio (si existe)
+                    if (cData) {
+                        if (cData.inicio > minLimit) minLimit = cData.inicio;
+                        if (cData.fin < maxLimit) maxLimit = cData.fin;
                     }
-                    if (this[shift].fin > cData.fin) {
-                        this[shift].fin = cData.fin;
+
+                    // Caso Borde: Consultorio incompatible con turno (ej. abre tarde para turno mañana)
+                    if (minLimit > maxLimit) {
+                        // Ajustar ambos al límite lógico más cercano para evitar inconsistencias
+                        // El usuario verá que no puede expandir el rango
+                        this[shift].inicio = maxLimit;
+                        this[shift].fin = maxLimit;
+                        return;
+                    }
+
+                    // 3. Aplicar correcciones estricas
+                    
+                    // Inicio no puede ser menor al mínimo permitido
+                    if (this[shift].inicio < minLimit) this[shift].inicio = minLimit;
+                    // Inicio no puede ser mayor al máximo permitido
+                    if (this[shift].inicio > maxLimit) this[shift].inicio = maxLimit;
+
+                    // Fin no puede ser mayor al máximo permitido
+                    if (this[shift].fin > maxLimit) this[shift].fin = maxLimit;
+                    // Fin no puede ser menor al mínimo permitido
+                    if (this[shift].fin < minLimit) this[shift].fin = minLimit;
+
+                    // 4. Coherencia Temporal: Inicio <= Fin
+                    if (this[shift].inicio > this[shift].fin) {
+                        this[shift].fin = this[shift].inicio;
                     }
                 });
             },
             
-            // Filtro de especialidades
-            isAllowed(consultorioId, especialidadId) {
-                if (!consultorioId) return true; 
-                const rules = window.globalConsultorioRules[consultorioId] || window.globalConsultorioRules[String(consultorioId)];
-                if (!rules) return true;
-                return rules.includes(parseInt(especialidadId));
+            // Filtro de consultorios por especialidad
+            isConsultorioAllowed(especialidadId, consultorioId) {
+                if (!especialidadId) return true; // Si no hay especialidad, mostrar todos
+                if (!consultorioId) return true;
+                
+                const allowed = window.especialidadRules[especialidadId] || window.especialidadRules[String(especialidadId)];
+                if (!allowed) return false;
+                
+                return allowed.includes(parseInt(consultorioId));
             }
         };
     };
@@ -208,7 +329,7 @@
                 @endphp
                 
                 <div class="card p-0 overflow-hidden hover:shadow-lg transition-shadow border border-gray-100 mb-4" 
-                     x-data="makeScheduleCard(@json($initData))">
+                     x-data='makeScheduleCard(@json($initData))'>
                      
                     <!-- Hidden Input for Active State (Calculated) -->
                     <input type="hidden" name="horarios[{{ $key }}][activo]" 
@@ -224,21 +345,16 @@
                            value="{{ $hTarde ? 1 : 0 }}" 
                            x-bind:value="tarde_active ? 1 : 0">
                     
-                    <!-- Datos de Turno Mañana (siempre se envían para preservar valores existentes) -->
-                    @if($hManana)
-                    <input type="hidden" name="horarios[{{ $key }}][manana_consultorio_id]" value="{{ $hManana->consultorio_id }}" x-bind:value="manana.consultorio_id">
-                    <input type="hidden" name="horarios[{{ $key }}][manana_especialidad_id]" value="{{ $hManana->especialidad_id }}" x-bind:value="manana.especialidad_id">
-                    <input type="hidden" name="horarios[{{ $key }}][manana_inicio]" value="{{ \Carbon\Carbon::parse($hManana->horario_inicio)->format('H:i') }}">
-                    <input type="hidden" name="horarios[{{ $key }}][manana_fin]" value="{{ \Carbon\Carbon::parse($hManana->horario_fin)->format('H:i') }}">
-                    @endif
+                    <!-- Hidden Inputs for Form Submission (Bound to Alpine State) -->
+                    <!-- Estos inputs son cruciales ya que los selects visuales ahora son divs -->
                     
-                    <!-- Datos de Turno Tarde (siempre se envían para preservar valores existentes) -->
-                    @if($hTarde)
-                    <input type="hidden" name="horarios[{{ $key }}][tarde_consultorio_id]" value="{{ $hTarde->consultorio_id }}" x-bind:value="tarde.consultorio_id">
-                    <input type="hidden" name="horarios[{{ $key }}][tarde_especialidad_id]" value="{{ $hTarde->especialidad_id }}" x-bind:value="tarde.especialidad_id">
-                    <input type="hidden" name="horarios[{{ $key }}][tarde_inicio]" value="{{ \Carbon\Carbon::parse($hTarde->horario_inicio)->format('H:i') }}">
-                    <input type="hidden" name="horarios[{{ $key }}][tarde_fin]" value="{{ \Carbon\Carbon::parse($hTarde->horario_fin)->format('H:i') }}">
-                    @endif
+                    <!-- Turno Mañana -->
+                    <input type="hidden" name="horarios[{{ $key }}][manana_consultorio_id]" x-bind:value="manana.consultorio_id">
+                    <input type="hidden" name="horarios[{{ $key }}][manana_especialidad_id]" x-bind:value="manana.especialidad_id">
+                    
+                    <!-- Turno Tarde -->
+                    <input type="hidden" name="horarios[{{ $key }}][tarde_consultorio_id]" x-bind:value="tarde.consultorio_id">
+                    <input type="hidden" name="horarios[{{ $key }}][tarde_especialidad_id]" x-bind:value="tarde.especialidad_id">
 
                     <!-- HEADER -->
                     <div class="bg-gray-50 px-6 py-4 border-b border-gray-100 flex items-center justify-between">
@@ -270,7 +386,7 @@
                     <div class="p-6">
                         
                         <!-- STATE 1: SUMMARY (Saved & Not Editing) -->
-                        <div x-show="!editing && active" class="space-y-4">
+                        <div x-show="!editing && active" x-cloak class="space-y-4">
                             @if($hManana)
                                 <div class="flex items-start gap-3 p-3 rounded-lg bg-blue-50/50 border border-blue-100">
                                     <div class="bg-blue-100 text-blue-600 p-2 rounded-md">
@@ -303,7 +419,7 @@
                         
 
                         <!-- STATE 3: EDITING FORM -->
-                        <div x-show="editing" x-transition class="space-y-6">
+                        <div x-show="editing" x-cloak x-transition class="space-y-6">
                             
                             <!-- Turno Mañana Toggle -->
                             <div class="border-l-4 border-blue-500 pl-4">
@@ -318,61 +434,143 @@
                                     <span class="font-bold text-gray-700">Turno Mañana</span>
                                 </label>
 
-                                <div x-show="manana_active" class="grid grid-cols-1 md:grid-cols-2 gap-3 animate-fade-in-down">
-                                    <div>
-                                        <label class="form-label text-xs">Consultorio</label>
-                                        <select name="horarios[{{ $key }}][manana_consultorio_id]" class="form-select text-sm"
-                                                x-model="manana.consultorio_id">
-                                            <option value="">Seleccione...</option>
-                                            @foreach($consultorios as $consultorio)
-                                                <option value="{{ $consultorio->id }}"
-                                                    {{ ($hManana && $hManana->consultorio_id == $consultorio->id) ? 'selected' : '' }}>
-                                                    {{ $consultorio->nombre }} ({{ \Carbon\Carbon::parse($consultorio->horario_inicio)->format('H:i') }} - {{ \Carbon\Carbon::parse($consultorio->horario_fin)->format('H:i') }})
-                                                </option>
-                                            @endforeach
-                                        </select>
+                                <!-- Contenedor Principal Mañana -->
+                                <div x-show="manana_active" x-cloak class="mt-4 animate-in fade-in slide-in-from-top-4 duration-500">
+                                    
+                                    <!-- STEP: SUMMARY (Default View in Edit Mode) -->
+                                    <div x-show="manana.step === 'summary'" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100">
+                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            
+                                            <!-- Card: Especialidad -->
+                                            <div @click="startSelection('manana', 'specialty')" 
+                                                 class="cursor-pointer group relative overflow-hidden rounded-2xl border-2 border-slate-100 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 hover:border-blue-500 dark:hover:border-blue-400 transition-all shadow-sm hover:shadow-md">
+                                                <div class="flex items-center gap-4">
+                                                    <div class="h-12 w-12 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 flex items-center justify-center text-xl group-hover:scale-110 transition-transform">
+                                                        <i class="bi bi-heart-pulse"></i>
+                                                    </div>
+                                                    <div>
+                                                        <p class="text-xs text-gray-500 uppercase font-bold tracking-wider mb-1">Especialidad</p>
+                                                        <h4 class="font-bold text-gray-900 dark:text-gray-100" x-text="getSpecialtyName(manana.especialidad_id)"></h4>
+                                                    </div>
+                                                    <div class="ml-auto text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <i class="bi bi-pencil-square"></i>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Card: Consultorio -->
+                                            <div @click="startSelection('manana', 'consultory')" 
+                                                 class="cursor-pointer group relative overflow-hidden rounded-2xl border-2 border-slate-100 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 hover:border-amber-500 dark:hover:border-amber-400 transition-all shadow-sm hover:shadow-md">
+                                                <div class="flex items-center gap-4">
+                                                    <div class="h-12 w-12 rounded-xl bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 flex items-center justify-center text-xl group-hover:scale-110 transition-transform">
+                                                        <i class="bi bi-building"></i>
+                                                    </div>
+                                                    <div class="min-w-0">
+                                                        <p class="text-xs text-gray-500 uppercase font-bold tracking-wider mb-1">Consultorio</p>
+                                                        <h4 class="font-bold text-gray-900 dark:text-gray-100 truncate" x-text="getConsultoryName(manana.consultorio_id)"></h4>
+                                                        <p class="text-xs text-gray-400 truncate" x-text="getConsultoryDetails(manana.consultorio_id)"></p>
+                                                    </div>
+                                                    <div class="ml-auto text-amber-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <i class="bi bi-pencil-square"></i>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Time Inputs (Premium Style) -->
+                                            <div class="md:col-span-2 grid grid-cols-2 gap-4 mt-2">
+                                                <div class="relative group">
+                                                    <label class="absolute -top-2 left-3 bg-white px-1 text-xs font-bold text-blue-600 z-10">Inicio</label>
+                                                    <div class="relative flex items-center">
+                                                        <div class="absolute left-3 text-blue-400"><i class="bi bi-clock"></i></div>
+                                                        <input type="time" name="horarios[{{ $key }}][manana_inicio]" 
+                                                            class="w-full pl-10 pr-4 py-3 rounded-xl border-2 border-slate-100 focus:border-blue-500 focus:ring-0 font-bold text-gray-700"
+                                                            :min="getInputLimits('manana').min" 
+                                                            :max="getInputLimits('manana').max"
+                                                            x-model="manana.inicio"
+                                                            @change="validateBounds('manana')">
+                                                    </div>
+                                                    <p x-show="manana.consultorio_id" class="text-[10px] mt-1 text-gray-400 text-right">
+                                                        Abre: <span x-text="getLimitText('manana', 'inicio')"></span>
+                                                    </p>
+                                                </div>
+
+                                                <div class="relative group">
+                                                    <label class="absolute -top-2 left-3 bg-white px-1 text-xs font-bold text-blue-600 z-10">Fin</label>
+                                                    <div class="relative flex items-center">
+                                                        <div class="absolute left-3 text-blue-400"><i class="bi bi-clock-history"></i></div>
+                                                        <input type="time" name="horarios[{{ $key }}][manana_fin]" 
+                                                            class="w-full pl-10 pr-4 py-3 rounded-xl border-2 border-slate-100 focus:border-blue-500 focus:ring-0 font-bold text-gray-700"
+                                                            :min="getInputLimits('manana').min" 
+                                                            :max="getInputLimits('manana').max"
+                                                            x-model="manana.fin"
+                                                            @change="validateBounds('manana')">
+                                                    </div>
+                                                    <p x-show="manana.consultorio_id" class="text-[10px] mt-1 text-gray-400 text-right">
+                                                        Corta: 12:00
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <label class="form-label text-xs">Especialidad</label>
-                                        <select name="horarios[{{ $key }}][manana_especialidad_id]" class="form-select text-sm"
-                                                x-model="manana.especialidad_id">
-                                            <option value="">Seleccione...</option>
-                                            @foreach($medico->especialidades as $especialidad)
-                                                <option value="{{ $especialidad->id }}" 
-                                                    x-show="isAllowed(manana.consultorio_id, '{{ $especialidad->id }}')"
-                                                    {{ ($hManana && $hManana->especialidad_id == $especialidad->id) ? 'selected' : '' }}>
-                                                    {{ $especialidad->nombre }}
-                                                </option>
-                                            @endforeach
-                                        </select>
-                                        <p class="text-xs text-info-600 mt-1" 
-                                           x-show="manana.consultorio_id && !isAllowed(manana.consultorio_id, $el.previousElementSibling.value)">
-                                            <!-- Simple feedback if selected option becomes invalid -->
-                                        </p>
+
+                                    <!-- STEP: SPECIALTY SELECTION GRID -->
+                                    <div x-show="manana.step === 'specialty'" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="translate-y-4 opacity-0" x-transition:enter-end="translate-y-0 opacity-100">
+                                        <div class="flex items-center justify-between mb-4">
+                                            <h4 class="font-bold text-gray-800 flex items-center gap-2">
+                                                <i class="bi bi-heart-pulse text-blue-500"></i> Seleccione Especialidad
+                                            </h4>
+                                            <button type="button" @click="cancelSelection('manana')" class="text-xs text-gray-500 hover:text-gray-800 underline">Cancelar</button>
+                                        </div>
+                                        
+                                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-60 overflow-y-auto pr-1 custom-scrollbar">
+                                            <template x-for="item in getAvailableOptions('manana', 'specialty')" :key="item.id">
+                                                <div @click="selectItem('manana', 'specialty', item.id)"
+                                                     class="cursor-pointer p-3 rounded-xl border-2 bg-white flex items-center gap-3 transition-all hover:scale-[1.02]"
+                                                     :class="manana.especialidad_id == item.id ? 'border-blue-500 ring-2 ring-blue-100' : 'border-slate-100 hover:border-blue-300'">
+                                                    <div class="h-8 w-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
+                                                        <i class="bi bi-heart-pulse"></i>
+                                                    </div>
+                                                    <span class="text-sm font-bold text-gray-700" x-text="item.nombre"></span>
+                                                    <div x-show="manana.especialidad_id == item.id" class="ml-auto text-blue-500">
+                                                        <i class="bi bi-check-circle-fill"></i>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <label class="form-label text-xs">Inicio</label>
-                                        <p x-show="manana.consultorio_id" class="text-xs mb-1 transition-colors duration-200"
-                                           :class="getStatusClass('manana', 'inicio')">
-                                            <i class="bi bi-clock"></i> Consultorio abre: <span x-text="getLimitText('manana', 'inicio')"></span>
-                                        </p>
-                                        <input type="time" name="horarios[{{ $key }}][manana_inicio]" class="input text-sm" 
-                                            :min="getInputLimits('manana').min" 
-                                            :max="getInputLimits('manana').max"
-                                            x-model="manana.inicio"
-                                            @change="validateBounds('manana')">
+
+                                    <!-- STEP: CONSULTORY SELECTION GRID -->
+                                    <div x-show="manana.step === 'consultory'" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="translate-y-4 opacity-0" x-transition:enter-end="translate-y-0 opacity-100">
+                                        <div class="flex items-center justify-between mb-4">
+                                            <h4 class="font-bold text-gray-800 flex items-center gap-2">
+                                                <i class="bi bi-building text-amber-500"></i> Seleccione Consultorio
+                                            </h4>
+                                            <button type="button" @click="cancelSelection('manana')" class="text-xs text-gray-500 hover:text-gray-800 underline">Cancelar</button>
+                                        </div>
+                                        
+                                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-60 overflow-y-auto pr-1 custom-scrollbar">
+                                            <template x-for="item in getAvailableOptions('manana', 'consultory')" :key="item.id">
+                                                <div @click="selectItem('manana', 'consultory', item.id)"
+                                                     class="cursor-pointer p-3 rounded-xl border-2 bg-white flex items-start gap-3 transition-all hover:scale-[1.02]"
+                                                     :class="manana.consultorio_id == item.id ? 'border-amber-500 ring-2 ring-amber-100' : 'border-slate-100 hover:border-amber-300'">
+                                                    <div class="h-8 w-8 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
+                                                        <i class="bi bi-geo-alt"></i>
+                                                    </div>
+                                                    <div class="flex-1 min-w-0">
+                                                        <span class="block text-sm font-bold text-gray-700 truncate" x-text="item.nombre"></span>
+                                                        <span class="block text-xs text-gray-500 truncate" x-text="item.direccion"></span>
+                                                    </div>
+                                                    <div x-show="manana.consultorio_id == item.id" class="ml-auto text-amber-500">
+                                                        <i class="bi bi-check-circle-fill"></i>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                            <div x-show="getAvailableOptions('manana', 'consultory').length === 0" class="col-span-full py-4 text-center text-gray-400 text-sm border-2 border-dashed border-gray-200 rounded-xl">
+                                                No hay consultorios disponibles para esta especialidad.
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <label class="form-label text-xs">Fin</label>
-                                        <p x-show="manana.consultorio_id" class="text-xs text-gray-500 mb-1">
-                                            Corte turno mañana: 12:00
-                                        </p>
-                                        <input type="time" name="horarios[{{ $key }}][manana_fin]" class="input text-sm" 
-                                            :min="getInputLimits('manana').min" 
-                                            :max="getInputLimits('manana').max"
-                                            x-model="manana.fin"
-                                            @change="validateBounds('manana')">
-                                    </div>
+
                                 </div>
                             </div>
 
@@ -389,57 +587,144 @@
                                     <span class="font-bold text-gray-700">Turno Tarde</span>
                                 </label>
                                 
-                                <div x-show="tarde_active" class="grid grid-cols-1 md:grid-cols-2 gap-3 animate-fade-in-down">
-                                    <div>
-                                        <label class="form-label text-xs">Consultorio</label>
-                                        <select name="horarios[{{ $key }}][tarde_consultorio_id]" class="form-select text-sm"
-                                                x-model="tarde.consultorio_id">
-                                            <option value="">Seleccione...</option>
-                                            @foreach($consultorios as $consultorio)
-                                                <option value="{{ $consultorio->id }}"
-                                                    {{ ($hTarde && $hTarde->consultorio_id == $consultorio->id) ? 'selected' : '' }}>
-                                                    {{ $consultorio->nombre }} ({{ \Carbon\Carbon::parse($consultorio->horario_inicio)->format('H:i') }} - {{ \Carbon\Carbon::parse($consultorio->horario_fin)->format('H:i') }})
-                                                </option>
-                                            @endforeach
-                                        </select>
+                                <!-- Contenedor Principal Tarde -->
+                                <div x-show="tarde_active" x-cloak class="mt-4 animate-in fade-in slide-in-from-top-4 duration-500">
+                                    
+                                    <!-- STEP: SUMMARY (Default View in Edit Mode) -->
+                                    <div x-show="tarde.step === 'summary'" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100">
+                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            
+                                            <!-- Card: Especialidad -->
+                                            <div @click="startSelection('tarde', 'specialty')" 
+                                                 class="cursor-pointer group relative overflow-hidden rounded-2xl border-2 border-slate-100 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 hover:border-purple-500 dark:hover:border-purple-400 transition-all shadow-sm hover:shadow-md">
+                                                <div class="flex items-center gap-4">
+                                                    <div class="h-12 w-12 rounded-xl bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 flex items-center justify-center text-xl group-hover:scale-110 transition-transform">
+                                                        <i class="bi bi-heart-pulse"></i>
+                                                    </div>
+                                                    <div>
+                                                        <p class="text-xs text-gray-500 uppercase font-bold tracking-wider mb-1">Especialidad</p>
+                                                        <h4 class="font-bold text-gray-900 dark:text-gray-100" x-text="getSpecialtyName(tarde.especialidad_id)"></h4>
+                                                    </div>
+                                                    <div class="ml-auto text-purple-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <i class="bi bi-pencil-square"></i>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Card: Consultorio -->
+                                            <div @click="startSelection('tarde', 'consultory')" 
+                                                 class="cursor-pointer group relative overflow-hidden rounded-2xl border-2 border-slate-100 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 hover:border-amber-500 dark:hover:border-amber-400 transition-all shadow-sm hover:shadow-md">
+                                                <div class="flex items-center gap-4">
+                                                    <div class="h-12 w-12 rounded-xl bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 flex items-center justify-center text-xl group-hover:scale-110 transition-transform">
+                                                        <i class="bi bi-building"></i>
+                                                    </div>
+                                                    <div class="min-w-0">
+                                                        <p class="text-xs text-gray-500 uppercase font-bold tracking-wider mb-1">Consultorio</p>
+                                                        <h4 class="font-bold text-gray-900 dark:text-gray-100 truncate" x-text="getConsultoryName(tarde.consultorio_id)"></h4>
+                                                        <p class="text-xs text-gray-400 truncate" x-text="getConsultoryDetails(tarde.consultorio_id)"></p>
+                                                    </div>
+                                                    <div class="ml-auto text-amber-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <i class="bi bi-pencil-square"></i>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Time Inputs (Premium Style) -->
+                                            <div class="md:col-span-2 grid grid-cols-2 gap-4 mt-2">
+                                                <div class="relative group">
+                                                    <label class="absolute -top-2 left-3 bg-white px-1 text-xs font-bold text-orange-600 z-10">Inicio</label>
+                                                    <div class="relative flex items-center">
+                                                        <div class="absolute left-3 text-orange-400"><i class="bi bi-clock"></i></div>
+                                                        <input type="time" name="horarios[{{ $key }}][tarde_inicio]" 
+                                                            class="w-full pl-10 pr-4 py-3 rounded-xl border-2 border-slate-100 focus:border-orange-500 focus:ring-0 font-bold text-gray-700"
+                                                            :min="getInputLimits('tarde').min" 
+                                                            :max="getInputLimits('tarde').max"
+                                                            x-model="tarde.inicio"
+                                                            @change="validateBounds('tarde')">
+                                                    </div>
+                                                    <p x-show="tarde.consultorio_id" class="text-[10px] mt-1 text-gray-400 text-right">
+                                                        Inicio Tarde: 12:00
+                                                    </p>
+                                                </div>
+
+                                                <div class="relative group">
+                                                    <label class="absolute -top-2 left-3 bg-white px-1 text-xs font-bold text-orange-600 z-10">Fin</label>
+                                                    <div class="relative flex items-center">
+                                                        <div class="absolute left-3 text-orange-400"><i class="bi bi-door-closed"></i></div>
+                                                        <input type="time" name="horarios[{{ $key }}][tarde_fin]" 
+                                                            class="w-full pl-10 pr-4 py-3 rounded-xl border-2 border-slate-100 focus:border-orange-500 focus:ring-0 font-bold text-gray-700"
+                                                            :min="getInputLimits('tarde').min" 
+                                                            :max="getInputLimits('tarde').max"
+                                                            x-model="tarde.fin"
+                                                            @change="validateBounds('tarde')">
+                                                    </div>
+                                                    <p x-show="tarde.consultorio_id" class="text-[10px] mt-1 transition-colors duration-200 text-right"
+                                                       :class="getStatusClass('tarde', 'fin')">
+                                                        Cierra: <span x-text="getLimitText('tarde', 'fin')"></span>
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <label class="form-label text-xs">Especialidad</label>
-                                        <select name="horarios[{{ $key }}][tarde_especialidad_id]" class="form-select text-sm"
-                                                x-model="tarde.especialidad_id">
-                                            <option value="">Seleccione...</option>
-                                            @foreach($medico->especialidades as $especialidad)
-                                                <option value="{{ $especialidad->id }}" 
-                                                    x-show="isAllowed(tarde.consultorio_id, '{{ $especialidad->id }}')"
-                                                    {{ ($hTarde && $hTarde->especialidad_id == $especialidad->id) ? 'selected' : '' }}>
-                                                    {{ $especialidad->nombre }}
-                                                </option>
-                                            @endforeach
-                                        </select>
+
+                                    <!-- STEP: SPECIALTY SELECTION GRID -->
+                                    <div x-show="tarde.step === 'specialty'" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="translate-y-4 opacity-0" x-transition:enter-end="translate-y-0 opacity-100">
+                                        <div class="flex items-center justify-between mb-4">
+                                            <h4 class="font-bold text-gray-800 flex items-center gap-2">
+                                                <i class="bi bi-heart-pulse text-purple-500"></i> Seleccione Especialidad
+                                            </h4>
+                                            <button type="button" @click="cancelSelection('tarde')" class="text-xs text-gray-500 hover:text-gray-800 underline">Cancelar</button>
+                                        </div>
+                                        
+                                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-60 overflow-y-auto pr-1 custom-scrollbar">
+                                            <template x-for="item in getAvailableOptions('tarde', 'specialty')" :key="item.id">
+                                                <div @click="selectItem('tarde', 'specialty', item.id)"
+                                                     class="cursor-pointer p-3 rounded-xl border-2 bg-white flex items-center gap-3 transition-all hover:scale-[1.02]"
+                                                     :class="tarde.especialidad_id == item.id ? 'border-purple-500 ring-2 ring-purple-100' : 'border-slate-100 hover:border-purple-300'">
+                                                    <div class="h-8 w-8 rounded-lg bg-purple-100 text-purple-600 flex items-center justify-center shrink-0">
+                                                        <i class="bi bi-heart-pulse"></i>
+                                                    </div>
+                                                    <span class="text-sm font-bold text-gray-700" x-text="item.nombre"></span>
+                                                    <div x-show="tarde.especialidad_id == item.id" class="ml-auto text-purple-500">
+                                                        <i class="bi bi-check-circle-fill"></i>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <label class="form-label text-xs">Inicio</label>
-                                        <p x-show="tarde.consultorio_id" class="text-xs text-gray-500 mb-1">
-                                            Inicio turno tarde: 12:00
-                                        </p>
-                                        <input type="time" name="horarios[{{ $key }}][tarde_inicio]" class="input text-sm" 
-                                            :min="getInputLimits('tarde').min" 
-                                            :max="getInputLimits('tarde').max"
-                                            x-model="tarde.inicio"
-                                            @change="validateBounds('tarde')">
+
+                                    <!-- STEP: CONSULTORY SELECTION GRID -->
+                                    <div x-show="tarde.step === 'consultory'" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="translate-y-4 opacity-0" x-transition:enter-end="translate-y-0 opacity-100">
+                                        <div class="flex items-center justify-between mb-4">
+                                            <h4 class="font-bold text-gray-800 flex items-center gap-2">
+                                                <i class="bi bi-building text-amber-500"></i> Seleccione Consultorio
+                                            </h4>
+                                            <button type="button" @click="cancelSelection('tarde')" class="text-xs text-gray-500 hover:text-gray-800 underline">Cancelar</button>
+                                        </div>
+                                        
+                                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-60 overflow-y-auto pr-1 custom-scrollbar">
+                                            <template x-for="item in getAvailableOptions('tarde', 'consultory')" :key="item.id">
+                                                <div @click="selectItem('tarde', 'consultory', item.id)"
+                                                     class="cursor-pointer p-3 rounded-xl border-2 bg-white flex items-start gap-3 transition-all hover:scale-[1.02]"
+                                                     :class="tarde.consultorio_id == item.id ? 'border-amber-500 ring-2 ring-amber-100' : 'border-slate-100 hover:border-amber-300'">
+                                                    <div class="h-8 w-8 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
+                                                        <i class="bi bi-geo-alt"></i>
+                                                    </div>
+                                                    <div class="flex-1 min-w-0">
+                                                        <span class="block text-sm font-bold text-gray-700 truncate" x-text="item.nombre"></span>
+                                                        <span class="block text-xs text-gray-500 truncate" x-text="item.direccion"></span>
+                                                    </div>
+                                                    <div x-show="tarde.consultorio_id == item.id" class="ml-auto text-amber-500">
+                                                        <i class="bi bi-check-circle-fill"></i>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                            <div x-show="getAvailableOptions('tarde', 'consultory').length === 0" class="col-span-full py-4 text-center text-gray-400 text-sm border-2 border-dashed border-gray-200 rounded-xl">
+                                                No hay consultorios disponibles para esta especialidad.
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <label class="form-label text-xs">Fin</label>
-                                        <p x-show="tarde.consultorio_id" class="text-xs mb-1 transition-colors duration-200"
-                                           :class="getStatusClass('tarde', 'fin')">
-                                            <i class="bi bi-door-closed"></i> Consultorio cierra: <span x-text="getLimitText('tarde', 'fin')"></span>
-                                        </p>
-                                        <input type="time" name="horarios[{{ $key }}][tarde_fin]" class="input text-sm" 
-                                            :min="getInputLimits('tarde').min" 
-                                            :max="getInputLimits('tarde').max"
-                                            x-model="tarde.fin"
-                                            @change="validateBounds('tarde')">
-                                    </div>
+
                                 </div>
                             </div>
                             
