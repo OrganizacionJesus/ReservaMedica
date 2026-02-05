@@ -403,4 +403,76 @@ class FacturacionController extends Controller
             'resumen' => $resumen['resumen']
         ]);
     }
+
+    /**
+     * Muestra las facturas del médico autenticado
+     * Solo facturas donde entidad_tipo = 'Medico' y entidad_id = su ID
+     */
+    public function misFacturas(Request $request)
+    {
+        $user = auth()->user();
+        
+        // Verificar que el usuario sea médico
+        if (!$user->medico) {
+            abort(403, 'Acceso no autorizado');
+        }
+        
+        $medicoId = $user->medico->id;
+        
+        // Obtener facturas del médico
+        $facturas = FacturaTotal::with([
+            'cabecera.cita.paciente',
+            'cabecera.cita.especialidad',
+            'cabecera.cita.consultorio',
+            'cabecera.tasa'
+        ])
+        ->where('entidad_tipo', 'Medico')
+        ->where('entidad_id', $medicoId)
+        ->where('status', true)
+        ->orderBy('created_at', 'desc')
+        ->paginate(15);
+        
+        // Calcular estadísticas del médico
+        $statsQuery = FacturaTotal::where('entidad_tipo', 'Medico')
+            ->where('entidad_id', $medicoId)
+            ->where('status', true);
+        
+        $stats = [
+            'total_facturado' => $statsQuery->clone()->sum('total_final_usd'),
+            'total_liquidado' => $statsQuery->clone()->where('estado_liquidacion', 'Liquidado')->sum('total_final_usd'),
+            'total_pendiente' => $statsQuery->clone()->where('estado_liquidacion', 'Pendiente')->sum('total_final_usd'),
+            'facturas_totales' => $statsQuery->clone()->count(),
+            'facturas_liquidadas' => $statsQuery->clone()->where('estado_liquidacion', 'Liquidado')->count(),
+            'facturas_pendientes' => $statsQuery->clone()->where('estado_liquidacion', 'Pendiente')->count(),
+        ];
+        
+        return view('medico.facturacion.index', compact('facturas', 'stats'));
+    }
+
+    /**
+     * Muestra el detalle de una factura específica del médico
+     */
+    public function misFacturasShow($id)
+    {
+        $user = auth()->user();
+        
+        if (!$user->medico) {
+            abort(403, 'Acceso no autorizado');
+        }
+
+        $medicoId = $user->medico->id;
+        
+        $facturaTotal = FacturaTotal::with([
+            'cabecera.cita.paciente',
+            'cabecera.cita.medico',
+            'cabecera.cita.especialidad',
+            'cabecera.cita.consultorio',
+            'liquidacionDetalles.facturaPaciente.cabecera.cita'
+        ])
+        ->where('entidad_tipo', 'Medico')
+        ->where('entidad_id', $medicoId)
+        ->findOrFail($id);
+
+        return view('medico.facturacion.show', compact('facturaTotal'));
+    }
 }

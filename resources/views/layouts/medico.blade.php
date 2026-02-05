@@ -165,7 +165,24 @@
                 <span class="font-medium text-sm">Órdenes Médicas</span>
             </a>
             
-            <!-- Gestión Section -->
+            <!-- Recursos Section -->
+            <div class="px-3 pb-2 pt-2">
+                <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Administración</p>
+            </div>
+
+            <a href="{{ route('medico.facturacion.index') }}" 
+               class="flex items-center px-3 py-2.5 rounded-lg transition-all duration-200 group {{ request()->routeIs('medico.facturacion.*') ? 'bg-emerald-600/20 text-emerald-400 ring-1 ring-emerald-500/30' : 'text-slate-400 hover:bg-white/5 hover:text-slate-200' }}">
+                <i class="bi bi-receipt text-lg mr-3 {{ request()->is('*/facturacion*') ? 'text-emerald-400' : 'text-slate-500 group-hover:text-slate-200 transition-colors' }}"></i>
+                <span class="font-medium text-sm">Mis Facturas</span>
+            </a>
+
+            <a href="#" onclick="return false;"
+               class="flex items-center px-3 py-2.5 rounded-lg transition-all duration-200 group text-slate-400 hover:bg-white/5 cursor-not-allowed opacity-60" title="Próximamente">
+                <i class="bi bi-wallet2 text-lg mr-3 text-slate-500"></i>
+                <span class="font-medium text-sm">Liquidaciones</span>
+                <span class="ml-auto text-[10px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded">PRONTO</span>
+            </a>
+            
             <div class="px-3 pb-2 pt-4">
                 <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Gestión</p>
             </div>
