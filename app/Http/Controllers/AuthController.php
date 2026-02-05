@@ -235,15 +235,28 @@ class AuthController extends Controller
 
     public function register(Request $request)
     {
-        Log::info('Iniciando registro', ['rol_id' => $request->rol_id]);
+        Log::info('Iniciando registro debugging', $request->all());
 
-        $validator = Validator::make($request->all(), [
+        // Limpiar campos opcionales vacíos para evitar problemas de validación
+        if (empty($request->segundo_nombre)) {
+            $request->request->remove('segundo_nombre');
+        }
+        if (empty($request->segundo_apellido)) {
+            $request->request->remove('segundo_apellido');
+        }
+
+        $rules = [
             'rol_id' => 'required|in:2,3',
             'primer_nombre' => 'required|max:20|regex:/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/',
-            'segundo_nombre' => 'required|max:20|regex:/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/',
+            'segundo_nombre' => 'sometimes|nullable|max:20|regex:/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/',
             'primer_apellido' => 'required|max:20|regex:/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/',
-            'segundo_apellido' => 'required|max:20|regex:/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/',
+            'segundo_apellido' => 'sometimes|nullable|max:20|regex:/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/',
             'correo' => 'required|email|unique:usuarios,correo|max:150',
+        ];
+
+        Log::info('Debug rules applied:', $rules);
+
+        $validator = Validator::make($request->all(), $rules, [
             'password' => [
                 'required',
                 'min:8',
@@ -845,5 +858,29 @@ class AuthController extends Controller
         $existe = Usuario::where('correo', $correo)->exists();
 
         return response()->json(['existe' => $existe]);
+    }
+
+    // AJAX Validations for Register
+    public function checkEmail(Request $request)
+    {
+        $exists = Usuario::where('correo', $request->email)->exists();
+        return response()->json(['exists' => $exists]);
+    }
+
+    public function checkDocument(Request $request)
+    {
+        // Check in Paciente table
+        $exists = Paciente::where('tipo_documento', $request->tipo)
+                          ->where('numero_documento', $request->numero)
+                          ->exists();
+        
+        if (!$exists) {
+            // Check in Medico table
+            $exists = Medico::where('tipo_documento', $request->tipo)
+                            ->where('numero_documento', $request->numero)
+                            ->exists();
+        }
+
+        return response()->json(['exists' => $exists]);
     }
 }

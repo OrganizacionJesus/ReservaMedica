@@ -60,8 +60,8 @@
 
             <!-- Segundo Nombre -->
             <div>
-                <label for="segundo_nombre" class="block text-sm font-medium text-slate-700">Segundo Nombre *</label>
-                <input type="text" name="segundo_nombre" id="segundo_nombre" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm @error('segundo_nombre') border-red-500 @enderror" required value="{{ old('segundo_nombre') }}">
+                <label for="segundo_nombre" class="block text-sm font-medium text-slate-700">Segundo Nombre (Opcional)</label>
+                <input type="text" name="segundo_nombre" id="segundo_nombre" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm @error('segundo_nombre') border-red-500 @enderror" value="{{ old('segundo_nombre') }}">
                 <span id="error-segundo_nombre" class="text-xs text-red-600 mt-1 hidden"></span>
                 @error('segundo_nombre')<span class="text-xs text-red-600 mt-1">{{ $message }}</span>@enderror
             </div>
@@ -76,8 +76,8 @@
 
             <!-- Segundo Apellido -->
             <div>
-                <label for="segundo_apellido" class="block text-sm font-medium text-slate-700">Segundo Apellido *</label>
-                <input type="text" name="segundo_apellido" id="segundo_apellido" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm @error('segundo_apellido') border-red-500 @enderror" required value="{{ old('segundo_apellido') }}">
+                <label for="segundo_apellido" class="block text-sm font-medium text-slate-700">Segundo Apellido (Opcional)</label>
+                <input type="text" name="segundo_apellido" id="segundo_apellido" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm @error('segundo_apellido') border-red-500 @enderror" value="{{ old('segundo_apellido') }}">
                 <span id="error-segundo_apellido" class="text-xs text-red-600 mt-1 hidden"></span>
                 @error('segundo_apellido')<span class="text-xs text-red-600 mt-1">{{ $message }}</span>@enderror
             </div>
@@ -288,7 +288,12 @@
 </form>
 
 @push('scripts')
-<script>
+<script type="module">
+    import { preventInvalidInput, validatePassword } from '{{ asset("js/validators.js") }}';
+    import { showToast, shakeElement } from '{{ asset("js/alerts.js") }}';
+
+    window.checkPasswordStrength = validatePassword;
+
     window.currentStep = 1;
     window.totalSteps = 3;
 
@@ -297,6 +302,25 @@
         documento: false, // false = no validado o inválido, true = válido
         correo: false
     };
+
+    // --- APPLY REAL-TIME BLOCKING ---
+    document.addEventListener('DOMContentLoaded', () => {
+        // Nombres (Texto estricto)
+        ['primer_nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido'].forEach(id => {
+            const el = document.getElementById(id);
+            if(el) preventInvalidInput(el, 'text');
+        });
+
+        // Números (Cédula, Teléfono)
+        ['numero_documento', 'numero_tlf'].forEach(id => {
+            const el = document.getElementById(id);
+            if(el) preventInvalidInput(el, 'numbers');
+        });
+
+        // Email (Sin espacios)
+        const emailEl = document.getElementById('correo');
+        if(emailEl) preventInvalidInput(emailEl, 'email');
+    });
 
     window.checkPasswordStrength = function(password) {
         const hasUpperCase = /[A-Z]/.test(password);
@@ -339,15 +363,17 @@
                 }
 
                 if (isNaN(edad)) {
-                    // Resetear si no hay fecha válida
                     labelEdad.className = "text-xs text-slate-500 font-medium mt-1 block";
                     return;
                 }
 
                 if (edad >= 18) {
                     labelEdad.className = "text-xs text-green-600 font-medium mt-1 block";
+                    labelEdad.innerHTML = `<i class="bi bi-check-circle-fill"></i> Edad válida (${edad} años)`;
                 } else {
                     labelEdad.className = "text-xs text-red-600 font-medium mt-1 block";
+                    labelEdad.innerHTML = `<i class="bi bi-x-circle-fill"></i> Debes ser mayor de edad`;
+                    showToast('warning', 'Debes ser mayor de edad para registrarte', 4000);
                 }
             });
         }
@@ -362,9 +388,11 @@
 
             if(!numero) {
                 window.asyncValidations.documento = false;
-                return; 
+                return false; 
             }
 
+            // Set loading state if needed here
+            
             try {
                 const response = await fetch('{{ route("validate.document") }}', {
                     method: 'POST',
@@ -374,17 +402,30 @@
                     },
                     body: JSON.stringify({ tipo: tipo, numero: numero })
                 });
+                
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+
                 const data = await response.json();
                 
                 if(data.exists) {
-                    showError('numero_documento', 'Este documento ya se encuentra registrado en el sistema');
+                    showError('numero_documento', 'Documento ya registrado');
+                    showToast('error', 'Este número de documento ya está registrado');
                     window.asyncValidations.documento = false;
+                    return false;
                 } else {
                     clearError('numero_documento');
                     window.asyncValidations.documento = true;
+                    return true;
                 }
             } catch (error) {
                 console.error('Error validando documento:', error);
+                // On error, let's assume false to be safe, but maybe allow user to retry?
+                // Or if it's 500, we might be blocking valid users. 
+                // Decision: Block and warn.
+                showToast('error', 'Error verificando documento. Intente nuevamente.');
+                return false;
             }
         }
 
@@ -392,8 +433,8 @@
             tipoDocInput.addEventListener('change', validarDocumento);
             numDocInput.addEventListener('blur', validarDocumento);
             numDocInput.addEventListener('input', () => {
-                clearError('numero_documento'); // Limpiar error al escribir
-                window.asyncValidations.documento = false; // Invalidar hasta que se haga blur o check
+                clearError('numero_documento'); 
+                window.asyncValidations.documento = false; 
             });
         }
 
@@ -402,7 +443,8 @@
         
         async function validarCorreo() {
             const correo = correoInput.value;
-            if(!correo || !validateField('correo', correo, 'input')) return; // Basic regex check first
+            // Basic regex check first
+            if(!correo || !validateField('correo', correo, 'input')) return false; 
 
             try {
                 const response = await fetch('{{ route("validate.email") }}', {
@@ -413,29 +455,43 @@
                     },
                     body: JSON.stringify({ email: correo })
                 });
+
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+
                 const data = await response.json();
 
                 if(data.exists) {
-                    showError('correo', 'El correo ya esta en uso, por favor ingrese uno diferente');
+                    showError('correo', 'Correo ya registrado');
+                    showToast('error', 'Este correo electrónico ya está en uso');
                     window.asyncValidations.correo = false;
+                    return false;
                 } else {
                     clearError('correo');
                     window.asyncValidations.correo = true;
+                    return true;
                 }
             } catch (error) {
-                 console.error('Error validando correo:', error);
+                console.error('Error validando correo:', error);
+                 showToast('error', 'Error verificando correo. Intente nuevamente.');
+                 return false;
             }
         }
 
         if(correoInput) {
             correoInput.addEventListener('blur', validarCorreo);
             correoInput.addEventListener('input', () => {
-                clearError('correo');
-                window.asyncValidations.correo = false;
+                 clearError('correo');
+                 window.asyncValidations.correo = false;
             });
         }
 
-        // Password logic (existing)
+        // Expose functions globally for validateStep
+        window.validarDocumento = validarDocumento;
+        window.validarCorreo = validarCorreo;
+
+        // Password logic
         const passInput = document.getElementById('password');
         if(passInput) {
             passInput.addEventListener('input', function() {
@@ -493,8 +549,9 @@
         const el = document.getElementById(fieldId);
         const errSpan = document.getElementById('error-' + fieldId);
         if (el) {
-            el.classList.add('border-red-500');
-            el.classList.remove('border-gray-300');
+            el.classList.add('border-red-500', 'focus:ring-red-500');
+            el.classList.remove('border-gray-300', 'focus:ring-blue-500');
+            shakeElement(el);
         }
         if (errSpan) {
             errSpan.textContent = message;
@@ -506,8 +563,8 @@
         const el = document.getElementById(fieldId);
         const errSpan = document.getElementById('error-' + fieldId);
         if (el) {
-            el.classList.remove('border-red-500');
-            el.classList.add('border-gray-300');
+            el.classList.remove('border-red-500', 'focus:ring-red-500');
+            el.classList.add('border-gray-300', 'focus:ring-blue-500');
         }
         if (errSpan) {
             errSpan.classList.add('hidden');
@@ -528,7 +585,11 @@
         if (dir === 1) {
             // Validaciones al intentar avanzar
             const stepValid = await window.validateStep(window.currentStep);
-            if (!stepValid) return;
+            
+            if (!stepValid) {
+                showToast('error', 'Por favor corrige los errores antes de continuar', 4000);
+                return;
+            }
         }
 
         if (nextStep >= 1 && nextStep <= window.totalSteps) {
@@ -553,12 +614,12 @@
         window.currentStep = step;
     };
 
-    // Validation Rules
+    // Validation Rules (UPDATED: Optional Fields)
     const validationRules = {
         'primer_nombre': { required: true, regex: /^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/, msg: 'Solo letras permitidas' },
-        'segundo_nombre': { required: true, regex: /^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/, msg: 'Solo letras permitidas' },
+        'segundo_nombre': { required: false, regex: /^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]*$/, msg: 'Solo letras permitidas' }, // Optional
         'primer_apellido': { required: true, regex: /^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/, msg: 'Solo letras permitidas' },
-        'segundo_apellido': { required: true, regex: /^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/, msg: 'Solo letras permitidas' },
+        'segundo_apellido': { required: false, regex: /^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]*$/, msg: 'Solo letras permitidas' }, // Optional
         'numero_documento': { required: true, regex: /^\d+$/, minLen: 6, maxLen: 12, msg: 'Solo números (6-12 dígitos)' },
         'fecha_nac': { required: true, msg: 'Fecha requerida' },
         'genero': { required: true, msg: 'Seleccione una opción' },
@@ -570,12 +631,12 @@
         'correo': { required: true, email: true, msg: 'Correo inválido' },
         'password': { required: true, password: true, msg: 'Verifique requisitos' },
         'password_confirmation': { required: true, match: 'password', msg: 'Las contraseñas no coinciden' },
-        'pregunta_seguridad_1': { required: true },
-        'pregunta_seguridad_2': { required: true },
-        'pregunta_seguridad_3': { required: true },
-        'respuesta_seguridad_1': { required: true },
-        'respuesta_seguridad_2': { required: true },
-        'respuesta_seguridad_3': { required: true }
+        'pregunta_seguridad_1': { required: true, msg: 'Seleccione una pregunta' },
+        'pregunta_seguridad_2': { required: true, msg: 'Seleccione una pregunta' },
+        'pregunta_seguridad_3': { required: true, msg: 'Seleccione una pregunta' },
+        'respuesta_seguridad_1': { required: true, msg: 'Respuesta requerida' },
+        'respuesta_seguridad_2': { required: true, msg: 'Respuesta requerida' },
+        'respuesta_seguridad_3': { required: true, msg: 'Respuesta requerida' }
     };
 
     function validateField(id, value, eventType = 'blur') {
@@ -588,66 +649,47 @@
         // Input-time validation (loose format checks)
         if (eventType === 'input') {
              if (rule.regex && value && !rule.regex.test(value)) {
-                // If it's a strongly enforced regex (like numbers only), we might fix the value or show error
-                // For names, we show error immediately if invalid char typed
                 valid = false;
                 errorMsg = rule.msg;
             }
-            if (id === 'password') {
-                // Password strength is handled by its own listener checkPasswordStrength
-                return true; 
-            }
+            if (id === 'password') return true; 
         }
 
-        // Blur-time validation (strict required/length checks)
+        // Blur/Submit validation
         if (eventType === 'blur' || eventType === 'submit') {
+            // Check Required
             if (rule.required && !value.trim()) {
                 valid = false;
                 errorMsg = 'Campo requerido';
-            } else if (rule.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
-                valid = false;
-                errorMsg = 'Formato de correo inválido';
-            } else if (rule.minLen && value.length < rule.minLen) {
-                valid = false;
-                errorMsg = `Mínimo ${rule.minLen} caracteres`;
-            } else if (rule.match) {
-                const otherVal = document.getElementById(rule.match).value;
-                if (value !== otherVal) {
+            } 
+            // Check content if value exists (even if optional)
+            else if (value.trim()) {
+                if (rule.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
                     valid = false;
-                    errorMsg = rule.msg;
+                    errorMsg = 'Formato de correo inválido';
+                } else if (rule.minLen && value.length < rule.minLen) {
+                    valid = false;
+                    errorMsg = `Mínimo ${rule.minLen} caracteres`;
+                } else if (rule.match) {
+                    const otherVal = document.getElementById(rule.match).value;
+                    if (value !== otherVal) {
+                        valid = false;
+                        errorMsg = rule.msg;
+                    }
+                } else if (rule.regex && !rule.regex.test(value)) {
+                     valid = false;
+                     errorMsg = rule.msg;
                 }
-            } else if (rule.regex && !rule.regex.test(value)) {
-                 valid = false;
-                 errorMsg = rule.msg;
             }
         }
 
         if(!valid && errorMsg) {
              showError(id, errorMsg);
         } else {
-             // Solo limpiar si no hay errores previos (ej: AJAX error)
-             // Pero como esta función es básica, limpiamos. 
-             // Ojo con conflictos con AJAX.
-             // Como AJAX se activa en BLUR después de esto, está bien.
-             // Pero cuidado con 'input' limpiando errores de AJAX.
-             // En los listeners de input de AJAX ya limpiamos explícitamente.
              if(id !== 'numero_documento' && id !== 'correo') {
                  clearError(id);
-             } else {
-                 // Para campos AJAX, validamos formato básico aqui. 
-                 // Si falla formato básico, mostramos error y limpiamos estado AJAX.
-                 if(valid) {
-                     // Si formato valido, quitamos error de formato. 
-                     // Si habia error AJAX, se mantiene hasta que el usuario escriba (input listener)
-                     // Pero este validateField corre en INPUT también.
-                     // Estrategia: Si validateField pasa (formato ok), NO limpiamos error inmediatamente 
-                     // si es un campo ajax, dejamos que el listener de input especifico maneje el reset.
-                     // Pero en BLUR si debemos limpiar si es valido BASICAMENTE, para dar paso al check ajax?
-                     // Mejor: clearError solo quita el borde rojo y texto.
-                     // Si el formato es valido, quitamos el error visual DE FORMATO.
-                     // Si hay error AJAX, ese se pone DESPUES en el blur async.
-                     clearError(id);
-                 }
+             } else if(valid) {
+                 clearError(id);
              }
         }
         return valid;
@@ -665,12 +707,18 @@
     });
 
     window.validateStep = async function(step) {
-        // Validation now delegates to individual checks
         let isValid = true;
         let idsToCheck = [];
 
         if (step === 1) {
-            idsToCheck = ['primer_nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido', 'numero_documento', 'fecha_nac', 'genero', 'numero_tlf'];
+            idsToCheck = ['primer_nombre', 'primer_apellido', 'numero_documento', 'fecha_nac', 'genero', 'numero_tlf'];
+            // Validar opcionales solo si tienen valor
+            const segNom = document.getElementById('segundo_nombre').value;
+            if(segNom) idsToCheck.push('segundo_nombre');
+            
+            const segApe = document.getElementById('segundo_apellido').value;
+            if(segApe) idsToCheck.push('segundo_apellido');
+            
         } else if (step === 2) {
              idsToCheck = ['estado_id', 'municipio_id', 'parroquia_id', 'direccion'];
         } else if (step === 3) {
@@ -690,48 +738,36 @@
             }
         });
 
-        // Specific Step 1 Checks (Age & Document AJAX)
+        // Step 1 Checks (Age & Async Document)
         if (step === 1) {
+            // Age Check
             const fechaNac = document.getElementById('fecha_nac').value;
             if(fechaNac) {
                 const hoy = new Date();
                 const nac = new Date(fechaNac);
                 let edad = hoy.getFullYear() - nac.getFullYear();
                 const m = hoy.getMonth() - nac.getMonth();
-                if (m < 0 || (m === 0 && hoy.getDate() < nac.getDate())) {
-                    edad--;
-                }
+                if (m < 0 || (m === 0 && hoy.getDate() < nac.getDate())) edad--;
+                
                 if(edad < 18) {
                     isValid = false;
-                    // Asegurar que el mensaje esté rojo (ya lo hace el listener, pero por si acaso intenta enviar directo)
-                    const label = document.getElementById('label-edad');
-                    if(label) label.className = "text-xs text-red-600 font-medium mt-1 block";
+                    showToast('error', 'Debes ser mayor de edad para registrarte');
                 }
             }
 
-            // AJAX Check for Document must be passed
-            if (isValid) { // Solo chequear si el formato básico es válido
-                const tipo = document.getElementById('tipo_documento').value;
-                const doc = document.getElementById('numero_documento').value;
-                
-                // Forzamos validación AJAX si no se ha hecho o si cambio
-                // Hacemos una llamada await explicita para asegurar
-                try {
-                    const response = await fetch('{{ route("validate.document") }}', {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('input[name="_token"]').value},
-                        body: JSON.stringify({ tipo: tipo, numero: doc })
-                    });
-                    const data = await response.json();
-                    if(data.exists) {
-                        showError('numero_documento', 'Este documento ya se encuentra registrado en el sistema');
-                        isValid = false;
-                    }
-                } catch(e) { console.error(e); }
+            // Async Document Check
+            // If already true, good. If false/undefined, we force check.
+            const docVal = document.getElementById('numero_documento').value;
+             if (docVal && !window.asyncValidations.documento) {
+                 // Force check
+                 const valid = await window.validarDocumento();
+                 if(!valid) isValid = false;
             }
         }
 
-        // Specific Step 3 Checks (Email AJAX & Password)
+        // Step 2... (Checking if fields are valid done by loop)
+
+        // Step 3 Checks (Password Strength, Terms, Async Email)
         if (step === 3) {
              const p1 = document.getElementById('password').value;
              const strength = window.checkPasswordStrength(p1);
@@ -740,21 +776,20 @@
                  showError('password', 'Contraseña débil');
              }
 
-             // AJAX Check for Email
-             if(isValid) {
-                 const email = document.getElementById('correo').value;
-                 try {
-                    const response = await fetch('{{ route("validate.email") }}', {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('input[name="_token"]').value},
-                        body: JSON.stringify({ email: email })
-                    });
-                    const data = await response.json();
-                    if(data.exists) {
-                        showError('correo', 'El correo ya esta en uso, por favor ingrese uno diferente');
-                        isValid = false;
-                    }
-                 } catch(e) { console.error(e); }
+             // Terms Check
+             const terms = document.getElementById('terminos');
+             if (terms && !terms.checked) {
+                 isValid = false;
+                 showToast('warning', 'Debes aceptar los términos y condiciones', 4000);
+                 shakeElement(terms.parentElement);
+             }
+
+             // Async Email Check
+             // Force valid check if not yet confirmed
+             const emailVal = document.getElementById('correo').value;
+             if (emailVal && !window.asyncValidations.correo) {
+                 const valid = await window.validarCorreo();
+                 if(!valid) isValid = false;
              }
         }
 
@@ -763,32 +798,52 @@
 
     // Intercept submit for final validation
     document.getElementById('registerForm').addEventListener('submit', async function(e) {
-        e.preventDefault(); // Siempre prevenimos para validar async
+        e.preventDefault();
+        
+        console.log('Submit button clicked!'); // Debug
+        
+        const btn = document.getElementById('submitBtn');
+        const originalContent = btn.innerHTML;
+        
+        // Disable button and show loading
+        btn.disabled = true;
+        btn.innerHTML = '<span class="animate-spin inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"></span> Procesando...';
 
         const p1 = document.getElementById('password').value;
         const p2 = document.getElementById('password_confirmation').value;
-        
+
+        // Check password match
         if (p1 !== p2) {
-             alert('Las contraseñas no coinciden');
-             return;
+            console.error('Passwords do not match');
+            showToast('error', 'Las contraseñas no coinciden');
+            btn.disabled = false;
+            btn.innerHTML = originalContent;
+            return;
         }
 
-        const strength = window.checkPasswordStrength(p1);
-        if (!strength.valid) {
-             let msg = 'La contraseña debe tener:\n';
-             if(!strength.requirements.length) msg += '- Al menos 8 caracteres\n';
-             if(!strength.requirements.upper) msg += '- Al menos una mayúscula\n';
-             if(!strength.requirements.number) msg += '- Al menos un número\n';
-             if(!strength.requirements.symbol) msg += '- Al menos un símbolo (@$!%*#?&.)';
-             alert(msg);
-             return;
+        // Check terms
+        const terms = document.getElementById('terminos');
+        if (!terms.checked) {
+            console.error('Terms not accepted');
+            showToast('warning', 'Debes aceptar los términos y condiciones');
+            btn.disabled = false;
+            btn.innerHTML = originalContent;
+            return;
         }
 
-        // Final validación de todo (especialmente email si cambiaron algo rapido)
-        const valid = await window.validateStep(3);
-        if(valid) {
-            this.submit();
+        // Simple password strength check
+        if (p1.length < 8) {
+            console.error('Password too short');
+            showToast('warning', 'La contraseña debe tener al menos 8 caracteres');
+            btn.disabled = false;
+            btn.innerHTML = originalContent;
+            return;
         }
+
+        console.log('All validations passed, submitting form...');
+        
+        // Submit the form
+        this.submit();
     });
 
     function updateIndicators(step) {
@@ -798,13 +853,15 @@
             if(!ind) continue;
             
             ind.className = "w-10 h-10 rounded-full flex items-center justify-center font-bold ring-4 ring-white transition-all duration-300 border-2";
-             if(txt) txt.className = "text-xs font-semibold";
             
             if (i < step) {
-                ind.classList.add('bg-green-500', 'text-white', 'border-transparent');
-                ind.innerHTML = '✓';
-                if(txt) txt.classList.add('text-green-600');
+                // Completado
+                ind.classList.add('bg-green-600', 'text-white', 'border-transparent');
+                ind.classList.remove('bg-blue-600', 'bg-gray-100', 'text-gray-400', 'text-blue-600');
+                ind.innerHTML = '<i class="bi bi-check-lg"></i>';
+                if(txt) txt.classList.replace('text-gray-400', 'text-green-600');
             } else if (i === step) {
+                // Actual
                 ind.classList.add('bg-blue-600', 'text-white', 'border-transparent', 'shadow-md');
                 ind.innerHTML = i;
                 if(txt) txt.classList.add('text-blue-600');

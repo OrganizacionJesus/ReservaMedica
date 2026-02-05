@@ -148,6 +148,10 @@ class UsuariosTableSeeder extends Seeder
         ];
 
         // Insertar usuarios
+        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+        DB::table('usuarios')->truncate();
+        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+
         DB::table('usuarios')->insert($usuarios);
     }
 }
