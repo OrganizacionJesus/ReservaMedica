@@ -257,6 +257,7 @@ class ReportController extends Controller
         }
 
         return $queryCitas
+            ->has('medico')
             ->select(
                 'medico_id',
                 DB::raw('count(*) as total'),

@@ -207,14 +207,14 @@
                                         <div class="flex items-center gap-3">
                                             <div
                                                 class="w-10 h-10 rounded-full bg-medical-100 text-medical-600 flex items-center justify-center font-bold text-xs">
-                                                {{ strtoupper(substr($medico->medico->nombre_completo ?? 'DR', 0, 2)) }}
+                                                {{ strtoupper(substr($medico->medico?->usuario?->nombre_completo ?? ($medico->medico?->nombre_completo ?? 'DR'), 0, 2)) }}
                                             </div>
                                             <div>
                                                 <p class="text-sm font-bold text-gray-900 dark:text-white">
-                                                    {{ $medico->medico->nombre_completo ?? 'Sin nombre' }}
+                                                    {{ $medico->medico?->usuario?->nombre_completo ?? ($medico->medico?->nombre_completo ?? 'Médico Eliminado') }}
                                                 </p>
                                                 <p class="text-[10px] text-gray-500 font-medium">
-                                                    {{ $medico->medico->especialidades->first()->nombre ?? 'Sin especialidad' }}
+                                                    {{ $medico->medico?->especialidades?->first()?->nombre ?? 'Sin especialidad' }}
                                                 </p>
                                             </div>
                                         </div>
@@ -228,12 +228,12 @@
                                     </td>
                                     <td class="py-4 px-2 text-center">
                                         <span
-                                            class="text-sm font-bold text-blue-600">{{ $medico->medico->evolucionesClinicas->count() }}</span>
+                                            class="text-sm font-bold text-blue-600">{{ $medico->medico?->evolucionesClinicas?->count() ?? 0 }}</span>
                                     </td>
                                     <td class="py-4 px-2 text-center">
                                         <span
                                             class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold
-                                                                            {{ round(($medico->atendidas / max(1, $medico->total)) * 100) >= 70 ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700' }}">
+                                                                                    {{ round(($medico->atendidas / max(1, $medico->total)) * 100) >= 70 ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700' }}">
                                             {{ round(($medico->atendidas / max(1, $medico->total)) * 100) }}%
                                         </span>
                                     </td>

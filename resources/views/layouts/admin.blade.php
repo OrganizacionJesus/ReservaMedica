@@ -220,30 +220,30 @@
                     @if($admin && $admin->tipo_admin === 'Root')
                         <a href="{{ route('usuarios.index') }}"
                             class="flex items-center px-3 py-2 rounded-lg text-sm transition-all duration-200 {{ request()->is('*/usuarios*') ? 'text-medical-500 bg-medical-500/10' : 'text-slate-400 hover:text-slate-200' }}">
-                            <span>Todos los Usuarios</span>
+                            <span class="whitespace-nowrap group-[.collapsed]:hidden">Todos los Usuarios</span>
                         </a>
                     @endif
                     @if($admin && $admin->tipo_admin === 'Root')
                         <a href="{{ url('/admin/administradores') }}"
                             class="flex items-center px-3 py-2 rounded-lg text-sm transition-all duration-200 {{ request()->is('*/admin/administradores*') ? 'text-medical-500 bg-medical-500/10' : 'text-slate-400 hover:text-slate-200' }}">
-                            <span>Administradores</span>
+                            <span class="whitespace-nowrap group-[.collapsed]:hidden">Administradores</span>
                         </a>
                     @endif
                     <a href="{{ route('medicos.index') }}"
                         class="flex items-center px-3 py-2 rounded-lg text-sm transition-all duration-200 {{ request()->is('*/medicos*') ? 'text-medical-500 bg-medical-500/10' : 'text-slate-400 hover:text-slate-200' }}">
-                        <span>Médicos</span>
+                        <span class="whitespace-nowrap group-[.collapsed]:hidden">Médicos</span>
                     </a>
                     <a href="{{ route('pacientes.index') }}"
                         class="flex items-center px-3 py-2 rounded-lg text-sm transition-all duration-200 {{ request()->is('*/pacientes*') ? 'text-medical-500 bg-medical-500/10' : 'text-slate-400 hover:text-slate-200' }}">
-                        <span>Pacientes</span>
+                        <span class="whitespace-nowrap group-[.collapsed]:hidden">Pacientes</span>
                     </a>
                     <a href="{{ route('representantes.index') }}"
                         class="flex items-center px-3 py-2 rounded-lg text-sm transition-all duration-200 {{ request()->is('*/representantes*') ? 'text-medical-500 bg-medical-500/10' : 'text-slate-400 hover:text-slate-200' }}">
-                        <span>Representantes</span>
+                        <span class="whitespace-nowrap group-[.collapsed]:hidden">Representantes</span>
                     </a>
                     <a href="{{ route('pacientes-especiales.index') }}"
                         class="flex items-center px-3 py-2 rounded-lg text-sm transition-all duration-200 {{ request()->is('*/pacientes-especiales*') ? 'text-medical-500 bg-medical-500/10' : 'text-slate-400 hover:text-slate-200' }}">
-                        <span>Pacientes Especiales</span>
+                        <span class="whitespace-nowrap group-[.collapsed]:hidden">Pacientes Especiales</span>
                     </a>
                 </div>
             </div>
@@ -618,6 +618,8 @@
                 sidebarOverlay.classList.add('hidden');
             });
         }
+
+
 
         // Toggle Submenu
         function toggleSubmenu(name) {
