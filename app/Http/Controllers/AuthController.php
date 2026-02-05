@@ -346,7 +346,7 @@ class AuthController extends Controller
                 RespuestaSeguridad::create([
                     'user_id' => $usuario->id,
                     'pregunta_id' => $request->input("pregunta_seguridad_$i"),
-                    'respuesta_hash' => md5(md5($respuesta)),
+                    'respuesta_hash' => $respuesta, // El modelo aplica md5(md5()) automáticamente
                     'status' => true
                 ]);
             }
@@ -716,7 +716,12 @@ class AuthController extends Controller
         // --- VALIDACIÓN DE HISTORIAL DE CONTRASEÑAS (Últimas 5) ---
         $newPasswordHash = md5(md5($request->password));
         
-        // Verificar solo en las últimas 5 contraseñas cambiadas
+        // 1. Verificar contra la contraseña ACTUAL
+        if ($usuario->password === $newPasswordHash) {
+            return redirect()->back()->with('error', 'La nueva contraseña no puede ser igual a tu contraseña actual. Por favor, elige una diferente.');
+        }
+
+        // 2. Verificar en las últimas 5 contraseñas cambiadas
         $latestPasswords = HistorialPassword::where('user_id', $usuario->id)
             ->orderBy('created_at', 'desc')
             ->take(5)

@@ -505,12 +505,16 @@ class AdministradorController extends Controller
                 // Create new security questions
                 for ($i = 1; $i <= 3; $i++) {
                     // Convert to lowercase for case-insensitive comparison (matches registration format)
-                    $respuesta = strtolower(trim($request->input("answer_{$i}")));
-                    \App\Models\RespuestaSeguridad::create([
-                        'user_id' => $usuario->id,
-                        'pregunta_id' => $request->input("question_{$i}"),
-                        'respuesta_hash' => md5(md5($respuesta))
-                    ]);
+                $respuesta = strtolower(trim($request->input("answer_{$i}")));
+
+                // NO HASHEAR AQUÍ - El modelo RespuestaSeguridad usa un mutador setRespuestaHashAttribute
+                // que aplica automáticamente md5(md5($value)).
+
+                \App\Models\RespuestaSeguridad::create([
+                    'user_id' => $usuario->id,
+                    'pregunta_id' => $request->input("question_{$i}"),
+                    'respuesta_hash' => $respuesta
+                ]);
                 }
             });
             
