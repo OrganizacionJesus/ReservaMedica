@@ -10,6 +10,7 @@ export default {
         "./resources/**/*.js",
         "./resources/**/*.vue",
     ],
+    darkMode: 'class', // Enable dark mode with class strategy
     theme: {
         extend: {
             container: {
