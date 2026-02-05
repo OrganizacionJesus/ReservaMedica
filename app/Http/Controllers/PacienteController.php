@@ -318,16 +318,23 @@ class PacienteController extends Controller
             // Obtener pacientes paginados
             // Eager loading de la última cita con este médico para mostrar en la tabla
             $pacientes = $query->orderBy('created_at', 'desc')->paginate(10);
-            
-            // Adjuntar última cita para la vista
+
+            $pacienteIdsPage = $pacientes->getCollection()->pluck('id');
+
+            $ultimasCitas = \App\Models\Cita::where('medico_id', $medico->id)
+                ->whereIn('paciente_id', $pacienteIdsPage)
+                ->where('status', true)
+                ->orderBy('fecha_cita', 'desc')
+                ->orderBy('hora_inicio', 'desc')
+                ->with('especialidad')
+                ->get()
+                ->groupBy('paciente_id')
+                ->map(function ($items) {
+                    return $items->first();
+                });
+
             foreach ($pacientes as $paciente) {
-                $ultimaCita = \App\Models\Cita::where('medico_id', $medico->id)
-                                              ->where('paciente_id', $paciente->id)
-                                              ->where('status', true)
-                                              ->orderBy('fecha_cita', 'desc')
-                                              ->with('especialidad')
-                                              ->first();
-                $paciente->ultima_cita = $ultimaCita;
+                $paciente->ultima_cita = $ultimasCitas->get($paciente->id);
             }
 
             return view('medico.pacientes.index', compact('pacientes', 'stats', 'medico'));
@@ -791,12 +798,6 @@ class PacienteController extends Controller
                     $respuesta = strtolower(trim($rawInput));
                     
                     $finalHash = md5(md5($respuesta));
-                    
-                    \Illuminate\Support\Facades\Log::info("Saving Security Question {$i}", [
-                        'raw_input' => $rawInput,
-                        'processed_input' => $respuesta,
-                        'generated_hash' => $finalHash
-                    ]);
 
                     \App\Models\RespuestaSeguridad::create([
                         'user_id' => $usuario->id,
