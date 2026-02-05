@@ -6,7 +6,7 @@
 <div class="space-y-6">
     <!-- Header -->
     <div class="flex items-center gap-4">
-        <a href="{{ url('index.php/shared/facturacion') }}" class="btn btn-outline">
+        <a href="{{ route('facturacion.index') }}" class="btn btn-outline">
             <i class="bi bi-arrow-left"></i>
         </a>
         <div>
@@ -15,7 +15,7 @@
         </div>
     </div>
 
-    <form action="{{ url('index.php/shared/facturacion/' . $factura->id) }}" method="POST" class="space-y-6">
+    <form action="{{ route('facturacion.update', $factura->id) }}" method="POST" class="space-y-6">
         @csrf
         @method('PUT')
 
@@ -136,7 +136,7 @@
                             <i class="bi bi-check-lg"></i>
                             Actualizar Factura
                         </button>
-                        <a href="{{ url('index.php/shared/facturacion/' . $factura->id) }}" class="btn btn-outline w-full">
+                        <a href="{{ route('facturacion.index') }}" class="btn btn-outline w-full">
                             <i class="bi bi-x-lg"></i>
                             Cancelar
                         </a>

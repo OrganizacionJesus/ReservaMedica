@@ -165,7 +165,17 @@
                 <span class="font-medium text-sm">Órdenes Médicas</span>
             </a>
             
-            <!-- Gestión Section -->
+            <!-- Recursos Section -->
+            <div class="px-3 pb-2 pt-2">
+                <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Administración</p>
+            </div>
+
+            <a href="{{ route('medico.facturacion.index') }}" 
+               class="flex items-center px-3 py-2.5 rounded-lg transition-all duration-200 group {{ request()->routeIs('medico.facturacion.*') ? 'bg-emerald-600/20 text-emerald-400 ring-1 ring-emerald-500/30' : 'text-slate-400 hover:bg-white/5 hover:text-slate-200' }}">
+                <i class="bi bi-receipt text-lg mr-3 {{ request()->is('*/facturacion*') ? 'text-emerald-400' : 'text-slate-500 group-hover:text-slate-200 transition-colors' }}"></i>
+                <span class="font-medium text-sm">Mis Facturas</span>
+            </a>
+            
             <div class="px-3 pb-2 pt-4">
                 <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Gestión</p>
             </div>
@@ -176,11 +186,7 @@
                 <span class="font-medium text-sm">Mi Agenda</span>
             </a>
             
-            <a href="{{ route('ordenes-medicas.estadisticas') }}" 
-               class="flex items-center px-3 py-2.5 rounded-lg transition-all duration-200 group {{ request()->routeIs('ordenes-medicas.estadisticas') ? 'bg-emerald-600/20 text-emerald-400 ring-1 ring-emerald-500/30' : 'text-slate-400 hover:bg-white/5 hover:text-slate-200' }}">
-                <i class="bi bi-graph-up-arrow text-lg mr-3 {{ request()->is('*/medico/estadisticas*') ? 'text-emerald-400' : 'text-slate-500 group-hover:text-slate-200 transition-colors' }}"></i>
-                <span class="font-medium text-sm">Estadísticas</span>
-            </a>
+
             
             <!-- Perfil Section -->
             <div class="px-3 pb-2 pt-4">
@@ -191,6 +197,12 @@
                class="flex items-center px-3 py-2.5 rounded-lg transition-all duration-200 group {{ request()->routeIs('medico.perfil.edit') ? 'bg-emerald-600/20 text-emerald-400 ring-1 ring-emerald-500/30' : 'text-slate-400 hover:bg-white/5 hover:text-slate-200' }}">
                 <i class="bi bi-person-fill text-lg mr-3 {{ request()->routeIs('medico.perfil.edit') ? 'text-emerald-400' : 'text-slate-500 group-hover:text-slate-200 transition-colors' }}"></i>
                 <span class="font-medium text-sm">Mi Perfil</span>
+            </a>
+            
+            <a href="{{ route('medico.metodos-pago.index') }}" 
+               class="flex items-center px-3 py-2.5 rounded-lg transition-all duration-200 group {{ request()->routeIs('medico.metodos-pago.*') ? 'bg-emerald-600/20 text-emerald-400 ring-1 ring-emerald-500/30' : 'text-slate-400 hover:bg-white/5 hover:text-slate-200' }}">
+                <i class="bi bi-credit-card-fill text-lg mr-3 {{ request()->routeIs('medico.metodos-pago.*') ? 'text-emerald-400' : 'text-slate-500 group-hover:text-slate-200 transition-colors' }}"></i>
+                <span class="font-medium text-sm">Mis Métodos de Pago</span>
             </a>
             
             <div class="pb-20"></div>

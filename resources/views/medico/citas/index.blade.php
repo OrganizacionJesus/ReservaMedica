@@ -59,7 +59,6 @@
                 <select name="tipo_consulta" class="form-select">
                     <option value="">Todos</option>
                     <option value="Presencial" {{ request('tipo_consulta') == 'Presencial' ? 'selected' : '' }}>Presencial</option>
-                    <option value="Online" {{ request('tipo_consulta') == 'Online' ? 'selected' : '' }}>Online</option>
                     <option value="Domicilio" {{ request('tipo_consulta') == 'Domicilio' ? 'selected' : '' }}>Domicilio</option>
                 </select>
             </div>

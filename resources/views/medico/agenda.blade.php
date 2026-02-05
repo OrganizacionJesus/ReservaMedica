@@ -12,7 +12,7 @@
             </p>
         </div>
         <div class="flex gap-2">
-            <a href="{{ route('medicos.horarios', $medico->id) }}" class="btn btn-outline">
+            <a href="{{ route('medico.horario.edit') }}" class="btn btn-outline">
                 <i class="bi bi-clock mr-2"></i>
                 Editar Horarios Semanales
             </a>

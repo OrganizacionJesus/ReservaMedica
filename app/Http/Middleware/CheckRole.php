@@ -28,14 +28,13 @@ class CheckRole
     
     private function getUserRole($user)
     {
-        if ($user->administrador) {
-            return 'admin';
-        } elseif ($user->medico) {
-            return 'medico';
-        } elseif ($user->paciente) {
-            return 'paciente';
-        }
+        // Mapeo directo desde rol_id (más confiable que relaciones)
+        $roleMap = [
+            1 => 'admin',
+            2 => 'medico',
+            3 => 'paciente'
+        ];
         
-        return 'guest';
+        return $roleMap[$user->rol_id] ?? 'guest';
     }
 }

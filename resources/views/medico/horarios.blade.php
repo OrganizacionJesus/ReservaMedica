@@ -259,8 +259,8 @@
 </script>
 
 <div class="mb-6">
-    <a href="{{ route('medicos.show', $medico->id) }}" class="text-medical-600 hover:text-medical-700 inline-flex items-center text-sm font-medium mb-3">
-        <i class="bi bi-arrow-left mr-1"></i> Volver al Perfil
+    <a href="{{ route('medico.agenda') }}" class="text-medical-600 hover:text-medical-700 inline-flex items-center text-sm font-medium mb-3">
+        <i class="bi bi-arrow-left mr-1"></i> Volver a Agenda
     </a>
     <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
@@ -279,7 +279,7 @@
     </div>
 </div>
 
-<form id="horariosForm" method="POST" action="{{ route('medicos.guardar-horario', $medico->id) }}">
+<form id="horariosForm" method="POST" action="{{ route('medico.horario.update') }}">
     @csrf
     
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">

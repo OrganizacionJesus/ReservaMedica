@@ -11,10 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('password_resets', function (Blueprint $table) {
-            $table->string('email')->index();
-            $table->string('token');
-            $table->timestamp('created_at')->nullable();
+        Schema::table('datos_pago_medico', function (Blueprint $table) {
+            $table->boolean('status')->default(true)->after('numero_tlf')->comment('Estado activo/inactivo del método de pago');
         });
     }
 
@@ -23,6 +21,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('password_resets');
+        Schema::table('datos_pago_medico', function (Blueprint $table) {
+            $table->dropColumn('status');
+        });
     }
 };
