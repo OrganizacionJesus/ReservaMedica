@@ -7,8 +7,8 @@
     {{-- Header --}}
     <div class="flex items-center justify-between">
         <div>
-            <h1 class="text-2xl font-display font-bold text-gray-900">Gestión de Facturación</h1>
-            <p class="text-gray-600 mt-1">Administra facturas y cobros</p>
+            <h1 class="text-2xl font-display font-bold text-gray-900 dark:text-white">Gestión de Facturación</h1>
+            <p class="text-gray-600 dark:text-gray-400 mt-1">Admin istra facturas y cobros</p>
         </div>
         <a href="{{ route('facturacion.create') }}" class="btn btn-primary">
             <i class="bi bi-plus-lg"></i>
@@ -20,12 +20,12 @@
     <div class="card p-2">
         <div class="flex gap-2">
             <a href="{{ route('facturacion.index', ['tipo' => 'pacientes']) }}" 
-               class="flex-1 px-6 py-3 rounded-lg text-center font-semibold transition-all {{ ($tipo ?? 'pacientes') === 'pacientes' ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-100' }}">
+               class="flex-1 px-6 py-3 rounded-lg text-center font-semibold transition-all {{ ($tipo ?? 'pacientes') === 'pacientes' ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700' }}">
                 <i class="bi bi-person-fill mr-2"></i>
                 Facturas de Pacientes
             </a>
             <a href="{{ route('facturacion.index', ['tipo' => 'internas', 'entidad' => 'Medico']) }}" 
-               class="flex-1 px-6 py-3 rounded-lg text-center font-semibold transition-all {{ ($tipo ?? 'pacientes') === 'internas' ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-100' }}">
+               class="flex-1 px-6 py-3 rounded-lg text-center font-semibold transition-all {{ ($tipo ?? 'pacientes') === 'internas' ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700' }}">
                 <i class="bi bi-pie-chart-fill mr-2"></i>
                 Facturas por Entidad
             </a>
@@ -105,27 +105,27 @@
                         @forelse($facturas ?? [] as $factura)
                         <tr>
                             <td>
-                                <span class="font-mono text-sm font-semibold text-gray-900">{{ $factura->numero_factura ?? 'N/A' }}</span>
+                                <span class="font-mono text-sm font-semibold text-gray-900 dark:text-white">{{ $factura->numero_factura ?? 'N/A' }}</span>
                             </td>
                             <td>
                                 <div class="flex items-center gap-3">
-                                    <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                                        <i class="bi bi-person text-blue-600"></i>
+                                    <div class="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+                                        <i class="bi bi-person text-blue-600 dark:text-blue-400"></i>
                                     </div>
                                     <div>
-                                        <p class="font-semibold text-gray-900">{{ optional($factura->cita)->paciente->nombre_completo ?? 'N/A' }}</p>
-                                        <p class="text-sm text-gray-500">{{ optional($factura->cita)->paciente->numero_documento ?? 'N/A' }}</p>
+                                        <p class="font-semibold text-gray-900 dark:text-white">{{ optional($factura->cita)->paciente->nombre_completo ?? 'N/A' }}</p>
+                                        <p class="text-sm text-gray-500 dark:text-gray-400">{{ optional($factura->cita)->paciente->numero_documento ?? 'N/A' }}</p>
                                     </div>
                                 </div>
                             </td>
                             <td>
-                                <span class="text-gray-700">Consulta médica - {{ optional($factura->cita->especialidad)->nombre ?? 'General' }}</span>
+                                <span class="text-gray-700 dark:text-gray-300">Consulta médica - {{ optional($factura->cita->especialidad)->nombre ?? 'General' }}</span>
                             </td>
                             <td>
-                                <span class="text-gray-600">{{ \Carbon\Carbon::parse($factura->fecha_emision)->format('d/m/Y') }}</span>
+                                <span class="text-gray-600 dark:text-gray-400">{{ \Carbon\Carbon::parse($factura->fecha_emision)->format('d/m/Y') }}</span>
                             </td>
                             <td>
-                                <span class="font-bold text-gray-900">${{ number_format($factura->monto_usd ?? 0, 2) }}</span>
+                                <span class="font-bold text-gray-900 dark:text-white">${{ number_format($factura->monto_usd ?? 0, 2) }}</span>
                             </td>
                             <td>
                                 @if($factura->status_factura == 'Pagada')
@@ -157,8 +157,8 @@
                         @empty
                         <tr>
                             <td colspan="7" class="text-center py-12">
-                                <i class="bi bi-inbox text-5xl text-gray-300 mb-3"></i>
-                                <p class="text-gray-500">No se encontraron facturas</p>
+                                <i class="bi bi-inbox text-5xl text-gray-300 dark:text-gray-600 mb-3"></i>
+                                <p class="text-gray-500 dark:text-gray-400">No se encontraron facturas</p>
                             </td>
                         </tr>
                         @endforelse
@@ -167,7 +167,7 @@
             </div>
 
             @if(isset($facturas) && $facturas->hasPages())
-            <div class="p-6 border-t border-gray-200">
+            <div class="p-6 border-t border-gray-200 dark:border-gray-700">
                 {{ $facturas->links() }}
             </div>
             @endif
@@ -179,18 +179,18 @@
         {{-- Selector de Entidad --}}
         <div class="card p-6">
             <div class="flex items-center gap-4">
-                <label class="text-sm font-semibold text-gray-700 whitespace-nowrap">Filtrar por Entidad:</label>
+                <label class="text-sm font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">Filtrar por Entidad:</label>
                 <div class="flex gap-2 flex-1">
                     <a href="{{ route('facturacion.index', ['tipo' => 'internas', 'entidad' => 'Medico']) }}" 
-                       class="flex-1 px-4 py-2 rounded-lg text-center font-semibold transition-all {{ ($entidadTipo ?? 'Medico') === 'Medico' ? 'bg-blue-600 text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' }}">
+                       class="flex-1 px-4 py-2 rounded-lg text-center font-semibold transition-all {{ ($entidadTipo ?? 'Medico') === 'Medico' ? 'bg-blue-600 text-white shadow-md' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600' }}">
                         <i class="bi bi-person-badge mr-2"></i>Médicos
                     </a>
                     <a href="{{ route('facturacion.index', ['tipo' => 'internas', 'entidad' => 'Consultorio']) }}" 
-                       class="flex-1 px-4 py-2 rounded-lg text-center font-semibold transition-all {{ ($entidadTipo ?? 'Medico') === 'Consultorio' ? 'bg-emerald-600 text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' }}">
+                       class="flex-1 px-4 py-2 rounded-lg text-center font-semibold transition-all {{ ($entidadTipo ?? 'Medico') === 'Consultorio' ? 'bg-emerald-600 text-white shadow-md' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600' }}">
                         <i class="bi bi-hospital mr-2"></i>Consultorios
                     </a>
                     <a href="{{ route('facturacion.index', ['tipo' => 'internas', 'entidad' => 'Sistema']) }}" 
-                       class="flex-1 px-4 py-2 rounded-lg text-center font-semibold transition-all {{ ($entidadTipo ?? 'Medico') === 'Sistema' ? 'bg-violet-600 text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' }}">
+                       class="flex-1 px-4 py-2 rounded-lg text-center font-semibold transition-all {{ ($entidadTipo ?? 'Medico') === 'Sistema' ? 'bg-violet-600 text-white shadow-md' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600' }}">
                         <i class="bi bi-gear mr-2"></i>Sistema
                     </a>
                 </div>
@@ -267,45 +267,45 @@
                         @forelse($facturas ?? [] as $facturaTotal)
                         <tr>
                             <td>
-                                <span class="font-mono text-sm font-semibold text-gray-900">{{ $facturaTotal->cabecera->nro_control ?? 'N/A' }}</span>
+                                <span class="font-mono text-sm font-semibold text-gray-900 dark:text-white">{{ $facturaTotal->cabecera->nro_control ?? 'N/A' }}</span>
                             </td>
                             <td>
                                 <div class="flex items-center gap-3">
-                                    <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                                        <i class="bi bi-person text-blue-600"></i>
+                                    <div class="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+                                        <i class="bi bi-person text-blue-600 dark:text-blue-400"></i>
                                     </div>
                                     <div>
-                                        <p class="font-semibold text-gray-900">{{ optional($facturaTotal->cabecera->cita)->paciente->nombre_completo ?? 'N/A' }}</p>
-                                        <p class="text-sm text-gray-500">{{ optional($facturaTotal->cabecera->cita)->paciente->numero_documento ?? 'N/A' }}</p>
+                                        <p class="font-semibold text-gray-900 dark:text-white">{{ optional($facturaTotal->cabecera->cita)->paciente->nombre_completo ?? 'N/A' }}</p>
+                                        <p class="text-sm text-gray-500 dark:text-gray-400">{{ optional($facturaTotal->cabecera->cita)->paciente->numero_documento ?? 'N/A' }}</p>
                                     </div>
                                 </div>
                             </td>
                             <td>
                                 @if(($entidadTipo ?? 'Medico') === 'Medico')
-                                    <span class="text-gray-700">
+                                    <span class="text-gray-700 dark:text-gray-300">
                                         Dr. {{ optional($facturaTotal->cabecera->cita)->medico->primer_nombre ?? '' }} 
                                         {{ optional($facturaTotal->cabecera->cita)->medico->primer_apellido ?? '' }}
                                     </span>
                                 @elseif(($entidadTipo ?? 'Medico') === 'Consultorio')
-                                    <span class="text-gray-700">{{ optional($facturaTotal->cabecera->cita)->consultorio->nombre ?? 'N/A' }}</span>
+                                    <span class="text-gray-700 dark:text-gray-300">{{ optional($facturaTotal->cabecera->cita)->consultorio->nombre ?? 'N/A' }}</span>
                                 @else
-                                    <span class="text-gray-700">Sistema General</span>
+                                    <span class="text-gray-700 dark:text-gray-300">Sistema General</span>
                                 @endif
                             </td>
                             <td>
-                                <span class="text-gray-700">{{ optional($facturaTotal->cabecera->cita->especialidad)->nombre ?? 'General' }}</span>
+                                <span class="text-gray-700 dark:text-gray-300">{{ optional($facturaTotal->cabecera->cita->especialidad)->nombre ?? 'General' }}</span>
                             </td>
                             <td class="text-right">
-                                <span class="font-bold text-gray-900">${{ number_format($facturaTotal->total_final_usd ?? 0, 2) }}</span>
+                                <span class="font-bold text-gray-900 dark:text-white">${{ number_format($facturaTotal->total_final_usd ?? 0, 2) }}</span>
                             </td>
                             <td>
                                 <span class="px-2 py-1 rounded text-xs font-semibold
-                                    {{ $facturaTotal->estado_liquidacion == 'Liquidado' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700' }}">
+                                    {{ $facturaTotal->estado_liquidacion == 'Liquidado' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300' : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300' }}">
                                     {{ $facturaTotal->estado_liquidacion ?? 'Pendiente' }}
                                 </span>
                             </td>
                             <td>
-                                <span class="text-gray-600">{{ \Carbon\Carbon::parse($facturaTotal->cabecera->fecha_emision)->format('d/m/Y') }}</span>
+                                <span class="text-gray-600 dark:text-gray-400">{{ \Carbon\Carbon::parse($facturaTotal->cabecera->fecha_emision)->format('d/m/Y') }}</span>
                             </td>
                             <td>
                                 <div class="flex gap-2">
@@ -320,8 +320,8 @@
                         @empty
                         <tr>
                             <td colspan="8" class="text-center py-12">
-                                <i class="bi bi-inbox text-5xl text-gray-300 mb-3"></i>
-                                <p class="text-gray-500">No se encontraron facturas de {{ $entidadTipo ?? 'Médicos' }}</p>
+                                <i class="bi bi-inbox text-5xl text-gray-300 dark:text-gray-600 mb-3"></i>
+                                <p class="text-gray-500 dark:text-gray-400">No se encontraron facturas de {{ $entidadTipo ?? 'Médicos' }}</p>
                             </td>
                         </tr>
                         @endforelse
@@ -330,7 +330,7 @@
             </div>
 
             @if(isset($facturas) && $facturas->hasPages())
-            <div class="p-6 border-t border-gray-200">
+            <div class="p-6 border-t border-gray-200 dark:border-gray-700">
                 {{ $facturas->appends(['tipo' => 'internas', 'entidad' => $entidadTipo])->links() }}
             </div>
             @endif
