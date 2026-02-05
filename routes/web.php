@@ -282,6 +282,12 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/perfil/preguntas-seguridad', [MedicoController::class, 'showSecurityQuestions'])->name('medico.security-questions');
         Route::post('/perfil/preguntas-seguridad', [MedicoController::class, 'updateSecurityQuestions'])->name('medico.security-questions.update');
 
+        // Métodos de Pago del Médico
+        Route::get('/metodos-pago', [\App\Http\Controllers\DatoPagoMedicoController::class, 'index'])->name('medico.metodos-pago.index');
+        Route::get('/metodos-pago/editar', [\App\Http\Controllers\DatoPagoMedicoController::class, 'edit'])->name('medico.metodos-pago.edit');
+        Route::post('/metodos-pago', [\App\Http\Controllers\DatoPagoMedicoController::class, 'store'])->name('medico.metodos-pago.store');
+        Route::post('/metodos-pago/status', [\App\Http\Controllers\DatoPagoMedicoController::class, 'updateStatus'])->name('medico.metodos-pago.update-status');
+
         // Rutas de Agenda y Fechas Indisponibles
         Route::get('/agenda', [MedicoController::class, 'agenda'])->name('medico.agenda');
         Route::post('/fecha-indisponible', [MedicoController::class, 'storeFechaIndisponible'])->name('medico.fecha-indisponible.store');
@@ -385,8 +391,8 @@ Route::middleware(['auth'])->group(function () {
     // =========================================================================
     
     Route::resource('pagos', PagoController::class);
-    Route::post('pagos/{id}/confirmar', [PagoController::class, 'confirmarPago'])->name('pagos.confirmar');
-    Route::post('pagos/{id}/rechazar', [PagoController::class, 'rechazarPago'])->name('pagos.rechazar');
+    Route::patch('pagos/{id}/confirmar', [PagoController::class, 'confirmarPago'])->name('pagos.confirmar');
+    Route::patch('pagos/{id}/rechazar', [PagoController::class, 'rechazarPago'])->name('pagos.rechazar');
     Route::get('pagos/reporte', [PagoController::class, 'reportePagos'])->name('pagos.reporte');
     Route::get('mis-pagos', [PagoController::class, 'misPagos'])->name('pagos.mis-pagos');
     
