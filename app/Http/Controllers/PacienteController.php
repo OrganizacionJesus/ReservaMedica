@@ -795,15 +795,17 @@ class PacienteController extends Controller
                 for ($i = 1; $i <= 3; $i++) {
                     $rawInput = $request->input("answer_{$i}");
                     // Convert to lowercase for case-insensitive comparison (matches registration format)
-                    $respuesta = strtolower(trim($rawInput));
-                    
-                    $finalHash = md5(md5($respuesta));
+                $respuesta = strtolower(trim($rawInput));
+                
+                // NO HASHEAR AQUÍ - El modelo RespuestaSeguridad usa un mutador setRespuestaHashAttribute
+                // que aplica automáticamente md5(md5($value)).
+                // Si hasheamos aquí, se guardará doblemente hasheado (hash del hash) y fallará la verificación.
 
-                    \App\Models\RespuestaSeguridad::create([
-                        'user_id' => $usuario->id,
-                        'pregunta_id' => $request->input("question_{$i}"),
-                        'respuesta_hash' => $finalHash
-                    ]);
+                \App\Models\RespuestaSeguridad::create([
+                    'user_id' => $usuario->id,
+                    'pregunta_id' => $request->input("question_{$i}"),
+                    'respuesta_hash' => $respuesta
+                ]);
                 }
             });
             
