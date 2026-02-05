@@ -185,9 +185,11 @@
                             <a href="{{ route('pacientes-especiales.show', $pacienteEsp->id) }}" class="btn btn-sm btn-ghost text-warning-600" title="Ver perfil">
                                 <i class="bi bi-eye"></i>
                             </a>
+                            @if(auth()->user()->rol_id !== 1)
                             <a href="{{ route('historia-clinica.base.index', $pacienteEsp->id) }}" class="btn btn-sm btn-ghost text-medical-600" title="Historia Clínica">
                                 <i class="bi bi-file-medical"></i>
                             </a>
+                            @endif
                             <a href="{{ route('pacientes-especiales.edit', $pacienteEsp->id) }}" class="btn btn-sm btn-ghost text-info-600" title="Editar">
                                 <i class="bi bi-pencil"></i>
                             </a>

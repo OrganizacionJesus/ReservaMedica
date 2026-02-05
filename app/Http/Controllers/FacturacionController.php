@@ -9,17 +9,118 @@ use App\Models\FacturaTotal;
 use App\Models\Cita;
 use App\Models\TasaDolar;
 use App\Models\ConfiguracionReparto;
+use App\Services\FacturacionService;
+use App\Services\LiquidacionService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 
 class FacturacionController extends Controller
 {
-    public function index()
+    protected FacturacionService $facturacionService;
+    protected LiquidacionService $liquidacionService;
+
+    public function __construct(
+        FacturacionService $facturacionService,
+        LiquidacionService $liquidacionService
+    ) {
+        $this->facturacionService = $facturacionService;
+        $this->liquidacionService = $liquidacionService;
+    }
+
+    public function index(Request $request)
     {
         $user = auth()->user();
-        $query = FacturaPaciente::with(['cita.paciente', 'cita.medico', 'tasa'])
-                                  ->where('status', true);
+        $tipo = $request->get('tipo', 'pacientes'); // 'pacientes' o 'internas'
+        
+        if ($tipo === 'internas') {
+            // Mostrar facturas internas POR ENTIDAD
+            $entidadTipo = $request->get('entidad', 'Medico'); // 'Medico', 'Consultorio', o 'Sistema'
+            
+            // Obtener FacturaTotal filtrado por tipo de entidad
+            $query = \App\Models\FacturaTotal::with([
+                'cabecera.cita.paciente',
+                'cabecera.cita.medico',
+                'cabecera.cita.especialidad',
+                'cabecera.cita.consultorio',
+                'cabecera.tasa'
+            ])
+            ->where('factura_totales.status', true)
+            ->where('entidad_tipo', $entidadTipo);
+
+            // Filtrar por consultorio si no es Root
+            if ($user && $user->administrador && $user->administrador->tipo_admin !== 'Root') {
+                $consultorioIds = $user->administrador->consultorios()->pluck('consultorios.id');
+                $query->whereHas('cabecera.cita', function($q) use ($consultorioIds) {
+                    $q->whereIn('consultorio_id', $consultorioIds);
+                });
+            }
+
+            // Calcular estadísticas POR ENTIDAD
+            $statsQuery = \App\Models\FacturaTotal::where('factura_totales.status', true);
+            
+            if ($user && $user->administrador && $user->administrador->tipo_admin !== 'Root') {
+                $consultorioIds = $user->administrador->consultorios()->pluck('consultorios.id');
+                $statsQuery->whereHas('cabecera.cita', function($q) use ($consultorioIds) {
+                    $q->whereIn('consultorio_id', $consultorioIds);
+                });
+            }
+
+            $stats = [
+                'total_medico' => $statsQuery->clone()->where('entidad_tipo', 'Medico')->sum('total_final_usd'),
+                'total_consultorio' => $statsQuery->clone()->where('entidad_tipo', 'Consultorio')->sum('total_final_usd'),
+                'total_sistema' => $statsQuery->clone()->where('entidad_tipo', 'Sistema')->sum('total_final_usd'),
+                'count_medico' => $statsQuery->clone()->where('entidad_tipo', 'Medico')->count(),
+                'count_consultorio' => $statsQuery->clone()->where('entidad_tipo', 'Consultorio')->count(),
+                'count_sistema' => $statsQuery->clone()->where('entidad_tipo', 'Sistema')->count(),
+            ];
+
+            $facturas = $query->orderBy('created_at', 'desc')->paginate(10);
+            return view('shared.facturacion.index', compact('facturas', 'stats', 'tipo', 'entidadTipo'));
+            
+        } else {
+            // Mostrar facturas de pacientes (FacturaPaciente) - código original
+            $query = FacturaPaciente::with(['cita.paciente', 'cita.medico', 'cita.especialidad', 'tasa'])
+                                      ->where('status', true);
+
+            if ($user && $user->administrador && $user->administrador->tipo_admin !== 'Root') {
+                $consultorioIds = $user->administrador->consultorios()->pluck('consultorios.id');
+                $query->whereHas('cita', function($q) use ($consultorioIds) {
+                    $q->whereIn('consultorio_id', $consultorioIds);
+                });
+            }
+
+            // Calcular estadísticas
+            $stats = [
+                'cobradas' => $query->clone()->where('status_factura', 'Pagada')->sum('monto_usd'),
+                'pendientes' => $query->clone()->where('status_factura', 'Emitida')->sum('monto_usd'),
+                'vencidas' => $query->clone()->where('status_factura', 'Emitida')
+                                           ->where('fecha_vencimiento', '<', now())->sum('monto_usd'),
+                'total' => $query->count()
+            ];
+
+            $facturas = $query->paginate(10);
+            return view('shared.facturacion.index', compact('facturas', 'stats', 'tipo'));
+        }
+    }
+
+    public function create()
+    {
+        $user = auth()->user();
+        $query = FacturaPaciente::with([
+                'cita.paciente', 
+                'cita.medico', 
+                'cita.especialidad', 
+                'cita.consultorio',
+                'pagos'
+            ])
+            ->where('status', true)
+            ->where('status_factura', 'Emitida')
+            ->whereHas('pagos', function($q) {
+                $q->where('estado', 'Pendiente');
+            });
 
         if ($user && $user->administrador && $user->administrador->tipo_admin !== 'Root') {
             $consultorioIds = $user->administrador->consultorios()->pluck('consultorios.id');
@@ -28,91 +129,136 @@ class FacturacionController extends Controller
             });
         }
 
-        $facturas = $query->paginate(10);
-        return view('shared.facturacion.index', compact('facturas'));
-    }
-
-    public function create()
-    {
-        $user = auth()->user();
-        $query = Cita::with(['paciente', 'medico', 'especialidad', 'consultorio'])
-                     ->whereDoesntHave('facturaPaciente')
-                     ->where('estado_cita', 'Completada')
-                     ->where('status', true);
-
-        if ($user && $user->administrador && $user->administrador->tipo_admin !== 'Root') {
-            $consultorioIds = $user->administrador->consultorios()->pluck('consultorios.id');
-            $query->whereIn('consultorio_id', $consultorioIds);
-        }
-
-        $citas = $query->get();
+        $facturas = $query->get();
         
         $tasas = TasaDolar::where('status', true)
                           ->orderBy('fecha_tasa', 'desc')
                           ->get();
         
-        return view('shared.facturacion.create', compact('citas', 'tasas'));
+        return view('shared.facturacion.create', compact('facturas', 'tasas'));
     }
 
     public function store(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'cita_id' => 'required|exists:citas,id|unique:facturas_pacientes,cita_id',
-            'tasa_id' => 'required|exists:tasas_dolar,id',
-            'fecha_emision' => 'required|date',
-            'fecha_vencimiento' => 'nullable|date',
-            'numero_factura' => 'nullable|unique:facturas_pacientes,numero_factura'
-        ]);
+        DB::beginTransaction();
+        
+        try {
+            $validator = Validator::make($request->all(), [
+                'cita_id' => 'required|exists:citas,id|unique:facturas_pacientes,cita_id',
+                'tasa_id' => 'required|exists:tasas_dolar,id',
+                'fecha_emision' => 'required|date',
+                'fecha_vencimiento' => 'nullable|date',
+                'numero_factura' => 'nullable|unique:facturas_pacientes,numero_factura'
+            ]);
 
-        if ($validator->fails()) {
-            return redirect()->back()->withErrors($validator)->withInput();
+            if ($validator->fails()) {
+                throw new ValidationException($validator);
+            }
+
+            $cita = Cita::with(['medico', 'consultorio'])->findOrFail($request->cita_id);
+            $tasa = TasaDolar::findOrFail($request->tasa_id);
+
+            // Calcular monto en bolívares
+            $montoBS = $cita->tarifa * $tasa->valor;
+
+            // Generar número de factura si no se proporcionó uno
+            $numeroFactura = $request->numero_factura;
+            if (!$numeroFactura) {
+                $year = date('Y');
+                $count = FacturaPaciente::whereYear('fecha_emision', $year)->count() + 1;
+                $numeroFactura = 'FAC-' . $year . '-' . str_pad($count, 6, '0', STR_PAD_LEFT);
+            }
+
+            $factura = FacturaPaciente::create([
+                'cita_id' => $cita->id,
+                'paciente_id' => $cita->paciente_id,
+                'medico_id' => $cita->medico_id,
+                'monto_usd' => $cita->tarifa,
+                'tasa_id' => $tasa->id,
+                'monto_bs' => $montoBS,
+                'fecha_emision' => $request->fecha_emision,
+                'fecha_vencimiento' => $request->fecha_vencimiento,
+                'numero_factura' => $numeroFactura,
+                'status_factura' => 'Emitida',
+                'status' => true
+            ]);
+
+            // ✅ Usar el servicio de facturación
+            $this->facturacionService->ejecutarFacturacionAvanzada($cita);
+
+            DB::commit();
+            return redirect()->route('facturacion.show', $factura->id)
+                           ->with('success', 'Factura creada exitosamente');
+            
+        } catch (ValidationException $e) {
+            DB::rollBack();
+            return redirect()->back()->withErrors($e->validator)->withInput();
+            
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('Error creando factura: ' . $e->getMessage());
+            return redirect()->back()
+                           ->with('error', 'Error al crear la factura: ' . $e->getMessage())
+                           ->withInput();
         }
-
-        $cita = Cita::with(['medico', 'consultorio'])->findOrFail($request->cita_id);
-        $tasa = TasaDolar::findOrFail($request->tasa_id);
-
-        // Calcular monto en bolívares
-        $montoBS = $cita->tarifa * $tasa->valor;
-
-        // Generar número de factura si no se proporcionó uno
-        $numeroFactura = $request->numero_factura;
-        if (!$numeroFactura) {
-            $year = date('Y');
-            $count = FacturaPaciente::whereYear('fecha_emision', $year)->count() + 1;
-            $numeroFactura = 'FAC-' . $year . '-' . str_pad($count, 6, '0', STR_PAD_LEFT);
-        }
-
-        $factura = FacturaPaciente::create([
-            'cita_id' => $cita->id,
-            'paciente_id' => $cita->paciente_id,
-            'medico_id' => $cita->medico_id,
-            'monto_usd' => $cita->tarifa,
-            'tasa_id' => $tasa->id,
-            'monto_bs' => $montoBS,
-            'fecha_emision' => $request->fecha_emision,
-            'fecha_vencimiento' => $request->fecha_vencimiento,
-            'numero_factura' => $numeroFactura,
-            'status_factura' => 'Emitida',
-            'status' => true
-        ]);
-
-        // Crear facturación avanzada (cabecera y detalles)
-        $this->crearFacturacionAvanzada($factura, $cita, $tasa);
-
-        return redirect()->route('facturacion.show', $factura->id)->with('success', 'Factura creada exitosamente');
     }
 
-    public function show($id)
+    public function show(Request $request, $id)
     {
-        $factura = FacturaPaciente::with([
-            'cita.paciente', 
-            'cita.medico', 
-            'cita.especialidad',
-            'tasa',
-            'pagos'
-        ])->findOrFail($id);
+        $tipo = $request->get('tipo', 'paciente');
+        
+        if ($tipo === 'interna') {
+            // Mostrar factura de una entidad específica con las relacionadas
+            // $id es el ID de FacturaTotal
+            $facturaSeleccionada = \App\Models\FacturaTotal::with([
+                'cabecera.cita.paciente',
+                'cabecera.cita.medico.datosPago.metodoPago',
+                'cabecera.cita.especialidad',
+                'cabecera.cita.consultorio',
+                'cabecera.tasa'
+            ])->findOrFail($id);
+            
+            // Obtener todas las facturas de las otras entidades (misma cabecera)
+            $facturasRelacionadas = \App\Models\FacturaTotal::with([
+                'cabecera.cita.medico.datosPago.metodoPago'
+            ])
+            ->where('cabecera_id', $facturaSeleccionada->cabecera_id)
+            ->where('id', '!=', $id) // Excluir la seleccionada
+            ->where('status', true)
+            ->get();
+            
+            // Obtener la factura del paciente relacionada (misma cita)
+            $facturaPaciente = FacturaPaciente::with(['pagos.metodoPago', 'tasa'])
+                ->where('cita_id', $facturaSeleccionada->cabecera->cita_id)
+                ->first();
+            
+            // Obtener todos los detalles de la cabecera
+            $detalles = \App\Models\FacturaDetalle::where('cabecera_id', $facturaSeleccionada->cabecera_id)
+                ->where('status', true)
+                ->get();
+            
+            return view('shared.facturacion.show-interna', compact(
+                'facturaSeleccionada', 
+                'facturasRelacionadas', 
+                'facturaPaciente',
+                'detalles'
+            ));
+            
+        } else {
+            // Mostrar factura de paciente (FacturaPaciente)
+            $factura = FacturaPaciente::with([
+                'cita.paciente', 
+                'cita.medico', 
+                'cita.especialidad',
+                'cita.facturaCabecera.detalles',
+                'cita.facturaCabecera.totales',
+                'tasa',
+                'pagos.metodoPago',
+                'pagos.confirmadoPor'
+            ])->findOrFail($id);
 
-        return view('shared.facturacion.show', compact('factura'));
+            return view('shared.facturacion.show', compact('factura'));
+        }
     }
 
     public function edit($id)
@@ -178,121 +324,11 @@ class FacturacionController extends Controller
         }
     }
 
-    // Facturación avanzada - Sistema de reparto
-    private function crearFacturacionAvanzada($facturaPaciente, $cita, $tasa)
-    {
-        // Crear cabecera de factura avanzada
-        $facturaCabecera = FacturaCabecera::create([
-            'cita_id' => $cita->id,
-            'nro_control' => $this->generarNumeroControl(),
-            'paciente_id' => $cita->paciente_id,
-            'medico_id' => $cita->medico_id,
-            'tasa_id' => $tasa->id,
-            'fecha_emision' => now(),
-            'status' => true
-        ]);
-
-        // Obtener configuración de reparto
-        $configReparto = ConfiguracionReparto::where('medico_id', $cita->medico_id)
-                                            ->where('consultorio_id', $cita->consultorio_id)
-                                            ->first();
-
-        if (!$configReparto) {
-            // Usar configuración por defecto (sin consultorio específico)
-            $configReparto = ConfiguracionReparto::where('medico_id', $cita->medico_id)
-                                                ->whereNull('consultorio_id')
-                                                ->first();
-        }
-
-        if (!$configReparto) {
-            // Configuración por defecto si no existe
-            $configReparto = new \stdClass();
-            $configReparto->porcentaje_medico = 70.00;
-            $configReparto->porcentaje_consultorio = 20.00;
-            $configReparto->porcentaje_sistema = 10.00;
-        }
-
-        // Crear detalles de factura
-        $this->crearDetallesFactura($facturaCabecera, $cita, $configReparto);
-
-        // Crear totales de factura
-        $this->crearTotalesFactura($facturaCabecera, $tasa);
-    }
-
-    private function generarNumeroControl()
-    {
-        $year = date('Y');
-        $sequence = FacturaCabecera::whereYear('fecha_emision', $year)->count() + 1;
-        return 'FACT-' . $year . '-' . str_pad($sequence, 6, '0', STR_PAD_LEFT);
-    }
-
-    private function crearDetallesFactura($facturaCabecera, $cita, $configReparto)
-    {
-        $tarifaUSD = $cita->tarifa;
-
-        // Detalle para el médico
-        FacturaDetalle::create([
-            'cabecera_id' => $facturaCabecera->id,
-            'entidad_tipo' => 'Medico',
-            'entidad_id' => $cita->medico_id,
-            'descripcion' => 'Honorarios médicos (' . $configReparto->porcentaje_medico . '%)',
-            'cantidad' => 1,
-            'precio_unitario_usd' => $tarifaUSD * ($configReparto->porcentaje_medico / 100),
-            'subtotal_usd' => $tarifaUSD * ($configReparto->porcentaje_medico / 100),
-            'status' => true
-        ]);
-
-        // Detalle para el consultorio (si aplica)
-        if ($cita->consultorio_id && $configReparto->porcentaje_consultorio > 0) {
-            FacturaDetalle::create([
-                'cabecera_id' => $facturaCabecera->id,
-                'entidad_tipo' => 'Consultorio',
-                'entidad_id' => $cita->consultorio_id,
-                'descripcion' => 'Uso de consultorio (' . $configReparto->porcentaje_consultorio . '%)',
-                'cantidad' => 1,
-                'precio_unitario_usd' => $tarifaUSD * ($configReparto->porcentaje_consultorio / 100),
-                'subtotal_usd' => $tarifaUSD * ($configReparto->porcentaje_consultorio / 100),
-                'status' => true
-            ]);
-        }
-
-        // Detalle para el sistema
-        if ($configReparto->porcentaje_sistema > 0) {
-            FacturaDetalle::create([
-                'cabecera_id' => $facturaCabecera->id,
-                'entidad_tipo' => 'Sistema',
-                'entidad_id' => null,
-                'descripcion' => 'Comisión del sistema (' . $configReparto->porcentaje_sistema . '%)',
-                'cantidad' => 1,
-                'precio_unitario_usd' => $tarifaUSD * ($configReparto->porcentaje_sistema / 100),
-                'subtotal_usd' => $tarifaUSD * ($configReparto->porcentaje_sistema / 100),
-                'status' => true
-            ]);
-        }
-    }
-
-    private function crearTotalesFactura($facturaCabecera, $tasa)
-    {
-        $detalles = $facturaCabecera->detalles;
-
-        foreach ($detalles as $detalle) {
-            $baseImponibleUSD = $detalle->subtotal_usd;
-            $totalFinalUSD = $baseImponibleUSD; // Asumiendo que no hay impuestos por ahora
-            $totalFinalBS = $totalFinalUSD * $tasa->valor;
-
-            FacturaTotal::create([
-                'cabecera_id' => $facturaCabecera->id,
-                'entidad_tipo' => $detalle->entidad_tipo,
-                'entidad_id' => $detalle->entidad_id,
-                'base_imponible_usd' => $baseImponibleUSD,
-                'impuestos_usd' => 0,
-                'total_final_usd' => $totalFinalUSD,
-                'total_final_bs' => $totalFinalBS,
-                'estado_liquidacion' => 'Pendiente',
-                'status' => true
-            ]);
-        }
-    }
+    // ❌ ELIMINADO: Métodos duplicados de facturación movidos a FacturacionService
+    // - crearFacturacionAvanzada()
+    // - generarNumeroControl()
+    // - crearDetallesFactura()
+    // - crearTotalesFactura()
 
 
 
@@ -300,57 +336,44 @@ class FacturacionController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'entidad_tipo' => 'required|in:Medico,Consultorio',
-            'entidad_id' => 'required',
+            'entidad_id' => 'required|integer',
+            'periodo_tipo' => 'required|in:quincenal,mensual,manual',
+            'fecha_inicio' => 'required|date',
+            'fecha_fin' => 'required|date|after_or_equal:fecha_inicio',
             'metodo_pago' => 'required|in:Transferencia,Zelle,Efectivo,Pago Movil,Otro',
-            'referencia' => 'required|max:100',
-            'fecha_pago' => 'required|date',
-            'observaciones' => 'nullable|string'
+            'referencia' => 'required|string|max:100',
+            'fecha_pago' => 'required|date|before_or_equal:today',
+            'observaciones' => 'nullable|string|max:1000'
         ]);
-
+        
         if ($validator->fails()) {
             return redirect()->back()->withErrors($validator)->withInput();
         }
-
-        // Obtener facturas pendientes de liquidación para la entidad
-        $facturasTotales = FacturaTotal::where('entidad_tipo', $request->entidad_tipo)
-                                      ->where('entidad_id', $request->entidad_id)
-                                      ->where('estado_liquidacion', 'Pendiente')
-                                      ->where('status', true)
-                                      ->get();
-
-        if ($facturasTotales->isEmpty()) {
-            return redirect()->back()->with('error', 'No hay facturas pendientes de liquidación para esta entidad');
+        
+        try {
+            $fechaInicio = \Carbon\Carbon::parse($request->fecha_inicio)->startOfDay();
+            $fechaFin = \Carbon\Carbon::parse($request->fecha_fin)->endOfDay();
+            
+            $liquidacion = $this->liquidacionService->generarLiquidacionPorPeriodo(
+                $request->entidad_tipo,
+                $request->entidad_id,
+                $request->periodo_tipo,
+                $fechaInicio,
+                $fechaFin,
+                [
+                    'metodo_pago' => $request->metodo_pago,
+                    'referencia' => $request->referencia,
+                    'fecha_pago' => $request->fecha_pago,
+                    'observaciones' => $request->observaciones
+                ]
+            );
+            
+            return redirect()->route('facturacion.liquidaciones')
+                           ->with('success', 'Liquidación generada exitosamente');
+                           
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', $e->getMessage())->withInput();
         }
-
-        $montoTotalUSD = $facturasTotales->sum('total_final_usd');
-        $montoTotalBS = $facturasTotales->sum('total_final_bs');
-
-        // Crear liquidación
-        $liquidacion = \App\Models\Liquidacion::create([
-            'entidad_tipo' => $request->entidad_tipo,
-            'entidad_id' => $request->entidad_id,
-            'monto_total_usd' => $montoTotalUSD,
-            'monto_total_bs' => $montoTotalBS,
-            'metodo_pago' => $request->metodo_pago,
-            'referencia' => $request->referencia,
-            'fecha_pago' => $request->fecha_pago,
-            'observaciones' => $request->observaciones,
-            'status' => true
-        ]);
-
-        // Crear detalles de liquidación
-        foreach ($facturasTotales as $facturaTotal) {
-            \App\Models\LiquidacionDetaille::create([
-                'liquidacion_id' => $liquidacion->id,
-                'factura_total_id' => $facturaTotal->id,
-                'status' => true
-            ]);
-
-            // Marcar factura como liquidada
-            $facturaTotal->update(['estado_liquidacion' => 'Liquidado']);
-        }
-
-        return redirect()->route('facturacion.liquidaciones')->with('success', 'Liquidación creada exitosamente');
     }
     /**
      * Mostrar vista de liquidaciones con totales pendientes
@@ -365,37 +388,91 @@ class FacturacionController extends Controller
             $consultorioIds = $user->administrador->consultorios()->pluck('consultorios.id');
         }
 
-        // Obtener totales pendientes agrupados por entidad
-        $query = FacturaTotal::with(['medico', 'consultorio'])
-                                        ->where('estado_liquidacion', 'Pendiente')
-                                        ->where('status', true);
+        // Usar el service para obtener resumen de pendientes
+        $resumen = $this->liquidacionService->obtenerResumenPendientes(null, $consultorioIds);
+        
+        // Obtener próximos períodos para liquidar
+        $proximaQuincena = PeriodoCalculator::getProximoPeriodo('quincenal');
+        $proximoMensual = PeriodoCalculator::getProximoPeriodo('mensual');
 
-        if ($isLocalAdmin) {
-            $query->where(function($q) use ($consultorioIds) {
-                // Liquidaciones para sus consultorios
-                $q->where(function($sq) use ($consultorioIds) {
-                    $sq->where('entidad_tipo', 'Consultorio')
-                       ->whereIn('entidad_id', $consultorioIds);
-                })
-                // O liquidaciones para medicos que trabajan en sus consultorios
-                ->orWhere(function($sq) use ($consultorioIds) {
-                    $sq->where('entidad_tipo', 'Medico')
-                       ->whereHas('medico.consultorios', function($ssq) use ($consultorioIds) {
-                           $ssq->whereIn('consultorios.id', $consultorioIds);
-                       });
-                });
-            });
+        return view('shared.facturacion.liquidaciones', [
+            'totalesPendientes' => $resumen['totales_pendientes'],
+            'totalesPorEntidad' => $resumen['totales_por_entidad'],
+            'proximaQuincena' => $proximaQuincena,
+            'proximoMensual' => $proximoMensual,
+            'resumen' => $resumen['resumen']
+        ]);
+    }
+
+    /**
+     * Muestra las facturas del médico autenticado
+     * Solo facturas donde entidad_tipo = 'Medico' y entidad_id = su ID
+     */
+    public function misFacturas(Request $request)
+    {
+        $user = auth()->user();
+        
+        // Verificar que el usuario sea médico
+        if (!$user->medico) {
+            abort(403, 'Acceso no autorizado');
+        }
+        
+        $medicoId = $user->medico->id;
+        
+        // Obtener facturas del médico
+        $facturas = FacturaTotal::with([
+            'cabecera.cita.paciente',
+            'cabecera.cita.especialidad',
+            'cabecera.cita.consultorio',
+            'cabecera.tasa'
+        ])
+        ->where('entidad_tipo', 'Medico')
+        ->where('entidad_id', $medicoId)
+        ->where('status', true)
+        ->orderBy('created_at', 'desc')
+        ->paginate(15);
+        
+        // Calcular estadísticas del médico
+        $statsQuery = FacturaTotal::where('entidad_tipo', 'Medico')
+            ->where('entidad_id', $medicoId)
+            ->where('status', true);
+        
+        $stats = [
+            'total_facturado' => $statsQuery->clone()->sum('total_final_usd'),
+            'total_liquidado' => $statsQuery->clone()->where('estado_liquidacion', 'Liquidado')->sum('total_final_usd'),
+            'total_pendiente' => $statsQuery->clone()->where('estado_liquidacion', 'Pendiente')->sum('total_final_usd'),
+            'facturas_totales' => $statsQuery->clone()->count(),
+            'facturas_liquidadas' => $statsQuery->clone()->where('estado_liquidacion', 'Liquidado')->count(),
+            'facturas_pendientes' => $statsQuery->clone()->where('estado_liquidacion', 'Pendiente')->count(),
+        ];
+        
+        return view('medico.facturacion.index', compact('facturas', 'stats'));
+    }
+
+    /**
+     * Muestra el detalle de una factura específica del médico
+     */
+    public function misFacturasShow($id)
+    {
+        $user = auth()->user();
+        
+        if (!$user->medico) {
+            abort(403, 'Acceso no autorizado');
         }
 
-        $totalesPendientes = $query->get();
+        $medicoId = $user->medico->id;
+        
+        $facturaTotal = FacturaTotal::with([
+            'cabecera.cita.paciente',
+            'cabecera.cita.medico',
+            'cabecera.cita.especialidad',
+            'cabecera.cita.consultorio',
+            'liquidacionDetalles.facturaPaciente.cabecera.cita'
+        ])
+        ->where('entidad_tipo', 'Medico')
+        ->where('entidad_id', $medicoId)
+        ->findOrFail($id);
 
-        // Calcular totales por tipo de entidad
-        $totalesPorEntidad = [
-            'Medico' => $totalesPendientes->where('entidad_tipo', 'Medico')->sum('total_final_usd'),
-            'Consultorio' => $totalesPendientes->where('entidad_tipo', 'Consultorio')->sum('total_final_usd'),
-            'Sistema' => $isLocalAdmin ? 0 : $totalesPendientes->where('entidad_tipo', 'Sistema')->sum('total_final_usd'),
-        ];
-
-        return view('shared.facturacion.liquidaciones', compact('totalesPendientes', 'totalesPorEntidad'));
+        return view('medico.facturacion.show', compact('facturaTotal'));
     }
 }
