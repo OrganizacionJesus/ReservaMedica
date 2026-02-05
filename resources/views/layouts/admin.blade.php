@@ -259,21 +259,7 @@
                     class="bi bi-calendar-check-fill text-lg mr-3 {{ request()->is('*/citas*') ? 'text-medical-500' : 'text-slate-500 group-hover:text-slate-200' }}"></i>
                 <span class="font-medium text-sm">Citas Médicas</span>
             </a>
-
-            <a href="{{ route('historia-clinica.base.index') }}"
-                class="flex items-center px-3 py-2.5 rounded-lg transition-all duration-200 group {{ request()->is('*/historia-clinica*') ? 'bg-medical-500/20 text-medical-500 ring-1 ring-medical-500/30' : 'text-slate-400 hover:bg-white/5 hover:text-slate-200' }}">
-                <i
-                    class="bi bi-file-earmark-medical-fill text-lg mr-3 {{ request()->is('*/historia-clinica*') ? 'text-medical-500' : 'text-slate-500 group-hover:text-slate-200' }}"></i>
-                <span class="font-medium text-sm">Historia Clínica</span>
-            </a>
-
-            <a href="{{ route('ordenes-medicas.index') }}"
-                class="flex items-center px-3 py-2.5 rounded-lg transition-all duration-200 group {{ request()->is('*/ordenes-medicas*') ? 'bg-medical-500/20 text-medical-500 ring-1 ring-medical-500/30' : 'text-slate-400 hover:bg-white/5 hover:text-slate-200' }}">
-                <i
-                    class="bi bi-clipboard2-pulse-fill text-lg mr-3 {{ request()->is('*/ordenes-medicas*') ? 'text-medical-500' : 'text-slate-500 group-hover:text-slate-200' }}"></i>
-                <span class="font-medium text-sm">Órdenes</span>
-            </a>
-
+            
             <!-- Infraestructura Section -->
             <div class="px-3 pb-2 pt-4">
                 <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Recursos</p>
