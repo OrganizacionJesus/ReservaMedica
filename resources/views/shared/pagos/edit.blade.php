@@ -15,7 +15,7 @@
     </div>
 </div>
 
-<form action="{{ route('pagos.update', $pago->id) }}" method="POST" enctype="multipart/form-data">
+<form action="{{ route('pagos.update', ['pago' => $pago->id]) }}" method="POST" enctype="multipart/form-data">
     @csrf
     @method('PUT')
     
