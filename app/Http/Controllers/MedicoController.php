@@ -365,6 +365,34 @@ class MedicoController extends Controller
         return view('shared.medicos.horarios', compact('medico', 'consultorios', 'horarios'));
     }
 
+    /**
+     * Muestra el horario del médico logueado
+     */
+    public function miHorario()
+    {
+        $user = auth()->user();
+        if (!$user->medico) {
+            abort(403, 'Acceso denegado. No es un médico.');
+        }
+        
+        // Reutilizamos la lógica, llamando internamente con el ID del médico
+        return $this->horarios($user->medico->id);
+    }
+
+    /**
+     * Guarda el horario del médico logueado
+     */
+    public function miHorarioStore(Request $request)
+    {
+        $user = auth()->user();
+        if (!$user->medico) {
+            abort(403, 'Acceso denegado. No es un médico.');
+        }
+
+        // Reutilizamos la lógica de guardado
+        return $this->guardarHorario($request, $user->medico->id);
+    }
+
     public function guardarHorario(Request $request, $id)
     {
         $medico = Medico::findOrFail($id);
