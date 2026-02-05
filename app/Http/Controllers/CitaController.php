@@ -160,6 +160,11 @@ class CitaController extends Controller
             $query->where('consultorio_id', $request->consultorio_id);
         }
 
+        // Filtro por Tipo de Consulta
+        if ($request->filled('tipo_consulta')) {
+            $query->where('tipo_consulta', $request->tipo_consulta);
+        }
+
         // Filtro por Estado de Cita
         if ($request->filled('estado')) {
             // Valores BD válidos: 'Programada', 'Confirmada', 'En Progreso', 'Completada', 'Cancelada', 'No Asistió'

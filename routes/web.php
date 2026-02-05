@@ -180,6 +180,8 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/admin/dashboard', [AdministradorController::class, 'dashboard'])->name('admin.dashboard')->middleware('role:admin');
     Route::get('/medico/dashboard', [MedicoController::class, 'dashboard'])->name('medico.dashboard')->middleware('role:medico');
     Route::get('/medico/facturacion/{id}', [App\Http\Controllers\FacturacionController::class, 'misFacturasShow'])->name('medico.facturacion.show')->middleware('role:medico');
+    Route::get('/medico/mi-horario', [MedicoController::class, 'miHorario'])->name('medico.horario.edit')->middleware('role:medico');
+    Route::post('/medico/mi-horario/guardar', [MedicoController::class, 'miHorarioStore'])->name('medico.horario.update')->middleware('role:medico');
     Route::get('/medico/facturacion', [App\Http\Controllers\FacturacionController::class, 'misFacturas'])->name('medico.facturacion.index')->middleware('role:medico');
     Route::get('/paciente/dashboard', [PacienteController::class, 'dashboard'])->name('paciente.dashboard')->middleware('role:paciente');
     
