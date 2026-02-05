@@ -10,6 +10,10 @@
     
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     
+    {{-- Theme System --}}
+    <link rel="stylesheet" href="{{ asset('css/theme-variables.css') }}">
+    <script src="{{ asset('js/theme-manager.js') }}"></script>
+    
     <!-- Alpine.js -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
@@ -616,28 +620,43 @@
 
     @stack('scripts')
     
-    <!-- Dark Mode Script -->
+    <!-- Theme Manager Integration -->
     <script>
-        // Dark Mode Toggle Logic
-        const darkModeToggle = document.getElementById('darkModeToggle');
-        const htmlElement = document.documentElement;
-        
-        // Check for saved preference or system preference
-        const savedTheme = localStorage.getItem('theme');
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        
-        if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
-            htmlElement.classList.add('dark');
-        }
-        
-        // Toggle dark mode
-        if (darkModeToggle) {
-            darkModeToggle.addEventListener('click', () => {
-                htmlElement.classList.toggle('dark');
-                const isDark = htmlElement.classList.contains('dark');
-                localStorage.setItem('theme', isDark ? 'dark' : 'light');
-            });
-        }
+        // Integrate existing dark mode toggle with theme manager
+        document.addEventListener('DOMContentLoaded', () => {
+            const darkModeToggle = document.getElementById('darkModeToggle');
+            
+            if (darkModeToggle && window.themeManager) {
+                // Update toggle appearance based on current theme
+                const updateToggleIcon = () => {
+                    const isDark = window.themeManager.isDark();
+                    const moonIcon = darkModeToggle.querySelector('.bi-moon-fill');
+                    const sunIcon = darkModeToggle.querySelector('.bi-sun-fill');
+                    
+                    if (moonIcon && sunIcon) {
+                        if (isDark) {
+                            moonIcon.classList.add('hidden');
+                            sunIcon.classList.remove('hidden');
+                        } else {
+                            moonIcon.classList.remove('hidden');
+                            sunIcon.classList.add('hidden');
+                        }
+                    }
+                };
+                
+                // Initialize
+                updateToggleIcon();
+                
+                // Toggle theme on click
+                darkModeToggle.addEventListener('click', () => {
+                    window.themeManager.toggle();
+                    updateToggleIcon();
+                });
+                
+                // Listen for theme changes from other sources
+                window.addEventListener('themeChanged', updateToggleIcon);
+            }
+        });
     </script>
 </body>
 </html>

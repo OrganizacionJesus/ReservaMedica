@@ -35,31 +35,27 @@ const TOAST_ICONS = {
     info: 'bi-info-circle-fill'
 };
 
-// Colores por tipo (Usando Tailwind estandard)
+// Colores por tipo (Premium Glassmorphism)
 const TOAST_COLORS = {
     success: {
-        bg: 'bg-green-50',
-        border: 'border-green-200',
+        wrapper: 'bg-gradient-to-r from-green-50/95 to-white/95 border-green-200/50 shadow-green-500/10',
         icon: 'text-green-600',
-        text: 'text-green-900'
+        text: 'text-green-800'
     },
     error: {
-        bg: 'bg-red-50',
-        border: 'border-red-200',
+        wrapper: 'bg-gradient-to-r from-red-50/95 to-white/95 border-red-200/50 shadow-red-500/10',
         icon: 'text-red-600',
-        text: 'text-red-900'
+        text: 'text-red-800'
     },
     warning: {
-        bg: 'bg-yellow-50',
-        border: 'border-yellow-200',
+        wrapper: 'bg-gradient-to-r from-yellow-50/95 to-white/95 border-yellow-200/50 shadow-yellow-500/10',
         icon: 'text-yellow-600',
-        text: 'text-yellow-900'
+        text: 'text-yellow-800'
     },
     info: {
-        bg: 'bg-blue-50',
-        border: 'border-blue-200',
+        wrapper: 'bg-gradient-to-r from-blue-50/95 to-white/95 border-blue-200/50 shadow-blue-500/10',
         icon: 'text-blue-600',
-        text: 'text-blue-900'
+        text: 'text-blue-800'
     }
 };
 
@@ -68,28 +64,35 @@ const TOAST_COLORS = {
  */
 export function showToast(type, message, duration = TOAST_DURATION, position = 'top-right') {
     const container = getToastContainer(position);
-    const colors = TOAST_COLORS[type] || TOAST_COLORS.info;
+    const style = TOAST_COLORS[type] || TOAST_COLORS.info;
     const icon = TOAST_ICONS[type] || TOAST_ICONS.info;
 
-    // Crear elemento toast
+    // Crear elemento toast con diseño Glassmorphism
     const toast = document.createElement('div');
-    toast.className = `${colors.bg} ${colors.border} border rounded-xl shadow-lg p-4 flex items-start gap-3 transform transition-all duration-300 ease-out translate-x-10 opacity-0 pointer-events-auto`;
+    toast.className = `
+        ${style.wrapper} backdrop-blur-md border rounded-2xl shadow-xl 
+        p-4 flex items-start gap-3 transform transition-all duration-500 cubic-bezier(0.19, 1, 0.22, 1) 
+        translate-x-10 opacity-0 pointer-events-auto min-w-[320px] max-w-sm
+    `;
 
     toast.innerHTML = `
-        <i class="bi ${icon} ${colors.icon} text-xl flex-shrink-0 mt-0.5"></i>
-        <div class="flex-1 ${colors.text}">
-            <p class="font-medium text-sm leading-snug">${message}</p>
+        <div class="flex-shrink-0 w-8 h-8 rounded-full ${style.icon} bg-white/50 flex items-center justify-center shadow-sm">
+            <i class="bi ${icon} text-lg"></i>
+        </div>
+        <div class="flex-1 ${style.text} pt-0.5">
+            <p class="font-bold text-sm">Notificación</p>
+            <p class="font-medium text-sm leading-snug opacity-90">${message}</p>
         </div>
         <button onclick="this.parentElement.remove()" 
-                class="flex-shrink-0 ${colors.icon} hover:opacity-70 transition-opacity">
-            <i class="bi bi-x-lg text-sm"></i>
+                class="flex-shrink-0 text-slate-400 hover:text-slate-600 transition-colors p-1 rounded-full hover:bg-slate-100/50">
+            <i class="bi bi-x-gl text-sm"></i>
         </button>
     `;
 
     // Agregar al contenedor
     container.appendChild(toast);
 
-    // Animar entrada
+    // Animar entrada suave
     requestAnimationFrame(() => {
         toast.classList.remove('translate-x-10', 'opacity-0');
     });
@@ -97,7 +100,7 @@ export function showToast(type, message, duration = TOAST_DURATION, position = '
     // Auto-remover después de duración
     setTimeout(() => {
         toast.classList.add('opacity-0', 'translate-x-full');
-        setTimeout(() => toast.remove(), 300);
+        setTimeout(() => toast.remove(), 500);
     }, duration);
 
     return toast;

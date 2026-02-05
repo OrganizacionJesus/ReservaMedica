@@ -54,8 +54,8 @@ Route::post('/verificar-correo', [AuthController::class, 'verificarCorreo'])->na
 Route::post('/verificar-documento', [AuthController::class, 'getSecurityQuestions'])->name('auth.verificar-documento'); // Reuse getSecurityQuestions as it checks existence
 
 // Rutas de validación AJAX para Registro (usadas por register.blade.php)
-Route::post('/validate/email', [App\Http\Controllers\ValidationController::class, 'checkEmail'])->name('validate.email');
-Route::post('/validate/document', [App\Http\Controllers\ValidationController::class, 'checkDocument'])->name('validate.document');
+Route::post('/validate/email', [AuthController::class, 'checkEmail'])->name('validate.email');
+Route::post('/validate/document', [AuthController::class, 'checkDocument'])->name('validate.document');
 
 // Public Location Routes for Register (using closures to avoid middleware)
 Route::get('ubicacion/get-ciudades/{estadoId}', function ($estadoId) {
