@@ -33,14 +33,14 @@ Route::get('/', function () {
 
 // Rutas de autenticación
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
-Route::post('/login', [AuthController::class, 'login']);
+Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
 Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
 Route::post('/register', [AuthController::class, 'register']);
 // Rutas de recuperación profesional
 Route::get('/recovery', [AuthController::class, 'showRecovery'])->name('recovery');
-Route::post('/recovery/send-email', [AuthController::class, 'sendRecovery'])->name('recovery.send-email');
-Route::post('/recovery/get-questions', [AuthController::class, 'getSecurityQuestions'])->name('recovery.get-questions');
-Route::post('/recovery/verify-answers', [AuthController::class, 'verifySecurityAnswers'])->name('recovery.verify-answers');
+Route::post('/recovery/send-email', [AuthController::class, 'sendRecovery'])->name('recovery.send-email')->middleware('throttle:5,1');
+Route::post('/recovery/get-questions', [AuthController::class, 'getSecurityQuestions'])->name('recovery.get-questions')->middleware('throttle:5,1');
+Route::post('/recovery/verify-answers', [AuthController::class, 'verifySecurityAnswers'])->name('recovery.verify-answers')->middleware('throttle:5,1');
 
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 Route::get('/password/reset', [AuthController::class, 'showRecovery'])->name('password.request');
@@ -72,64 +72,79 @@ Route::get('ubicacion/get-parroquias/{municipioId}', function($municipioId) {
     return response()->json($parroquias);
 });
 
-// TEMPORARY: Reset Security Questions for Debugging
-Route::get('/force-reset-questions', function() {
-    // ID 7 as seen in logs "milenasivira@gmail.com"
-    $usuario = \App\Models\Usuario::find(7);
-    
-    if(!$usuario) return "Usuario ID 7 no encontrado";
-    
-    // Delet old answers
-    \App\Models\RespuestaSeguridad::where('user_id', $usuario->id)->delete();
-    
-    // Create new ones (All 'hola')
-    // Encrypted with md5(md5(trim('hola'))) -> 'cf96bce69f409820e4b6bce661eb4e78'
-    $hash = md5(md5('hola'));
-    
-    // Pregunta IDs: 1, 2, 3 (Assuming they exist in catalog)
-    for($i=1; $i<=3; $i++) {
-        \App\Models\RespuestaSeguridad::create([
-            'user_id' => $usuario->id,
-            'pregunta_id' => $i,
-            'respuesta_hash' => $hash
-        ]);
-    }
-    
-    return "Preguntas de seguridad reseteadas para {$usuario->correo}. La respuesta ahora es 'hola' para las 3 preguntas.";
-});
+if (app()->environment('local')) {
+    Route::middleware(['auth', 'role:admin'])->group(function () {
+        Route::get('/force-reset-questions', function() {
+            // ID 7 as seen in logs "milenasivira@gmail.com"
+            $usuario = \App\Models\Usuario::find(7);
+            
+            if(!$usuario) return "Usuario ID 7 no encontrado";
+            
+            // Delet old answers
+            \App\Models\RespuestaSeguridad::where('user_id', $usuario->id)->delete();
+            
+            // Create new ones (All 'hola')
+            // Encrypted with md5(md5(trim('hola'))) -> 'cf96bce69f409820e4b6bce661eb4e78'
+            $hash = md5(md5('hola'));
+            
+            // Pregunta IDs: 1, 2, 3 (Assuming they exist in catalog)
+            for($i=1; $i<=3; $i++) {
+                \App\Models\RespuestaSeguridad::create([
+                    'user_id' => $usuario->id,
+                    'pregunta_id' => $i,
+                    'respuesta_hash' => $hash
+                ]);
+            }
+            
+            return "Preguntas de seguridad reseteadas para {$usuario->correo}. La respuesta ahora es 'hola' para las 3 preguntas.";
+        });
 
-// Test route to verify user existence (TEMPORARY - REMOVE AFTER DEBUGGING)
-Route::get('/test-user-search/{email}', function($email) {
-    $usuario = \App\Models\Usuario::where('correo', $email)->first();
-    
-    if ($usuario) {
-        $respuestas = \App\Models\RespuestaSeguridad::where('user_id', $usuario->id)
-                                                    ->with('pregunta')
-                                                    ->get();
-        
-        return response()->json([
-            'found' => true,
-            'usuario' => [
-                'id' => $usuario->id,
-                'correo' => $usuario->correo,
-                'numero_documento' => $usuario->numero_documento ?? 'N/A',
-                'rol_id' => $usuario->rol_id
-            ],
-            'respuestas_count' => $respuestas->count(),
-            'preguntas' => $respuestas->map(fn($r) => [
-                'pregunta_id' => $r->pregunta_id,
-                'pregunta_texto' => $r->pregunta->pregunta ?? 'N/A'
-            ])
-        ]);
-    }
-    
-    return response()->json([
-        'found' => false,
-        'searched_email' => $email,
-        'all_usuarios_count' => \App\Models\Usuario::count(),
-        'sample_emails' => \App\Models\Usuario::limit(5)->pluck('correo')
-    ]);
-})->name('test.user.search');
+        Route::get('/test-user-search/{email}', function($email) {
+            $usuario = \App\Models\Usuario::where('correo', $email)->first();
+            
+            if ($usuario) {
+                $respuestas = \App\Models\RespuestaSeguridad::where('user_id', $usuario->id)
+                                                            ->with('pregunta')
+                                                            ->get();
+                
+                return response()->json([
+                    'found' => true,
+                    'usuario' => [
+                        'id' => $usuario->id,
+                        'correo' => $usuario->correo,
+                        'numero_documento' => $usuario->numero_documento ?? 'N/A',
+                        'rol_id' => $usuario->rol_id
+                    ],
+                    'respuestas_count' => $respuestas->count(),
+                    'preguntas' => $respuestas->map(fn($r) => [
+                        'pregunta_id' => $r->pregunta_id,
+                        'pregunta_texto' => $r->pregunta->pregunta ?? 'N/A'
+                    ])
+                ]);
+            }
+            
+            return response()->json([
+                'found' => false,
+                'searched_email' => $email,
+                'all_usuarios_count' => \App\Models\Usuario::count(),
+                'sample_emails' => \App\Models\Usuario::limit(5)->pluck('correo')
+            ]);
+        })->name('test.user.search');
+
+        Route::get('/fix-payment-methods', function () {
+            $methods = \App\Models\MetodoPago::all();
+            $count = 0;
+            foreach ($methods as $method) {
+                if (empty($method->nombre)) {
+                    $method->nombre = $method->descripcion;
+                    $method->save();
+                    $count++;
+                }
+            }
+            return "Se han corregido $count métodos de pago. Ya puede recargar la página de registro de pago.";
+        });
+    });
+}
 
 // Rutas públicas para búsqueda de médicos
 Route::get('buscar-medicos-publico', [MedicoController::class, 'buscar'])->name('medicos.buscar.publico');
@@ -138,10 +153,6 @@ Route::get('buscar-medicos-publico', [MedicoController::class, 'buscar'])->name(
 // RUTAS AJAX PARA SISTEMA DE CITAS (sin autenticación para AJAX del frontend)
 // =========================================================================
 Route::get('/ajax/verificar-correo', [AuthController::class, 'verificarCorreo'])->name('ajax.verificar-correo');
-
-// Rutas de validación AJAX
-Route::post('/validate/email', [App\Http\Controllers\ValidationController::class, 'checkEmail'])->name('validate.email');
-Route::post('/validate/document', [App\Http\Controllers\ValidationController::class, 'checkDocument'])->name('validate.document');
 
 Route::prefix('ajax/citas')->group(function () {
     Route::get('/consultorios-por-estado/{estadoId}', [CitaController::class, 'getConsultoriosPorEstado']);
@@ -166,12 +177,12 @@ Route::middleware(['auth'])->group(function () {
     // DASHBOARDS SEGÚN ROL
     // =========================================================================
     
-    Route::get('/admin/dashboard', [AdministradorController::class, 'dashboard'])->name('admin.dashboard');
-    Route::get('/medico/dashboard', [MedicoController::class, 'dashboard'])->name('medico.dashboard');
-    Route::get('/paciente/dashboard', [PacienteController::class, 'dashboard'])->name('paciente.dashboard');
+    Route::get('/admin/dashboard', [AdministradorController::class, 'dashboard'])->name('admin.dashboard')->middleware('role:admin');
+    Route::get('/medico/dashboard', [MedicoController::class, 'dashboard'])->name('medico.dashboard')->middleware('role:medico');
+    Route::get('/paciente/dashboard', [PacienteController::class, 'dashboard'])->name('paciente.dashboard')->middleware('role:paciente');
     
     // Rutas de Notificaciones Admin
-    Route::prefix('admin/notificaciones')->group(function () {
+    Route::prefix('admin/notificaciones')->middleware('role:admin')->group(function () {
         Route::get('/', [AdminNotificationController::class, 'index'])->name('admin.notificaciones.index');
         Route::post('/{id}/marcar-leida', [AdminNotificationController::class, 'markAsRead'])->name('admin.notificaciones.marcar-leida');
         Route::post('/leer-todas', [AdminNotificationController::class, 'markAllAsRead'])->name('admin.notificaciones.leer-todas');
@@ -180,13 +191,13 @@ Route::middleware(['auth'])->group(function () {
     });
 
     // Rutas de Broadcast Admin (Solo Root)
-    Route::prefix('admin/broadcast')->middleware('auth')->group(function () {
+    Route::prefix('admin/broadcast')->middleware(['auth', 'role:admin'])->group(function () {
         Route::get('/create', [\App\Http\Controllers\Admin\AdminBroadcastController::class, 'create'])->name('admin.broadcast.create');
         Route::post('/store', [\App\Http\Controllers\Admin\AdminBroadcastController::class, 'store'])->name('admin.broadcast.store');
     });
     
     // Rutas Específicas Paciente
-    Route::prefix('paciente')->middleware(['auth'])->group(function () {
+    Route::prefix('paciente')->middleware(['auth', 'role:paciente'])->group(function () {
         Route::get('/historial', [PacienteController::class, 'historial'])->name('paciente.historial');
         Route::get('/pagos', [PacienteController::class, 'pagos'])->name('paciente.pagos');
         Route::get('/citas/create', [CitaController::class, 'create'])->name('paciente.citas.create');
@@ -230,7 +241,7 @@ Route::middleware(['auth'])->group(function () {
     });
 
     // Rutas Específicas Representante
-    Route::prefix('representante')->middleware(['auth'])->group(function () {
+    Route::prefix('representante')->middleware(['auth', 'role:paciente'])->group(function () {
         Route::get('/solicitudes-acceso', [HistoriaClinicaController::class, 'listarSolicitudesRepresentante'])->name('representante.solicitudes');
         Route::post('/solicitudes-acceso/{id}/aprobar', [HistoriaClinicaController::class, 'aprobarSolicitud'])->name('representante.solicitudes.aprobar');
         Route::post('/solicitudes-acceso/{id}/rechazar', [HistoriaClinicaController::class, 'rechazarSolicitud'])->name('representante.solicitudes.rechazar');
@@ -243,7 +254,7 @@ Route::middleware(['auth'])->group(function () {
     // ADMINISTRACIÓN DEL SISTEMA
     // =========================================================================
     
-    Route::prefix('admin')->group(function () {
+    Route::prefix('admin')->middleware(['role:admin'])->group(function () {
         // Usuarios
         Route::resource('usuarios', UsuarioController::class);
         Route::post('usuarios/{id}/cambiar-password', [UsuarioController::class, 'cambiarPassword'])->name('usuarios.cambiar-password');
@@ -270,12 +281,12 @@ Route::middleware(['auth'])->group(function () {
     // MÉDICOS
     // =========================================================================
     
-    Route::resource('medicos', MedicoController::class);
-    Route::get('medicos/{id}/horarios', [MedicoController::class, 'horarios'])->name('medicos.horarios');
-    Route::post('medicos/{id}/guardar-horario', [MedicoController::class, 'guardarHorario'])->name('medicos.guardar-horario');
-    Route::get('buscar-medicos', [MedicoController::class, 'buscar'])->name('medicos.buscar');
+    Route::resource('medicos', MedicoController::class)->middleware('role:admin');
+    Route::get('medicos/{id}/horarios', [MedicoController::class, 'horarios'])->name('medicos.horarios')->middleware('role:admin');
+    Route::post('medicos/{id}/guardar-horario', [MedicoController::class, 'guardarHorario'])->name('medicos.guardar-horario')->middleware('role:admin');
+    Route::get('buscar-medicos', [MedicoController::class, 'buscar'])->name('medicos.buscar')->middleware('role:admin');
 
-    Route::prefix('medico')->middleware(['auth'])->group(function () {
+    Route::prefix('medico')->middleware(['auth', 'role:medico'])->group(function () {
         Route::get('/perfil/editar', [MedicoController::class, 'editPerfil'])->name('medico.perfil.edit');
         Route::put('/perfil', [MedicoController::class, 'updatePerfil'])->name('medico.perfil.update');
 
@@ -301,44 +312,44 @@ Route::middleware(['auth'])->group(function () {
     // PACIENTES
     // =========================================================================
     
-    Route::resource('pacientes', PacienteController::class);
-    Route::get('pacientes/{id}/historia-clinica', [PacienteController::class, 'historiaClinica'])->name('pacientes.historia-clinica');
-    Route::post('pacientes/{id}/actualizar-historia', [PacienteController::class, 'actualizarHistoriaClinica'])->name('pacientes.actualizar-historia');
+    Route::resource('pacientes', PacienteController::class)->middleware('role:admin|medico');
+    Route::get('pacientes/{id}/historia-clinica', [PacienteController::class, 'historiaClinica'])->name('pacientes.historia-clinica')->middleware('role:admin|medico');
+    Route::post('pacientes/{id}/actualizar-historia', [PacienteController::class, 'actualizarHistoriaClinica'])->name('pacientes.actualizar-historia')->middleware('role:admin|medico');
     
     // =========================================================================
     // CITAS MÉDICAS
     // =========================================================================
     
-    Route::resource('citas', CitaController::class);
-    Route::post('citas/{id}/cambiar-estado', [CitaController::class, 'cambiarEstado'])->name('citas.cambiar-estado');
-    Route::post('citas/{id}/solicitar-cancelacion', [CitaController::class, 'solicitarCancelacion'])->name('citas.solicitar-cancelacion');
-    Route::get('buscar-disponibilidad', [CitaController::class, 'buscarDisponibilidad'])->name('citas.buscar-disponibilidad');
-    Route::get('events', [CitaController::class, 'events'])->name('citas.events');
-    Route::get('admin/buscar-paciente', [CitaController::class, 'buscarPaciente'])->name('admin.buscar-paciente');
+    Route::resource('citas', CitaController::class)->middleware('role:admin|medico');
+    Route::post('citas/{id}/cambiar-estado', [CitaController::class, 'cambiarEstado'])->name('citas.cambiar-estado')->middleware('role:admin|medico');
+    Route::post('citas/{id}/solicitar-cancelacion', [CitaController::class, 'solicitarCancelacion'])->name('citas.solicitar-cancelacion')->middleware('role:admin|medico');
+    Route::get('buscar-disponibilidad', [CitaController::class, 'buscarDisponibilidad'])->name('citas.buscar-disponibilidad')->middleware('role:admin|medico');
+    Route::get('events', [CitaController::class, 'events'])->name('citas.events')->middleware('role:admin|medico');
+    Route::get('admin/buscar-paciente', [CitaController::class, 'buscarPaciente'])->name('admin.buscar-paciente')->middleware('role:admin');
     
     // =========================================================================
     // ESPECIALIDADES MÉDICAS
     // =========================================================================
     
-    Route::resource('especialidades', EspecialidadController::class);
-    Route::get('especialidades/{id}/medicos', [EspecialidadController::class, 'medicos'])->name('especialidades.medicos');
+    Route::resource('especialidades', EspecialidadController::class)->middleware('role:admin');
+    Route::get('especialidades/{id}/medicos', [EspecialidadController::class, 'medicos'])->name('especialidades.medicos')->middleware('role:admin');
     
     // =========================================================================
     // CONSULTORIOS
     // =========================================================================
     
-    Route::resource('consultorios', ConsultorioController::class);
-    Route::get('consultorios/{id}/medicos', [ConsultorioController::class, 'medicos'])->name('consultorios.medicos');
-    Route::get('consultorios/{id}/horarios', [ConsultorioController::class, 'horarios'])->name('consultorios.horarios');
-    Route::get('get-ciudades-consultorio/{estadoId}', [ConsultorioController::class, 'getCiudades'])->name('consultorios.get-ciudades');
-    Route::get('get-municipios-consultorio/{estadoId}', [ConsultorioController::class, 'getMunicipios'])->name('consultorios.get-municipios');
-    Route::get('get-parroquias-consultorio/{municipioId}', [ConsultorioController::class, 'getParroquias'])->name('consultorios.get-parroquias');
+    Route::resource('consultorios', ConsultorioController::class)->middleware('role:admin');
+    Route::get('consultorios/{id}/medicos', [ConsultorioController::class, 'medicos'])->name('consultorios.medicos')->middleware('role:admin');
+    Route::get('consultorios/{id}/horarios', [ConsultorioController::class, 'horarios'])->name('consultorios.horarios')->middleware('role:admin');
+    Route::get('get-ciudades-consultorio/{estadoId}', [ConsultorioController::class, 'getCiudades'])->name('consultorios.get-ciudades')->middleware('role:admin');
+    Route::get('get-municipios-consultorio/{estadoId}', [ConsultorioController::class, 'getMunicipios'])->name('consultorios.get-municipios')->middleware('role:admin');
+    Route::get('get-parroquias-consultorio/{municipioId}', [ConsultorioController::class, 'getParroquias'])->name('consultorios.get-parroquias')->middleware('role:admin');
     
     // =========================================================================
     // SISTEMA DE UBICACIÓN
     // =========================================================================
     
-    Route::prefix('ubicacion')->group(function () {
+    Route::prefix('ubicacion')->middleware('role:admin')->group(function () {
         // Estados
         Route::get('estados', [UbicacionController::class, 'indexEstados'])->name('ubicacion.estados.index');
         Route::get('estados/create', [UbicacionController::class, 'createEstado'])->name('ubicacion.estados.create');
@@ -560,20 +571,22 @@ Route::middleware(['auth'])->group(function () {
 */
 
 if (app()->environment('local')) {
-    Route::get('/debug', function () {
-        return view('debug');
-    });
+    Route::middleware(['auth', 'role:admin'])->group(function () {
+        Route::get('/debug', function () {
+            return view('debug');
+        });
 
-    Route::get('/test-mail', function () {
-        try {
-            \Illuminate\Support\Facades\Mail::raw('Este es un correo de prueba de Mailtrap desde el Sistema Médico.', function ($message) {
-                $message->to('test@example.com')
-                        ->subject('Prueba de Configuración Mailtrap');
-            });
-            return 'Correo enviado correctamente. Revisa tu bandeja de entrada de Mailtrap.';
-        } catch (\Exception $e) {
-            return 'Error al enviar el correo: ' . $e->getMessage();
-        }
+        Route::get('/test-mail', function () {
+            try {
+                \Illuminate\Support\Facades\Mail::raw('Este es un correo de prueba de Mailtrap desde el Sistema Médico.', function ($message) {
+                    $message->to('test@example.com')
+                            ->subject('Prueba de Configuración Mailtrap');
+                });
+                return 'Correo enviado correctamente. Revisa tu bandeja de entrada de Mailtrap.';
+            } catch (\Exception $e) {
+                return 'Error al enviar el correo: ' . $e->getMessage();
+            }
+        });
     });
 }
 
@@ -585,18 +598,4 @@ if (app()->environment('local')) {
 
 Route::fallback(function () {
     return response()->view('errors.404', [], 404);
-});
-
-// Temporary Fix Route for Payment Methods
-Route::get('/fix-payment-methods', function () {
-    $methods = \App\Models\MetodoPago::all();
-    $count = 0;
-    foreach ($methods as $method) {
-        if (empty($method->nombre)) {
-            $method->nombre = $method->descripcion;
-            $method->save();
-            $count++;
-        }
-    }
-    return "Se han corregido $count métodos de pago. Ya puede recargar la página de registro de pago.";
 });

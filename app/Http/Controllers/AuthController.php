@@ -209,7 +209,7 @@ class AuthController extends Controller
 
     public function register(Request $request)
     {
-        Log::info('Iniciando registro de paciente', ['correo' => $request->correo]);
+        Log::info('Iniciando registro', ['rol_id' => $request->rol_id]);
 
         $validator = Validator::make($request->all(), [
             'rol_id' => 'required|in:2,3',
@@ -394,8 +394,7 @@ class AuthController extends Controller
         $identifier = $request->identifier;
         
         Log::info('getSecurityQuestions called', [
-            'identifier' => $identifier,
-            'request_all' => $request->all()
+            'identifier' => $identifier
         ]);
         
         // Try to find user by email first
@@ -528,17 +527,14 @@ class AuthController extends Controller
             // Check 3: Raw (Legacy support - includes spaces and case)
             $rawHash = md5(md5($userAnswer));
             
-            Log::info("Verification attempt for Question {$questionId}", [
+            Log::info("Verification attempt for security question", [
                 'user_id' => $usuario->id,
-                'input_raw' => $userAnswer,
-                'input_normalized' => $normalizedAnswer,
-                'stored_hash' => $respuestaAlmacenada->respuesta_hash,
-                'generated_normalized_hash' => $normalizedHash,
-                'generated_trimmed_hash' => $trimmedHash,
-                'generated_raw_hash' => $rawHash,
-                'match_normalized' => ($respuestaAlmacenada->respuesta_hash === $normalizedHash),
-                'match_trimmed' => ($respuestaAlmacenada->respuesta_hash === $trimmedHash),
-                'match_raw' => ($respuestaAlmacenada->respuesta_hash === $rawHash)
+                'pregunta_id' => $questionId,
+                'matched' => (
+                    $respuestaAlmacenada->respuesta_hash === $normalizedHash ||
+                    $respuestaAlmacenada->respuesta_hash === $trimmedHash ||
+                    $respuestaAlmacenada->respuesta_hash === $rawHash
+                )
             ]);
             
             if ($respuestaAlmacenada->respuesta_hash !== $normalizedHash && 

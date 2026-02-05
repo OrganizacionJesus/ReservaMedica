@@ -745,7 +745,8 @@ class PagoController extends Controller
             'monto_pagado_bs' => 'required|numeric|min:0',
             'tasa_aplicada_id' => 'required|exists:tasas_dolar,id',
             'referencia' => 'required|max:255',
-            'comentarios' => 'nullable|string'
+            'comentarios' => 'nullable|string',
+            'comprobante' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:2048'
         ], [
             'cita_id.required' => 'Debe seleccionar una cita',
             'id_metodo.required' => 'Debe seleccionar un método de pago',
@@ -798,8 +799,7 @@ class PagoController extends Controller
             $comprobantePath = null;
             if ($request->hasFile('comprobante')) {
                 $file = $request->file('comprobante');
-                $filename = time() . '_' . $file->getClientOriginalName();
-                $comprobantePath = $file->storeAs('comprobantes_pagos', $filename, 'public');
+                $comprobantePath = $file->storeAs('comprobantes_pagos', $file->hashName(), 'public');
             }
 
             // Crear o verificar factura del paciente

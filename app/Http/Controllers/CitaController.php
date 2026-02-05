@@ -308,7 +308,14 @@ class CitaController extends Controller
             }
         }
         
-        Log::info('Creando cita', ['user_id' => $user->id, 'rol' => $user->rol_id, 'data' => $request->all()]);
+        Log::info('Creando cita', [
+            'user_id' => $user->id,
+            'rol' => $user->rol_id,
+            'tipo_cita' => $request->input('tipo_cita'),
+            'medico_id' => $request->input('medico_id'),
+            'consultorio_id' => $request->input('consultorio_id'),
+            'fecha_cita' => $request->input('fecha_cita')
+        ]);
         
         // Reglas de validación base
         $rules = [
@@ -909,6 +916,9 @@ class CitaController extends Controller
         if ($user->rol_id == 3) {
             // Verificar que la cita pertenezca al paciente o a uno de sus representados
             $pacienteUsuario = $user->paciente;
+            if (!$pacienteUsuario) {
+                abort(403, 'No se encontró el perfil de paciente.');
+            }
             $esPropia = $cita->paciente_id == $pacienteUsuario->id;
             
             // Si no es propia, verificar si es de un paciente especial representado por este usuario
@@ -924,6 +934,10 @@ class CitaController extends Controller
                                 ->where('paciente_especial_id', $cita->paciente_especial_id)
                                 ->exists();
                 }
+            }
+
+            if (!$esPropia && !$esTercero) {
+                abort(403, 'No tiene permiso para ver esta cita.');
             }
 
             return view('paciente.citas.show', compact('cita'));
