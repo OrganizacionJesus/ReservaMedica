@@ -14,6 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\DB;
 use App\Models\Usuario;
 use App\Notifications\Admin\NuevoPagoRegistrado;
 
@@ -21,6 +22,8 @@ class PagoController extends Controller
 {
     public function __construct()
     {
+        // Note: FacturacionService NOT injected here because billing now happens
+        // in MedicoController when cita is completed, not when payment is confirmed
         $this->middleware(function ($request, $next) {
             $user = auth()->user();
             if ($user && $user->administrador && $user->administrador->tipo_admin !== 'Root') {
@@ -279,10 +282,9 @@ class PagoController extends Controller
                     $cita->update(['estado_cita' => 'Confirmada']);
                 }
 
-                // Ejecutar lógica de facturación avanzada (reparto de porcentajes)
-                if (!$cita->facturaCabecera) {
-                    $this->ejecutarFacturacionAvanzada($cita);
-                }
+                // ✅ CAMBIO ARQUITECTÓNICO: La facturación avanzada ahora se ejecuta
+                // cuando el médico completa la cita, NO cuando se confirma el pago.
+                // Esto evita crear montos pendientes de liquidación para citas no atendidas.
             }
 
             \DB::commit();
@@ -316,11 +318,7 @@ class PagoController extends Controller
                 }
             }
 
-            if ($request->ajax()) {
-                return response()->json(['success' => true, 'message' => 'Pago confirmado y cita actualizada exitosamente.']);
-            }
-
-            return redirect()->back()->with('success', 'Pago confirmado y cita actualizada exitosamente.');
+            return redirect()->route('facturacion.create')->with('success', 'Pago confirmado exitosamente');
 
         } catch (\Exception $e) {
             \DB::rollBack();
@@ -334,138 +332,15 @@ class PagoController extends Controller
         }
     }
 
-    /**
-     * Ejecutar la lógica de facturación avanzada con reparto de porcentajes
-     */
-    private function ejecutarFacturacionAvanzada($cita)
-    {
-        $facturaPaciente = $cita->facturaPaciente;
-        if (!$facturaPaciente) {
-            return;
-        }
-
-        $tasa = $facturaPaciente->tasa;
-        if (!$tasa) {
-            $tasa = TasaDolar::where('status', true)->orderBy('fecha_tasa', 'desc')->first();
-        }
-
-        if (!$tasa) {
-            \Log::error('No se encontró tasa de cambio para facturación avanzada');
-            return;
-        }
-
-        // Crear cabecera de factura avanzada
-        $facturaCabecera = \App\Models\FacturaCabecera::create([
-            'cita_id' => $cita->id,
-            'nro_control' => $this->generarNumeroControl(),
-            'paciente_id' => $cita->paciente_id,
-            'medico_id' => $cita->medico_id,
-            'tasa_id' => $tasa->id,
-            'fecha_emision' => now(),
-            'status' => true
-        ]);
-
-        // Obtener configuración de reparto
-        $configReparto = \App\Models\ConfiguracionReparto::where('medico_id', $cita->medico_id)
-                                            ->where('consultorio_id', $cita->consultorio_id)
-                                            ->first();
-
-        if (!$configReparto) {
-            // Usar configuración por defecto (sin consultorio específico)
-            $configReparto = \App\Models\ConfiguracionReparto::where('medico_id', $cita->medico_id)
-                                                ->whereNull('consultorio_id')
-                                                ->first();
-        }
-
-        if (!$configReparto) {
-            // Configuración por defecto si no existe
-            $configReparto = new \stdClass();
-            $configReparto->porcentaje_medico = 70.00;
-            $configReparto->porcentaje_consultorio = 20.00;
-            $configReparto->porcentaje_sistema = 10.00;
-        }
-
-        // Crear detalles de factura
-        $this->crearDetallesFactura($facturaCabecera, $cita, $configReparto);
-
-        // Crear totales de factura
-        $this->crearTotalesFactura($facturaCabecera, $tasa);
-    }
-
-    private function generarNumeroControl()
-    {
-        $year = date('Y');
-        $sequence = \App\Models\FacturaCabecera::whereYear('fecha_emision', $year)->count() + 1;
-        return 'FACT-' . $year . '-' . str_pad($sequence, 6, '0', STR_PAD_LEFT);
-    }
-
-    private function crearDetallesFactura($facturaCabecera, $cita, $configReparto)
-    {
-        $tarifaUSD = $cita->tarifa + $cita->tarifa_extra;
-
-        // Detalle para el médico
-        \App\Models\FacturaDetalle::create([
-            'cabecera_id' => $facturaCabecera->id,
-            'entidad_tipo' => 'Medico',
-            'entidad_id' => $cita->medico_id,
-            'descripcion' => 'Honorarios médicos (' . $configReparto->porcentaje_medico . '%)',
-            'cantidad' => 1,
-            'precio_unitario_usd' => $tarifaUSD * ($configReparto->porcentaje_medico / 100),
-            'subtotal_usd' => $tarifaUSD * ($configReparto->porcentaje_medico / 100),
-            'status' => true
-        ]);
-
-        // Detalle para el consultorio (si aplica)
-        if ($cita->consultorio_id && $configReparto->porcentaje_consultorio > 0) {
-            \App\Models\FacturaDetalle::create([
-                'cabecera_id' => $facturaCabecera->id,
-                'entidad_tipo' => 'Consultorio',
-                'entidad_id' => $cita->consultorio_id,
-                'descripcion' => 'Uso de consultorio (' . $configReparto->porcentaje_consultorio . '%)',
-                'cantidad' => 1,
-                'precio_unitario_usd' => $tarifaUSD * ($configReparto->porcentaje_consultorio / 100),
-                'subtotal_usd' => $tarifaUSD * ($configReparto->porcentaje_consultorio / 100),
-                'status' => true
-            ]);
-        }
-
-        // Detalle para el sistema
-        if ($configReparto->porcentaje_sistema > 0) {
-            \App\Models\FacturaDetalle::create([
-                'cabecera_id' => $facturaCabecera->id,
-                'entidad_tipo' => 'Sistema',
-                'entidad_id' => null,
-                'descripcion' => 'Comisión del sistema (' . $configReparto->porcentaje_sistema . '%)',
-                'cantidad' => 1,
-                'precio_unitario_usd' => $tarifaUSD * ($configReparto->porcentaje_sistema / 100),
-                'subtotal_usd' => $tarifaUSD * ($configReparto->porcentaje_sistema / 100),
-                'status' => true
-            ]);
-        }
-    }
-
-    private function crearTotalesFactura($facturaCabecera, $tasa)
-    {
-        $detalles = $facturaCabecera->detalles;
-
-        foreach ($detalles as $detalle) {
-            $baseImponibleUSD = $detalle->subtotal_usd;
-            $totalFinalUSD = $baseImponibleUSD;
-            $totalFinalBS = $totalFinalUSD * $tasa->valor;
-
-            \App\Models\FacturaTotal::create([
-                'cabecera_id' => $facturaCabecera->id,
-                'entidad_tipo' => $detalle->entidad_tipo,
-                'entidad_id' => $detalle->entidad_id,
-                'base_imponible_usd' => $baseImponibleUSD,
-                'impuestos_usd' => 0,
-                'total_final_usd' => $totalFinalUSD,
-                'total_final_bs' => $totalFinalBS,
-                'estado_liquidacion' => 'Pendiente',
-                'status' => true
-            ]);
-        }
-    }
+    // ❌ ELIMINADO: Métodos duplicados de facturación movidos a FacturacionService
+    // - ejecutarFacturacionAvanzada()
+    // - generarNumeroControl()
+    // - crearDetallesFactura()
+    // - crearTotalesFactura()
+    //
+    // La facturación avanzada ahora se ejecuta en MedicoController cuando
+    // la cita se marca como "Completada", garantizando que solo se generen
+    // montos de liquidación para citas realmente atendidas.
 
     public function rechazarPago(Request $request, $id)
     {
@@ -519,7 +394,7 @@ class PagoController extends Controller
             return response()->json(['success' => true, 'message' => 'Pago rechazado exitosamente']);
         }
 
-        return redirect()->back()->with('success', 'Pago rechazado exitosamente');
+        return redirect()->route('facturacion.create')->with('success', 'Pago rechazado exitosamente');
     }
 
     private function getEstadoInicial($metodoPagoId)

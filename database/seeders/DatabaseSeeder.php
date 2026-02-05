@@ -15,6 +15,7 @@ class DatabaseSeeder extends Seeder
             PreguntasCatalogoTableSeeder::class,
             EspecialidadesTableSeeder::class,
             MetodoPagoTableSeeder::class,
+            ConfiguracionGlobalTableSeeder::class,
             
             // Grupo 2: Dependen de Grupo 1
             CiudadesTableSeeder::class,
@@ -37,6 +38,7 @@ class DatabaseSeeder extends Seeder
             MedicoConsultorioTableSeeder::class,
             CitasTableSeeder::class,
             HistoriaClinicaBaseTableSeeder::class,
+            DatosPagoMedicoSeeder::class,
             
             // Grupo 5: Dependen de Grupo 4
             RepresentantePacienteEspecialTableSeeder::class,

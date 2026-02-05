@@ -14,6 +14,7 @@ use App\Models\MedicoConsultorio;
 use App\Models\FacturaCabecera;
 use App\Models\Notificacion;
 use App\Models\Usuario;
+use App\Services\FacturacionService;
 use Illuminate\Http\Request;
 
 use Illuminate\Support\Facades\Validator;
@@ -24,6 +25,13 @@ use Carbon\Carbon;
 
 class CitaController extends Controller
 {
+    protected FacturacionService $facturacionService;
+
+    public function __construct(FacturacionService $facturacionService)
+    {
+        $this->facturacionService = $facturacionService;
+    }
+
     public function index(Request $request)
     {
         $user = auth()->user();
@@ -1246,6 +1254,30 @@ class CitaController extends Controller
         }
 
         $cita->save();
+
+        // 🎯 NUEVO: Ejecutar facturación avanzada si se marca como Completada
+        if ($request->estado_cita == 'Completada' && $estadoAnterior != 'Completada') {
+            try {
+                // Verificar que exista pago confirmado
+                $pagoConfirmado = $cita->facturaPaciente?->pagos()
+                    ->where('estado', 'Confirmado')
+                    ->where('status', true)
+                    ->exists();
+                
+                if (!$pagoConfirmado) {
+                    return redirect()->back()->with('error', 'No se puede completar una cita sin pago confirmado');
+                }
+
+                // Ejecutar facturación avanzada (reparto Médico/Consultorio/Sistema)
+                if (!$cita->facturaCabecera) {
+                    $this->facturacionService->ejecutarFacturacionAvanzada($cita);
+                }
+            } catch (\Exception $e) {
+                \Log::error('Error ejecutando facturación al completar cita: ' . $e->getMessage());
+                return redirect()->back()->
+ with('error', 'La cita se completó pero hubo un error en la facturación: ' . $e->getMessage());
+            }
+        }
 
         try {
             $paciente = $cita->paciente;

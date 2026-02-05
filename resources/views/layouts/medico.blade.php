@@ -193,6 +193,12 @@
                 <span class="font-medium text-sm">Mi Perfil</span>
             </a>
             
+            <a href="{{ route('medico.metodos-pago.index') }}" 
+               class="flex items-center px-3 py-2.5 rounded-lg transition-all duration-200 group {{ request()->routeIs('medico.metodos-pago.*') ? 'bg-emerald-600/20 text-emerald-400 ring-1 ring-emerald-500/30' : 'text-slate-400 hover:bg-white/5 hover:text-slate-200' }}">
+                <i class="bi bi-credit-card-fill text-lg mr-3 {{ request()->routeIs('medico.metodos-pago.*') ? 'text-emerald-400' : 'text-slate-500 group-hover:text-slate-200 transition-colors' }}"></i>
+                <span class="font-medium text-sm">Mis Métodos de Pago</span>
+            </a>
+            
             <div class="pb-20"></div>
         </nav>
         

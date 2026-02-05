@@ -14,6 +14,9 @@ class Liquidacion extends Model
     protected $fillable = [
         'entidad_tipo',
         'entidad_id',
+        'periodo_tipo',
+        'fecha_inicio_periodo',
+        'fecha_fin_periodo',
         'monto_total_usd',
         'monto_total_bs',
         'metodo_pago',
