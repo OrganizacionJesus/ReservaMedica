@@ -1,0 +1,220 @@
+@extends('layouts.admin')
+
+@section('title', 'Reportes Operativos')
+
+@section('content')
+    <div class="space-y-6">
+        <!-- Breadcrumb & Actions -->
+        <div class="space-y-4">
+            <!-- Breadcrumb -->
+            <nav class="flex" aria-label="Breadcrumb">
+                <ol class="inline-flex items-center space-x-1 md:space-x-3">
+                    <li class="inline-flex items-center">
+                        <a href="{{ route('reportes.index') }}"
+                            class="text-sm font-medium text-gray-500 hover:text-medical-600 flex items-center gap-1 transition-colors">
+                            <i class="bi bi-graph-up-arrow"></i> Reportes
+                        </a>
+                    </li>
+                    <li>
+                        <div class="flex items-center">
+                            <i class="bi bi-chevron-right text-gray-400 text-xs mx-1"></i>
+                            <span class="text-sm font-bold text-gray-900 dark:text-white ml-1">Operatividad</span>
+                        </div>
+                    </li>
+                </ol>
+            </nav>
+
+            <!-- Filters and Actions Row -->
+            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                <!-- Filters Form -->
+                <form action="{{ route('reportes.operatividad') }}" method="GET" class="flex flex-wrap items-center gap-3">
+                    <!-- Filtro de Fecha -->
+                    <div class="flex items-center gap-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-3 py-2 rounded-xl">
+                        <i class="bi bi-calendar3 text-gray-500 text-sm"></i>
+                        <input type="date" name="start_date" value="{{ $startDate }}"
+                            class="bg-transparent border-none text-gray-700 dark:text-gray-300 text-sm focus:ring-0 w-32">
+                        <span class="text-gray-400">-</span>
+                        <input type="date" name="end_date" value="{{ $endDate }}"
+                            class="bg-transparent border-none text-gray-700 dark:text-gray-300 text-sm focus:ring-0 w-32">
+                    </div>
+
+                    @if($isRoot)
+                    <!-- Filtro de Ciudad -->
+                    <div class="flex items-center gap-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-3 py-2 rounded-xl">
+                        <i class="bi bi-geo-alt text-gray-500 text-sm"></i>
+                        <select name="ciudad_id" id="ciudadFilter" class="bg-transparent border-none text-gray-700 dark:text-gray-300 text-sm focus:ring-0 pr-8">
+                            <option value="">Todas las ciudades</option>
+                            @foreach(\App\Models\Ciudad::orderBy('nombre')->get() as $ciudad)
+                                <option value="{{ $ciudad->id }}" {{ request('ciudad_id') == $ciudad->id ? 'selected' : '' }}>
+                                    {{ $ciudad->nombre }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <!-- Filtro de Consultorio -->
+                    <div class="flex items-center gap-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-3 py-2 rounded-xl">
+                        <i class="bi bi-building text-gray-500 text-sm"></i>
+                        <select name="consultorio_id" id="consultorioFilter" class="bg-transparent border-none text-gray-700 dark:text-gray-300 text-sm focus:ring-0 pr-8">
+                            <option value="">Todos los consultorios</option>
+                            @foreach(\App\Models\Consultorio::when(request('ciudad_id'), function($q) {
+                                return $q->where('ciudad_id', request('ciudad_id'));
+                            })->where('status', 1)->get() as $cons)
+                                <option value="{{ $cons->id }}" {{ request('consultorio_id') == $cons->id ? 'selected' : '' }}>
+                                    {{ $cons->nombre }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                    @endif
+
+                    <button type="submit"
+                        class="bg-medical-500 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-medical-600 transition flex items-center gap-2">
+                        <i class="bi bi-funnel"></i> Filtrar
+                    </button>
+                </form>
+
+                <!-- Export PDF -->
+                <a href="{{ route('reportes.export', ['type' => 'pdf']) }}?report=operatividad&start_date={{ $startDate }}&end_date={{ $endDate }}{{ request('consultorio_id') ? '&consultorio_id=' . request('consultorio_id') : '' }}{{ request('ciudad_id') ? '&ciudad_id=' . request('ciudad_id') : '' }}"
+                    class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-xl text-sm font-bold hover:bg-gray-50 transition-all flex items-center gap-2 w-fit">
+                    <i class="bi bi-file-earmark-pdf text-rose-500"></i> Exportar PDF
+                </a>
+            </div>
+        </div>
+
+        <!-- Main Content Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Ausentismo & No-Show -->
+            <div class="bg-white dark:bg-gray-800 rounded-3xl p-8 shadow-sm border border-gray-100 dark:border-gray-700">
+                <h4 class="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+                    <i class="bi bi-person-dash text-rose-500"></i> Índice de Ausentismo
+                </h4>
+                <div class="h-64 flex flex-col items-center justify-center relative">
+                    <!-- Circular Indicator Example -->
+                    <div class="relative w-48 h-48 flex items-center justify-center">
+                        <svg class="w-full h-full transform -rotate-90">
+                            <circle cx="96" cy="96" r="80" stroke="currentColor" stroke-width="12" fill="transparent"
+                                class="text-gray-100 dark:text-gray-700" />
+                            <circle cx="96" cy="96" r="80" stroke="currentColor" stroke-width="12" fill="transparent"
+                                stroke-dasharray="502" stroke-dashoffset="400" class="text-rose-500" />
+                        </svg>
+                        <div class="absolute inset-0 flex flex-col items-center justify-center">
+                            <span class="text-4xl font-black text-gray-900 dark:text-white">12.5%</span>
+                            <span class="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">No-Show</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-8 grid grid-cols-2 gap-4">
+                    <div class="p-4 rounded-2xl bg-gray-50 dark:bg-gray-900/50">
+                        <p class="text-[10px] font-bold text-gray-500 uppercase">Citas Perdidas</p>
+                        <p class="text-lg font-bold text-gray-900 dark:text-white mt-1">24</p>
+                    </div>
+                    <div class="p-4 rounded-2xl bg-gray-50 dark:bg-gray-900/50">
+                        <p class="text-[10px] font-bold text-gray-500 uppercase">Total Programadas</p>
+                        <p class="text-lg font-bold text-gray-900 dark:text-white mt-1">192</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ocupación de Consultorios -->
+            <div class="bg-white dark:bg-gray-800 rounded-3xl p-8 shadow-sm border border-gray-100 dark:border-gray-700">
+                <h4 class="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+                    <i class="bi bi-building-check text-blue-500"></i> Ocupación por Consultorio
+                </h4>
+                <div class="space-y-6">
+                    @forelse($ausentismoData as $item)
+                        <div class="space-y-2">
+                            <div class="flex justify-between text-sm font-bold">
+                                <span
+                                    class="text-gray-700 dark:text-gray-300">{{ $item->consultorio->nombre ?? 'Consultorio sin nombre' }}</span>
+                                <span
+                                    class="text-blue-600">{{ $item->total > 0 ? round((($item->total - $item->ausentes) / $item->total) * 100, 1) : 0 }}%</span>
+                            </div>
+                            <div class="w-full h-3 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                                <div class="h-full bg-blue-500 rounded-full"
+                                    style="width: {{ $item->total > 0 ? round((($item->total - $item->ausentes) / $item->total) * 100, 1) : 0 }}%">
+                                </div>
+                            </div>
+                            <div class="flex justify-between text-[10px] text-gray-500 font-medium mt-1">
+                                <span>{{ $item->total }} citas programadas</span>
+                                <span>{{ $item->ausentes }} ausencias</span>
+                            </div>
+                        </div>
+                    @empty
+                        <p class="text-gray-400 text-sm italic">No hay datos de ocupación para el periodo seleccionado.</p>
+                    @endforelse
+                </div>
+                <div
+                    class="mt-8 p-4 bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800/20 rounded-2xl">
+                    <p class="text-xs text-blue-700 dark:text-blue-400 font-medium">
+                        <i class="bi bi-info-circle-fill mr-1"></i>
+                        @if($ausentismoData->count() > 0)
+                            Los porcentajes representan la tasa de ocupación basada en citas programadas vs. completadas.
+                        @else
+                            No hay consultorios con actividad en el periodo seleccionado.
+                        @endif
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Productividad Médica Table -->
+        <div class="bg-white dark:bg-gray-800 rounded-3xl p-8 shadow-sm border border-gray-100 dark:border-gray-700">
+            <h4 class="text-xl font-bold text-gray-900 dark:text-white mb-6">Productividad por Médico</h4>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left">
+                    <thead>
+                        <tr class="border-b border-gray-100 dark:border-gray-700">
+                            <th class="py-4 px-2 text-xs font-bold text-gray-400 uppercase tracking-widest">Médico</th>
+                            <th class="py-4 px-2 text-xs font-bold text-gray-400 uppercase tracking-widest text-center">
+                                Citas Totales</th>
+                            <th class="py-4 px-2 text-xs font-bold text-gray-400 uppercase tracking-widest text-center">
+                                Atendidas</th>
+                            <th class="py-4 px-2 text-xs font-bold text-gray-400 uppercase tracking-widest text-center">
+                                Evoluciones</th>
+                            <th class="py-4 px-2 text-xs font-bold text-gray-400 uppercase tracking-widest text-center">
+                                Eficiencia</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-50 dark:divide-gray-700/50">
+                        @forelse($productividadMedicos as $medico)
+                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-900/30 transition-colors">
+                                <td class="py-4 px-2">
+                                    <div class="flex items-center gap-3">
+                                        <div
+                                            class="w-10 h-10 rounded-full bg-medical-100 text-medical-600 flex items-center justify-center font-bold text-xs">
+                                            {{ strtoupper(substr($medico->medico->nombre_completo ?? 'DR', 0, 2)) }}
+                                        </div>
+                                        <div>
+                                            <p class="text-sm font-bold text-gray-900 dark:text-white">
+                                                {{ $medico->medico->nombre_completo ?? 'Sin nombre' }}
+                                            </p>
+                                            <p class="text-[10px] text-gray-500 font-medium">
+                                                {{ $medico->medico->especialidades->first()->nombre ?? 'Sin especialidad' }}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="py-4 px-2 text-center font-bold text-sm">{{ $medico->total }}</td>
+                                <td class="py-4 px-2 text-center font-bold text-sm text-emerald-600">{{ $medico->atendidas }}
+                                </td>
+                                <td class="py-4 px-2 text-center font-bold text-sm">{{ $medico->atendidas }}</td>
+                                <td class="py-4 px-2 text-center">
+                                    <span class="px-2 py-1 rounded-md bg-emerald-50 text-emerald-600 text-[10px] font-bold">
+                                        {{ round(($medico->atendidas / max(1, $medico->total)) * 100, 1) }}%
+                                    </span>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="5" class="py-8 text-center text-gray-400 text-sm italic">
+                                    No hay datos de productividad para el periodo seleccionado.
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+@endsection
