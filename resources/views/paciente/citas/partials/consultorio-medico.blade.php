@@ -564,6 +564,7 @@
 
             const html = `
                 <div onclick="selectCard('${type}', ${item.id}, this, '${title.replace(/'/g, "\\'")}')" 
+                     data-tarifa="${item.tarifa || 0}"
                      class="cursor-pointer p-4 rounded-xl border-2 transition-all duration-200 relative group/card flex items-start gap-3 ${finalActiveClass}">
                     
                     <div class="h-10 w-10 rounded-lg bg-${colorClass}-100 dark:bg-${colorClass}-900/50 flex items-center justify-center text-${colorClass}-600 dark:text-${colorClass}-400 shrink-0">
@@ -599,6 +600,27 @@
         const check = el.querySelector('.selection-check');
         if(check) check.classList.replace('opacity-0', 'opacity-100');
 
+        // UPDATE SUMMARY
+        if (type.includes('specialty')) {
+            const sumEl = document.getElementById('resumen-especialidad');
+            if(sumEl) sumEl.textContent = textLabel;
+        } else if (type.includes('doctor')) {
+            const sumEl = document.getElementById('resumen-medico');
+            // If textLabel contains "Dr.", use it, otherwise format might be needed but textLabel is usually good
+            if(sumEl) sumEl.textContent = textLabel;
+            
+            // Update Tariff
+            const tarifa = parseFloat(el.dataset.tarifa || 0);
+            if(typeof tarifaBase !== 'undefined') tarifaBase = tarifa; // Update global if exists
+            
+            const sumTarifa = document.getElementById('resumen-tarifa');
+            if(sumTarifa) sumTarifa.textContent = `$${tarifa.toFixed(2)}`;
+
+        } else if (type.includes('consultory')) {
+             const sumEl = document.getElementById('resumen-consultorio');
+             if(sumEl) sumEl.textContent = textLabel;
+             // Can't easily get address from here without passing it, but name is key
+        }
 
         // ADVANCE WIZARD
         // Map types to Steps
@@ -614,6 +636,7 @@
             setFinalConsultory(id);
             // End of Line for Mode A (Visual confirmation?)
             nextStep('spec', 3, textLabel); // Shows summary, but no step 4
+            if(window.enableDateSelection) window.enableDateSelection();
         } else if (type === 'cons_consultory') {
             document.getElementById('ui_cons_consultory').value = id;
             handleConsultoryModeConsultoryChange(id);
@@ -626,6 +649,7 @@
             document.getElementById('ui_cons_doctor').value = id;
             handleConsultoryModeDoctorChange(id);
             nextStep('cons', 3, textLabel);
+            if(window.enableDateSelection) window.enableDateSelection();
         }
     }
 

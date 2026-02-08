@@ -21,7 +21,7 @@
                 <input type="date" name="fecha_cita" id="fecha_cita" 
                        class="peer w-full px-6 py-4 rounded-2xl border-2 border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-slate-800 dark:text-white focus:border-sky-500 focus:ring-sky-500 shadow-sm text-lg font-medium transition-all cursor-pointer hover:border-sky-200 dark:hover:border-gray-500 pt-7 pb-2" 
                        min="{{ date('Y-m-d') }}" 
-                       onchange="caragarHorasDisponibles(this.value)">
+                       onchange="cargarHorasDisponibles(this.value)">
                 
                 <label class="absolute text-xs font-bold text-slate-400 dark:text-gray-400 uppercase top-2 left-6 tracking-wider peer-focus:text-sky-500">
                     Seleccionar Fecha
@@ -79,10 +79,134 @@
                 </div>
             </div>
             
-            <input type="hidden" name="hora_cita" id="hora_cita" required>
+            <input type="hidden" name="hora_inicio" id="hora_cita" required>
             <span class="error-message text-rose-500 text-xs mt-1 hidden font-medium bg-rose-50 dark:bg-rose-900/20 p-2 rounded-lg" id="hora_cita_error">
                 <i class="bi bi-exclamation-triangle mr-1"></i> Debe seleccionar una hora
             </span>
         </div>
     </div>
 </div>
+
+@push('scripts')
+<script>
+    function cargarHorasDisponibles(fecha) {
+        const medicoId = document.getElementById('final_medico_id').value;
+        const consultorioId = document.getElementById('final_consultorio_id').value;
+        const loader = document.getElementById('loader-horas');
+        const container = document.getElementById('contenedor-horas');
+        const msg = document.getElementById('sin-fecha-msg');
+        const errorSpan = document.getElementById('hora_cita_error');
+        
+        // Reset inputs
+        document.getElementById('hora_cita').value = '';
+        errorSpan.classList.add('hidden');
+
+        if (!fecha) {
+            container.classList.add('hidden');
+            msg.classList.remove('hidden');
+            return;
+        }
+
+        if (!medicoId || !consultorioId) {
+            // Validate that we have the necessary IDs from previous step
+             // This might happen if user jumps straight to date without selecting doctor
+            // Ensure inputs are set, or alert/redirect
+            // For now, let's assume they are set or we handle it gracefully
+            if(!medicoId) {
+                alert('Por favor seleccione un médico primero.');
+                document.getElementById('fecha_cita').value = '';
+                return;
+            }
+        }
+
+        // UI Loading State
+        loader.classList.remove('hidden');
+        msg.classList.add('hidden');
+        container.classList.add('hidden');
+        container.innerHTML = '';
+
+        // Fetch
+        fetch(`${BASE_URL}/ajax/citas/horarios-disponibles?fecha=${fecha}&medico_id=${medicoId}&consultorio_id=${consultorioId}`)
+            .then(response => response.json())
+            .then(data => {
+                loader.classList.add('hidden');
+                
+                if (data.disponible && data.horarios.length > 0) {
+                    container.classList.remove('hidden');
+                    
+                    data.horarios.forEach(slot => {
+                        const disabledClass = slot.ocupada ? 'opacity-50 cursor-not-allowed bg-slate-200 dark:bg-gray-600 text-slate-400 dark:text-gray-400' : 'cursor-pointer hover:border-sky-400 hover:shadow-md bg-white dark:bg-gray-700 text-slate-700 dark:text-white border-slate-200 dark:border-gray-600';
+                        const onclickAttr = slot.ocupada ? '' : `onclick="selectHora('${slot.hora}', this)"`;
+                        
+                        const html = `
+                            <div ${onclickAttr} 
+                                 class="p-3 rounded-xl border-2 text-center transition-all duration-200 relative group/slot ${disabledClass}">
+                                <span class="text-sm font-bold block">${slot.hora}</span>
+                                ${slot.ocupada ? '<span class="text-[10px] block mt-1">Ocupado</span>' : ''}
+                                <div class="absolute top-2 right-2 opacity-0 group-hover/slot:opacity-100 transition-opacity text-sky-500 selection-check hidden">
+                                     <i class="bi bi-check-circle-fill"></i>
+                                </div>
+                            </div>
+                        `;
+                        container.insertAdjacentHTML('beforeend', html);
+                    });
+                } else {
+                    container.classList.remove('hidden');
+                    container.innerHTML = `
+                        <div class="col-span-full text-center py-8 text-slate-500 dark:text-gray-400">
+                             <i class="bi bi-calendar-x text-3xl mb-2 block"></i>
+                             <p class="text-sm">No hay horarios disponibles para esta fecha.</p>
+                             ${data.mensaje ? `<p class="text-xs mt-1 text-rose-500">${data.mensaje}</p>` : ''}
+                        </div>
+                    `;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                loader.classList.add('hidden');
+                container.classList.remove('hidden');
+                container.innerHTML = '<p class="col-span-full text-center text-rose-500 text-sm py-4">Error al cargar horarios. Por favor intente nuevamente.</p>';
+            });
+    }
+
+    function selectHora(hora, el) {
+        // Update Hidden Input
+        document.getElementById('hora_cita').value = hora;
+        document.getElementById('hora_cita_error').classList.add('hidden');
+        
+        // Update Visual Selection
+        const container = document.getElementById('contenedor-horas');
+        Array.from(container.children).forEach(slot => {
+            if (!slot.classList.contains('cursor-not-allowed')) {
+                slot.className = 'p-3 rounded-xl border-2 text-center transition-all duration-200 relative group/slot cursor-pointer hover:border-sky-400 hover:shadow-md bg-white dark:bg-gray-700 text-slate-700 dark:text-white border-slate-200 dark:border-gray-600';
+                const check = slot.querySelector('.selection-check');
+                if(check) check.classList.add('hidden');
+            }
+        });
+
+        // Highlight Selected
+        el.className = 'p-3 rounded-xl border-2 text-center transition-all duration-200 relative group/slot cursor-pointer border-sky-500 bg-sky-50 dark:bg-sky-900/20 ring-2 ring-sky-200 text-sky-700 dark:text-white shadow-md';
+        const check = el.querySelector('.selection-check');
+        if(check) {
+            check.classList.remove('opacity-0', 'hidden');
+            check.classList.add('opacity-100');
+        }
+
+        // Update Summary if necessary (assuming there is a summary element for date/time)
+        const summaryFecha = document.getElementById('resumen-fecha');
+        if (summaryFecha) {
+             // Format nice string
+             const fechaInput = document.getElementById('fecha_cita').value;
+             try {
+                 const [y, m, d] = fechaInput.split('-');
+                 summaryFecha.textContent = `${d}/${m}/${y} a las ${hora}`;
+             } catch(e) {
+                 summaryFecha.textContent = `${fechaInput} a las ${hora}`;
+             }
+        }
+
+        // Enable next step
+        if(window.enableConsultationType) window.enableConsultationType();
+    }
+</script>
+@endpush
