@@ -235,10 +235,17 @@
         <div class="glass-card p-6">
             <h3 class="font-bold text-gray-900 dark:text-white text-lg mb-4">Acciones</h3>
             <div class="grid grid-cols-2 gap-3">
+                @if($admin->tipo_admin === 'Root')
                 <a href="{{ route('medicos.create') }}" class="p-4 rounded-xl bg-violet-50 dark:bg-violet-900/20 hover:bg-violet-100 dark:hover:bg-violet-900/30 transition-colors text-center group">
                     <i class="bi bi-person-badge text-2xl text-violet-600 dark:text-violet-400 mb-2 block group-hover:scale-110 transition-transform"></i>
                     <span class="text-xs font-bold text-violet-700 dark:text-violet-300">Nuevo Médico</span>
                 </a>
+                @else
+                <a href="{{ route('pagos.create') }}" class="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors text-center group">
+                    <i class="bi bi-wallet2 text-2xl text-emerald-600 dark:text-emerald-400 mb-2 block group-hover:scale-110 transition-transform"></i>
+                    <span class="text-xs font-bold text-emerald-700 dark:text-emerald-300">Registrar Pago</span>
+                </a>
+                @endif
                 <a href="{{ route('pacientes.create') }}" class="p-4 rounded-xl bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors text-center group">
                     <i class="bi bi-person-add text-2xl text-blue-600 dark:text-blue-400 mb-2 block group-hover:scale-110 transition-transform"></i>
                     <span class="text-xs font-bold text-blue-700 dark:text-blue-300">Nuevo Paciente</span>
@@ -301,7 +308,7 @@
             fontFamily: theme.font
         },
         labels: chartData.status.labels,
-        colors: ['#10b981', '#3b82f6', '#ef4444'],
+        colors: ['#10b981', '#3b82f6', '#f59e0b', '#f43f5e'],
         legend: { position: 'bottom', fontSize: '12px', labels: { colors: theme.text } },
         dataLabels: { enabled: false },
         plotOptions: {

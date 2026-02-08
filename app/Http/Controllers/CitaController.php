@@ -988,6 +988,28 @@ class CitaController extends Controller
             
             $cita = Cita::findOrFail($id);
             
+            // Seguridad: Validar que el usuario tenga permiso sobre este consultorio (si es Admin Local)
+            $user = auth()->user();
+            if ($user->rol_id == 1 && $user->administrador && $user->administrador->tipo_admin !== 'Root') {
+                $consultorioIds = $user->administrador->consultorios->pluck('id');
+                if (!$consultorioIds->contains($cita->consultorio_id)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'No tiene permiso para gestionar citas de este consultorio.'
+                    ], 403);
+                }
+            }
+
+            // Seguridad: Validar si es Paciente, que la cita sea suya
+            if ($user->rol_id == 3) { // 3 = Paciente
+                if ($cita->paciente && $cita->paciente->user_id !== $user->id) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'No tiene permiso para gestionar esta cita.'
+                    ], 403);
+                }
+            }
+            
             // Validar
             $request->validate([
                 'motivo_cancelacion' => 'required|string',
@@ -1007,8 +1029,11 @@ class CitaController extends Controller
             }
             
             $cita->observaciones = $nuevaObservacion;
-            // Opcional: Podríamos tener un estado 'solicitud_cancelacion' si el enum lo permite.
-            // Si no, lo dejamos en pendiente pero notificamos.
+            
+            // AUTOMÁTICO: Cambiar estado a 'Cancelada' para liberar el horario
+            // Esto refleja la solicitud del usuario de "Cancelación Directa"
+            $cita->estado_cita = 'Cancelada';
+            
             $cita->save();
 
             // Notificar a los administradores relevantes sobre la cancelación
@@ -1042,7 +1067,7 @@ class CitaController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Solicitud de cancelación enviada correctamente. El administrador revisará su caso.'
+                'message' => 'Su cita ha sido cancelada exitosamente.'
             ]);
 
         } catch (\Exception $e) {
@@ -1240,6 +1265,15 @@ class CitaController extends Controller
     public function cambiarEstado(Request $request, $id)
     {
         $cita = Cita::findOrFail($id);
+        
+        // Seguridad: Validar que el usuario tenga permiso sobre este consultorio (si es Admin Local)
+        $user = auth()->user();
+        if ($user->rol_id == 1 && $user->administrador && $user->administrador->tipo_admin !== 'Root') {
+            $consultorioIds = $user->administrador->consultorios->pluck('id');
+            if (!$consultorioIds->contains($cita->consultorio_id)) {
+                abort(403, 'No tiene permiso para gestionar citas de este consultorio.');
+            }
+        }
         
         $validator = Validator::make($request->all(), [
             'estado_cita' => 'required|in:Programada,Confirmada,En Progreso,Completada,Cancelada,No Asistió',

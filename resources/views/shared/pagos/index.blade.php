@@ -255,10 +255,11 @@
 
         try {
             const formData = new FormData();
+            formData.append('_method', 'PATCH');
             formData.append('_token', '{{ csrf_token() }}');
 
             const response = await fetch(`{{ url('pagos') }}/${currentPagoId}/confirmar`, {
-                method: 'PATCH',
+                method: 'POST',
                 body: formData,
                 headers: { 'X-Requested-With': 'XMLHttpRequest' }
             });
@@ -296,10 +297,11 @@
         try {
             const formData = new FormData();
             formData.append('motivo', motivo);
+            formData.append('_method', 'PATCH');
             formData.append('_token', '{{ csrf_token() }}');
 
             const response = await fetch(`{{ url('pagos') }}/${currentPagoId}/rechazar`, {
-                method: 'PATCH',
+                method: 'POST',
                 body: formData,
                 headers: { 'X-Requested-With': 'XMLHttpRequest' }
             });

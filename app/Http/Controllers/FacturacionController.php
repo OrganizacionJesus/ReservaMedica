@@ -308,6 +308,88 @@ class FacturacionController extends Controller
         return redirect()->route('facturacion.index')->with('success', 'Factura eliminada exitosamente');
     }
 
+    /**
+     * Generar factura manualmente para una cita (Administradores)
+     */
+    public function generarParaCita($citaId)
+    {
+        // Solo administradores pueden generar facturas manualmente
+        $user = auth()->user();
+        if (!$user || !$user->administrador) {
+            abort(403, 'Solo los administradores pueden generar facturas');
+        }
+
+        DB::beginTransaction();
+        
+        try {
+            $cita = Cita::with(['medico', 'paciente', 'consultorio'])->findOrFail($citaId);
+            
+            // Verificar que la cita no tenga ya una factura
+            if ($cita->facturaPaciente) {
+                return redirect()->back()->with('error', 'Esta cita ya tiene una factura asociada.');
+            }
+
+            // Verificar permisos de admin local
+            if ($user->administrador->tipo_admin !== 'Root') {
+                $consultorioIds = $user->administrador->consultorios->pluck('id')->toArray();
+                if (!in_array($cita->consultorio_id, $consultorioIds)) {
+                    abort(403, 'No tiene permisos para generar factura en este consultorio.');
+                }
+            }
+
+            // Obtener la tasa más reciente
+            $tasa = TasaDolar::where('status', true)
+                             ->orderBy('fecha_tasa', 'desc')
+                             ->first();
+            
+            if (!$tasa) {
+                throw new \Exception('No hay tasas de cambio activas en el sistema. Configure una tasa primero.');
+            }
+
+            // Calcular montos
+            $montoUSD = $cita->tarifa + ($cita->tarifa_extra ?? 0);
+            $montoBS = $montoUSD * $tasa->valor;
+
+            // Generar número de factura
+            $year = date('Y');
+            $count = FacturaPaciente::whereYear('fecha_emision', $year)->count() + 1;
+            $numeroFactura = 'FAC-' . $year . '-' . str_pad($count, 6, '0', STR_PAD_LEFT);
+
+            // Crear la factura
+            $factura = FacturaPaciente::create([
+                'cita_id' => $cita->id,
+                'paciente_id' => $cita->paciente_id,
+                'medico_id' => $cita->medico_id,
+                'monto_usd' => $montoUSD,
+                'tasa_id' => $tasa->id,
+                'monto_bs' => $montoBS,
+                'fecha_emision' => now(),
+                'fecha_vencimiento' => now()->addDays(15), // 15 días de vencimiento por defecto
+                'numero_factura' => $numeroFactura,
+                'status_factura' => 'Emitida',
+                'status' => true
+            ]);
+
+            // Recargar la relación para que el servicio detecte la factura
+            $cita->load('facturaPaciente');
+
+            // Ejecutar facturación avanzada (distribución de ingresos)
+            $this->facturacionService->ejecutarFacturacionAvanzada($cita);
+
+            DB::commit();
+
+            return redirect()->route('facturacion.show', $factura->id)
+                           ->with('success', "Factura #{$numeroFactura} generada exitosamente para la cita.");
+            
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('Error generando factura manual: ' . $e->getMessage());
+            return redirect()->back()
+                           ->with('error', 'Error al generar la factura: ' . $e->getMessage());
+        }
+    }
+
+
     public function enviarRecordatorio($id)
     {
         $factura = FacturaPaciente::with(['cita.paciente.usuario'])->findOrFail($id);

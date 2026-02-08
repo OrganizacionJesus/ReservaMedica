@@ -345,7 +345,7 @@ Route::middleware(['auth'])->group(function () {
 
     Route::resource('citas', CitaController::class)->middleware('role:admin|medico');
     Route::post('citas/{id}/cambiar-estado', [CitaController::class, 'cambiarEstado'])->name('citas.cambiar-estado')->middleware('role:admin|medico');
-    Route::post('citas/{id}/solicitar-cancelacion', [CitaController::class, 'solicitarCancelacion'])->name('citas.solicitar-cancelacion')->middleware('role:admin|medico');
+    Route::post('citas/{id}/solicitar-cancelacion', [CitaController::class, 'solicitarCancelacion'])->name('citas.solicitar-cancelacion')->middleware('role:admin|medico|paciente');
     Route::get('buscar-disponibilidad', [CitaController::class, 'buscarDisponibilidad'])->name('citas.buscar-disponibilidad')->middleware('role:admin|medico');
     Route::get('events', [CitaController::class, 'events'])->name('citas.events')->middleware('role:admin|medico');
     Route::get('admin/buscar-paciente', [CitaController::class, 'buscarPaciente'])->name('admin.buscar-paciente')->middleware('role:admin');
@@ -411,6 +411,7 @@ Route::middleware(['auth'])->group(function () {
     // =========================================================================
 
     Route::resource('facturacion', FacturacionController::class);
+    Route::post('facturacion/generar/{cita}', [FacturacionController::class, 'generarParaCita'])->name('facturacion.generar');
     Route::post('facturacion/{id}/enviar-recordatorio', [FacturacionController::class, 'enviarRecordatorio'])->name('facturacion.enviar-recordatorio');
     Route::get('facturacion/liquidaciones', [FacturacionController::class, 'resumenLiquidaciones'])->name('facturacion.liquidaciones');
     Route::post('facturacion/crear-liquidacion', [FacturacionController::class, 'crearLiquidacion'])->name('facturacion.crear-liquidacion');

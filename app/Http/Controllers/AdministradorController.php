@@ -30,38 +30,90 @@ class AdministradorController extends Controller
 
     public function dashboard()
     {
+        $user = auth()->user();
+        $isAdminLocal = $user->administrador && $user->administrador->tipo_admin !== 'Root';
+        $consultorioIds = $isAdminLocal ? $user->administrador->consultorios->pluck('id')->toArray() : [];
+
+        // Helper closures for reuse
+        $filterCitas = function($query) use ($isAdminLocal, $consultorioIds) {
+            if ($isAdminLocal) {
+                $query->whereIn('consultorio_id', $consultorioIds);
+            }
+        };
+
+        $filterFacturas = function($query) use ($isAdminLocal, $consultorioIds) {
+            if ($isAdminLocal) {
+                $query->whereHas('cita', function($q) use ($consultorioIds) {
+                    $q->whereIn('consultorio_id', $consultorioIds);
+                });
+            }
+        };
+
+        $filterPacientes = function($query) use ($isAdminLocal, $consultorioIds) {
+            if ($isAdminLocal) {
+                $query->whereHas('citas', function($q) use ($consultorioIds) {
+                    $q->whereIn('consultorio_id', $consultorioIds);
+                });
+            }
+        };
+
+        $filterMedicos = function($query) use ($isAdminLocal, $consultorioIds) {
+            if ($isAdminLocal) {
+                // Médicos asignados específicamente a estos consultorios
+                $query->whereHas('consultorios', function($q) use ($consultorioIds) {
+                    $q->whereIn('consultorios.id', $consultorioIds);
+                });
+            }
+        };
+
         // 1. Estadísticas Generales
-        $medicos = \App\Models\Medico::where('status', true)->count();
-        $medicos_activos = \App\Models\Medico::where('status', true)->count();
-        $pacientes = \App\Models\Paciente::where('status', true)->count();
-        $citas_hoy = Cita::whereDate('fecha_cita', today())->where('status', true)->count();
+        $queryMedicos = \App\Models\Medico::where('status', true);
+        $filterMedicos($queryMedicos);
+        $medicos = $queryMedicos->count();
+
+        $queryMedicosActivos = \App\Models\Medico::where('status', true);
+        $filterMedicos($queryMedicosActivos);
+        $medicos_activos = $queryMedicosActivos->count();
+
+        $queryPacientes = \App\Models\Paciente::where('status', true);
+        $filterPacientes($queryPacientes);
+        $pacientes = $queryPacientes->count();
+
+        $queryCitasHoy = Cita::whereDate('fecha_cita', today())->where('status', true);
+        $filterCitas($queryCitasHoy);
+        $citas_hoy = $queryCitasHoy->count();
         
         // 2. Cálculo de Ingresos
-        $ingresos_mes = FacturaPaciente::whereMonth('fecha_emision', now()->month)
-            ->whereYear('fecha_emision', now()->year)
-            ->sum('monto_usd');
+        $queryIngresosMes = FacturaPaciente::whereMonth('fecha_emision', now()->month)
+            ->whereYear('fecha_emision', now()->year);
+        $filterFacturas($queryIngresosMes);
+        $ingresos_mes = $queryIngresosMes->sum('monto_usd');
             
-        $ingresos_mes_anterior = FacturaPaciente::whereMonth('fecha_emision', now()->subMonth()->month)
-            ->whereYear('fecha_emision', now()->subMonth()->year)
-            ->sum('monto_usd');
+        $queryIngresosMesAnterior = FacturaPaciente::whereMonth('fecha_emision', now()->subMonth()->month)
+            ->whereYear('fecha_emision', now()->subMonth()->year);
+        $filterFacturas($queryIngresosMesAnterior);
+        $ingresos_mes_anterior = $queryIngresosMesAnterior->sum('monto_usd');
 
         $crecimiento_ingresos = $ingresos_mes_anterior > 0 
             ? round((($ingresos_mes - $ingresos_mes_anterior) / $ingresos_mes_anterior) * 100, 1)
-            : 100;
+            : ($ingresos_mes > 0 ? 100 : 0);
 
-        // 3. Usuarios Activos
-        if (auth()->user()->administrador && auth()->user()->administrador->tipo_admin !== 'Root') {
-            $usuarios_activos = \App\Models\Medico::where('status', true)->count() + \App\Models\Paciente::where('status', true)->count();
-        } else {
-            $usuarios_activos = Usuario::where('status', true)->count();
-        }
+        // 3. Usuarios Activos (Aprox)
+        $usuarios_activos = $medicos_activos + $pacientes;
 
         // 4. Estadísticas Detalladas
-        $medicos_nuevos_mes = \App\Models\Medico::whereMonth('created_at', now()->month)->count();
-        $pacientes_nuevos_semana = \App\Models\Paciente::whereBetween('created_at', [now()->startOfWeek(), now()->endOfWeek()])->count();
-        $citas_completadas_hoy = Cita::whereDate('fecha_cita', today())
-            ->where('estado_cita', 'Completada')
-            ->count();
+        $queryMedicosNuevos = \App\Models\Medico::whereMonth('created_at', now()->month);
+        $filterMedicos($queryMedicosNuevos);
+        $medicos_nuevos_mes = $queryMedicosNuevos->count();
+
+        $queryPacientesNuevos = \App\Models\Paciente::whereBetween('created_at', [now()->startOfWeek(), now()->endOfWeek()]);
+        $filterPacientes($queryPacientesNuevos);
+        $pacientes_nuevos_semana = $queryPacientesNuevos->count();
+
+        $queryCitasCompletadas = Cita::whereDate('fecha_cita', today())
+            ->where('estado_cita', 'Completada');
+        $filterCitas($queryCitasCompletadas);
+        $citas_completadas_hoy = $queryCitasCompletadas->count();
 
         // 5. CHART DATA: Weekly Appointments (Last 7 Days)
         $weeklyAppointments = [];
@@ -69,23 +121,34 @@ class AdministradorController extends Controller
         for ($i = 6; $i >= 0; $i--) {
             $date = now()->subDays($i);
             $weeklyLabels[] = $date->format('D');
-            $weeklyAppointments[] = Cita::whereDate('fecha_cita', $date->format('Y-m-d'))->count();
+            
+            $q = Cita::whereDate('fecha_cita', $date->format('Y-m-d'));
+            $filterCitas($q);
+            $weeklyAppointments[] = $q->count();
         }
 
         // 6. CHART DATA: Monthly Revenue (Current Year)
         $monthlyRevenue = [];
         $monthlyLabels = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
         for ($month = 1; $month <= 12; $month++) {
-            $monthlyRevenue[] = FacturaPaciente::whereMonth('fecha_emision', $month)
-                ->whereYear('fecha_emision', now()->year)
-                ->sum('monto_usd');
+            $q = FacturaPaciente::whereMonth('fecha_emision', $month)
+                ->whereYear('fecha_emision', now()->year);
+            $filterFacturas($q);
+            $monthlyRevenue[] = $q->sum('monto_usd');
         }
-
+        
         // 7. CHART DATA: Appointment Status Distribution
+        $getStatusCount = function($statuses) use ($filterCitas) {
+            $q = Cita::whereIn('estado_cita', (array)$statuses);
+            $filterCitas($q);
+            return $q->count();
+        };
+
         $appointmentStatus = [
-            'completadas' => Cita::where('estado_cita', 'Completada')->count(),
-            'programadas' => Cita::where('estado_cita', 'Programada')->count(),
-            'canceladas' => Cita::where('estado_cita', 'Cancelada')->count(),
+            'completadas' => $getStatusCount('Completada'),
+            'confirmadas' => $getStatusCount('Confirmada'),
+            'pendientes'  => $getStatusCount(['Programada', 'En Progreso']),
+            'canceladas'  => $getStatusCount(['Cancelada', 'No Asistió']),
         ];
 
         // 8. Array de estadísticas para la vista
@@ -114,16 +177,17 @@ class AdministradorController extends Controller
                 'data' => $monthlyRevenue
             ],
             'status' => [
-                'labels' => ['Completadas', 'Programadas', 'Canceladas'],
+                'labels' => ['Completadas', 'Confirmadas', 'Pendientes', 'Canceladas'],
                 'data' => array_values($appointmentStatus)
             ]
         ];
 
         // 10. Actividad Reciente (Compact)
-        $actividadReciente = Cita::with(['paciente', 'medico'])
-            ->orderBy('created_at', 'desc')
-            ->take(5)
-            ->get()
+        $queryActividad = Cita::with(['paciente', 'medico'])
+            ->orderBy('created_at', 'desc');
+        $filterCitas($queryActividad);
+        
+        $actividadReciente = $queryActividad->take(5)->get()
             ->map(function($cita) {
                 return (object)[
                     'tipo_clase' => 'bg-blue-100',
@@ -135,12 +199,27 @@ class AdministradorController extends Controller
             });
 
         // 11. Tareas Pendientes
+        $qCitasPendientes = Cita::where('estado_cita', 'Programada')->where('fecha_cita', '>=', now());
+        $filterCitas($qCitasPendientes);
+        
+        $qPagosPendientes = Pago::where('status', true)->where('estado', 'Pendiente');
+        if ($isAdminLocal) {
+            $qPagosPendientes->whereHas('facturaPaciente.cita', function($q) use ($consultorioIds) {
+                $q->whereIn('consultorio_id', $consultorioIds);
+            });
+        }
+
+        $qResultadosPendientes = OrdenMedica::where('tipo_orden', 'Laboratorio')->whereNull('resultados');
+        if ($isAdminLocal) {
+            $qResultadosPendientes->whereHas('cita', function($q) use ($consultorioIds) {
+                $q->whereIn('consultorio_id', $consultorioIds);
+            });
+        }
+
         $tareas = [
-            'citas_sin_confirmar' => Cita::where('estado_cita', 'Programada')->where('fecha_cita', '>=', now())->count(),
-            'pagos_pendientes' => Pago::where('status', true)->where('estado', 'Pendiente')->count(),
-            'resultados_pendientes' => OrdenMedica::where('tipo_orden', 'Laboratorio')
-                ->whereNull('resultados')
-                ->count()
+            'citas_sin_confirmar' => $qCitasPendientes->count(),
+            'pagos_pendientes' => $qPagosPendientes->count(),
+            'resultados_pendientes' => $qResultadosPendientes->count()
         ];
 
         return view('admin.dashboard', compact('stats', 'actividadReciente', 'tareas', 'chartData'));
