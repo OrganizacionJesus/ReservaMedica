@@ -722,7 +722,7 @@
                 if (!confirm('¿Estás seguro de confirmar este pago?')) return;
 
                 fetch(`/pagos/${data.pago_id}/confirmar`, {
-                    method: 'POST',
+                    method: 'PATCH',
                     headers: {
                         'X-CSRF-TOKEN': csrfToken,
                         'Content-Type': 'application/json',

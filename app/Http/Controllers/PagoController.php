@@ -104,7 +104,30 @@ class PagoController extends Controller
         $metodosPago = MetodoPago::where('status', true)->get();
         $tasas = TasaDolar::where('status', true)->orderBy('fecha_tasa', 'desc')->get();
         
-        return view('shared.pagos.create', compact('facturas', 'metodosPago', 'tasas'));
+        // Cargar datos bancarios de la configuración
+        $configKeys = [
+            'banco_transferencia_banco', 'banco_transferencia_cuenta', 
+            'banco_transferencia_rif', 'banco_transferencia_titular',
+            'banco_pagomovil_banco', 'banco_pagomovil_telefono', 'banco_pagomovil_rif'
+        ];
+        
+        $configuraciones = \App\Models\Configuracion::whereIn('key', $configKeys)->pluck('value', 'key');
+        
+        $datosBancarios = [
+            'transferencia' => [
+                'banco' => $configuraciones['banco_transferencia_banco'] ?? 'No configurado',
+                'cuenta' => $configuraciones['banco_transferencia_cuenta'] ?? '',
+                'rif' => $configuraciones['banco_transferencia_rif'] ?? '',
+                'titular' => $configuraciones['banco_transferencia_titular'] ?? ''
+            ],
+            'pagomovil' => [
+                'banco' => $configuraciones['banco_pagomovil_banco'] ?? 'No configurado',
+                'telefono' => $configuraciones['banco_pagomovil_telefono'] ?? '',
+                'rif' => $configuraciones['banco_pagomovil_rif'] ?? ''
+            ]
+        ];
+        
+        return view('shared.pagos.create', compact('facturas', 'metodosPago', 'tasas', 'datosBancarios'));
     }
 
     public function store(Request $request)

@@ -47,7 +47,7 @@
         </div>
 
         <div class="mt-4 pt-4 border-t border-gray-100 flex gap-2">
-            <button class="btn btn-sm btn-outline flex-1" data-toggle="modal" data-target="#modalEditarTransferencia">
+            <button type="button" class="btn btn-sm btn-outline flex-1" onclick="document.getElementById('modalEditarTransferencia').classList.remove('hidden'); document.getElementById('modalEditarTransferencia').classList.add('flex');">
                 <i class="bi bi-pencil"></i> Editar
             </button>
         </div>
@@ -80,7 +80,7 @@
         </div>
 
         <div class="mt-4 pt-4 border-t border-gray-100 flex gap-2">
-            <button class="btn btn-sm btn-outline flex-1" data-toggle="modal" data-target="#modalEditarPagoMovil">
+            <button type="button" class="btn btn-sm btn-outline flex-1" onclick="document.getElementById('modalEditarPagoMovil').classList.remove('hidden'); document.getElementById('modalEditarPagoMovil').classList.add('flex');">
                 <i class="bi bi-pencil"></i> Editar
             </button>
         </div>
@@ -222,91 +222,85 @@
         </div>
     </div>
 </div>
-@endsection
 
-@section('modals')
 <!-- Modal Editar Transferencia -->
-<div class="modal fade" id="modalEditarTransferencia" tabindex="-1" role="dialog" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered" role="document">
-        <div class="modal-content border-0 shadow-lg rounded-2xl">
-            <div class="modal-header border-b border-gray-100 p-6">
-                <h5 class="text-xl font-bold text-gray-900">Editar Transferencia Bancaria</h5>
-                <button type="button" class="close text-gray-400 hover:text-gray-600" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
+<div class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50" id="modalEditarTransferencia" onclick="if(event.target === this) { this.classList.add('hidden'); this.classList.remove('flex'); }">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4" onclick="event.stopPropagation();">
+        <div class="border-b border-gray-100 p-6 flex items-center justify-between">
+            <h5 class="text-xl font-bold text-gray-900">Editar Transferencia Bancaria</h5>
+            <button type="button" class="text-gray-400 hover:text-gray-600 text-2xl leading-none" onclick="document.getElementById('modalEditarTransferencia').classList.add('hidden'); document.getElementById('modalEditarTransferencia').classList.remove('flex');">
+                &times;
+            </button>
+        </div>
+        <form action="{{ route('configuracion.metodos-pago.bancarios') }}" method="POST">
+            @csrf
+            <div class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Nombre del Banco</label>
+                    <input type="text" name="banco_transferencia_banco" class="form-input w-full rounded-lg border-gray-300 focus:border-medical-500 focus:ring-medical-500" 
+                           value="{{ $datosBancarios['transferencia']['banco'] }}" placeholder="Ej: Banco Mercantil">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Número de Cuenta</label>
+                    <input type="text" name="banco_transferencia_cuenta" class="form-input w-full rounded-lg border-gray-300 focus:border-medical-500 focus:ring-medical-500 font-mono" 
+                           value="{{ $datosBancarios['transferencia']['cuenta'] }}" placeholder="0105-...">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Titular de la Cuenta</label>
+                    <input type="text" name="banco_transferencia_titular" class="form-input w-full rounded-lg border-gray-300 focus:border-medical-500 focus:ring-medical-500" 
+                           value="{{ $datosBancarios['transferencia']['titular'] }}" placeholder="Nombre del Titular">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">RIF / Documento</label>
+                    <input type="text" name="banco_transferencia_rif" class="form-input w-full rounded-lg border-gray-300 focus:border-medical-500 focus:ring-medical-500 uppercase" 
+                           value="{{ $datosBancarios['transferencia']['rif'] }}" placeholder="J-12345678-9">
+                </div>
+            </div>
+            <div class="bg-gray-50 px-6 py-4 rounded-b-2xl flex justify-end gap-3">
+                <button type="button" class="btn btn-ghost text-gray-600" onclick="document.getElementById('modalEditarTransferencia').classList.add('hidden'); document.getElementById('modalEditarTransferencia').classList.remove('flex');">Cancelar</button>
+                <button type="submit" class="btn btn-primary bg-medical-600 hover:bg-medical-700 text-white border-0 shadow-lg shadow-medical-200">
+                    Guardar Cambios
                 </button>
             </div>
-            <form action="{{ route('configuracion.metodos-pago.bancarios') }}" method="POST">
-                @csrf
-                <div class="modal-body p-6 space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Nombre del Banco</label>
-                        <input type="text" name="banco_transferencia_banco" class="form-input w-full rounded-lg border-gray-300 focus:border-medical-500 focus:ring-medical-500" 
-                               value="{{ $datosBancarios['transferencia']['banco'] }}" placeholder="Ej: Banco Mercantil">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Número de Cuenta</label>
-                        <input type="text" name="banco_transferencia_cuenta" class="form-input w-full rounded-lg border-gray-300 focus:border-medical-500 focus:ring-medical-500 font-mono" 
-                               value="{{ $datosBancarios['transferencia']['cuenta'] }}" placeholder="0105-...">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Titular de la Cuenta</label>
-                        <input type="text" name="banco_transferencia_titular" class="form-input w-full rounded-lg border-gray-300 focus:border-medical-500 focus:ring-medical-500" 
-                               value="{{ $datosBancarios['transferencia']['titular'] }}" placeholder="Nombre del Titular">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">RIF / Documento</label>
-                        <input type="text" name="banco_transferencia_rif" class="form-input w-full rounded-lg border-gray-300 focus:border-medical-500 focus:ring-medical-500 uppercase" 
-                               value="{{ $datosBancarios['transferencia']['rif'] }}" placeholder="J-12345678-9">
-                    </div>
-                </div>
-                <div class="modal-footer bg-gray-50 px-6 py-4 rounded-b-2xl flex justify-end gap-3">
-                    <button type="button" class="btn btn-ghost text-gray-600" data-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary bg-medical-600 hover:bg-medical-700 text-white border-0 shadow-lg shadow-medical-200">
-                        Guardar Cambios
-                    </button>
-                </div>
-            </form>
-        </div>
+        </form>
     </div>
 </div>
 
 <!-- Modal Editar Pago Móvil -->
-<div class="modal fade" id="modalEditarPagoMovil" tabindex="-1" role="dialog" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered" role="document">
-        <div class="modal-content border-0 shadow-lg rounded-2xl">
-            <div class="modal-header border-b border-gray-100 p-6">
-                <h5 class="text-xl font-bold text-gray-900">Editar Pago Móvil</h5>
-                <button type="button" class="close text-gray-400 hover:text-gray-600" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
+<div class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50" id="modalEditarPagoMovil" onclick="if(event.target === this) { this.classList.add('hidden'); this.classList.remove('flex'); }">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4" onclick="event.stopPropagation();">
+        <div class="border-b border-gray-100 p-6 flex items-center justify-between">
+            <h5 class="text-xl font-bold text-gray-900">Editar Pago Móvil</h5>
+            <button type="button" class="text-gray-400 hover:text-gray-600 text-2xl leading-none" onclick="document.getElementById('modalEditarPagoMovil').classList.add('hidden'); document.getElementById('modalEditarPagoMovil').classList.remove('flex');">
+                &times;
+            </button>
+        </div>
+        <form action="{{ route('configuracion.metodos-pago.bancarios') }}" method="POST">
+            @csrf
+            <div class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Banco</label>
+                    <input type="text" name="banco_pagomovil_banco" class="form-input w-full rounded-lg border-gray-300 focus:border-medical-500 focus:ring-medical-500" 
+                           value="{{ $datosBancarios['pagomovil']['banco'] }}" placeholder="Ej: Banesco (0134)">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
+                    <input type="text" name="banco_pagomovil_telefono" class="form-input w-full rounded-lg border-gray-300 focus:border-medical-500 focus:ring-medical-500 font-mono" 
+                           value="{{ $datosBancarios['pagomovil']['telefono'] }}" placeholder="0414-1234567">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">RIF / Cédula</label>
+                    <input type="text" name="banco_pagomovil_rif" class="form-input w-full rounded-lg border-gray-300 focus:border-medical-500 focus:ring-medical-500 uppercase" 
+                           value="{{ $datosBancarios['pagomovil']['rif'] }}" placeholder="V-12345678">
+                </div>
+            </div>
+            <div class="bg-gray-50 px-6 py-4 rounded-b-2xl flex justify-end gap-3">
+                <button type="button" class="btn btn-ghost text-gray-600" onclick="document.getElementById('modalEditarPagoMovil').classList.add('hidden'); document.getElementById('modalEditarPagoMovil').classList.remove('flex');">Cancelar</button>
+                <button type="submit" class="btn btn-primary bg-medical-600 hover:bg-medical-700 text-white border-0 shadow-lg shadow-medical-200">
+                    Guardar Cambios
                 </button>
             </div>
-            <form action="{{ route('configuracion.metodos-pago.bancarios') }}" method="POST">
-                @csrf
-                <div class="modal-body p-6 space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Banco</label>
-                        <input type="text" name="banco_pagomovil_banco" class="form-input w-full rounded-lg border-gray-300 focus:border-medical-500 focus:ring-medical-500" 
-                               value="{{ $datosBancarios['pagomovil']['banco'] }}" placeholder="Ej: Banesco (0134)">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
-                        <input type="text" name="banco_pagomovil_telefono" class="form-input w-full rounded-lg border-gray-300 focus:border-medical-500 focus:ring-medical-500 font-mono" 
-                               value="{{ $datosBancarios['pagomovil']['telefono'] }}" placeholder="0414-1234567">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">RIF / Cédula</label>
-                        <input type="text" name="banco_pagomovil_rif" class="form-input w-full rounded-lg border-gray-300 focus:border-medical-500 focus:ring-medical-500 uppercase" 
-                               value="{{ $datosBancarios['pagomovil']['rif'] }}" placeholder="V-12345678">
-                    </div>
-                </div>
-                <div class="modal-footer bg-gray-50 px-6 py-4 rounded-b-2xl flex justify-end gap-3">
-                    <button type="button" class="btn btn-ghost text-gray-600" data-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary bg-medical-600 hover:bg-medical-700 text-white border-0 shadow-lg shadow-medical-200">
-                        Guardar Cambios
-                    </button>
-                </div>
-            </form>
-        </div>
+        </form>
     </div>
 </div>
 @endsection

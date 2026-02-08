@@ -161,25 +161,54 @@
                     </div>
                 </div>
 
-                <!-- Payment Methods Info -->
-                <div class="card p-6">
-                    <h3 class="text-lg font-display font-bold text-gray-900 mb-3">Métodos Aceptados</h3>
-                    <div class="space-y-2 text-sm">
-                        <div class="flex items-center gap-2 text-gray-700">
-                            <i class="bi bi-check-circle text-emerald-600"></i>
-                            <span>Efectivo</span>
+                <!-- Bank Details Card -->
+                <div id="bank-details-card" class="card p-6 hidden bg-blue-50 border-blue-200">
+                    <div class="flex items-start gap-3">
+                        <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+                            <i class="bi bi-bank text-blue-600"></i>
                         </div>
-                        <div class="flex items-center gap-2 text-gray-700">
-                            <i class="bi bi-check-circle text-emerald-600"></i>
-                            <span>Tarjeta Débito/Crédito</span>
-                        </div>
-                        <div class="flex items-center gap-2 text-gray-700">
-                            <i class="bi bi-check-circle text-emerald-600"></i>
-                            <span>Transferencia Bancaria</span>
-                        </div>
-                        <div class="flex items-center gap-2 text-gray-700">
-                            <i class="bi bi-check-circle text-emerald-600"></i>
-                            <span>Cheque</span>
+                        <div class="flex-1">
+                            <h4 class="font-bold text-gray-900 mb-3" id="bank-card-title">Datos Bancarios</h4>
+                            
+                            <!-- Transferencia -->
+                            <div id="info-transf-admin" class="hidden space-y-2">
+                                <div class="p-2 bg-white rounded-lg">
+                                    <p class="text-xs text-blue-600 font-semibold">Banco</p>
+                                    <p class="font-bold text-sm">{{ $datosBancarios['transferencia']['banco'] }}</p>
+                                </div>
+                                <div class="p-2 bg-white rounded-lg">
+                                    <p class="text-xs text-blue-600 font-semibold">Cuenta</p>
+                                    <p class="font-mono text-sm">{{ $datosBancarios['transferencia']['cuenta'] }}</p>
+                                </div>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div class="p-2 bg-white rounded-lg">
+                                        <p class="text-xs text-blue-600 font-semibold">Titular</p>
+                                        <p class="font-bold text-xs">{{ $datosBancarios['transferencia']['titular'] }}</p>
+                                    </div>
+                                    <div class="p-2 bg-white rounded-lg">
+                                        <p class="text-xs text-blue-600 font-semibold">RIF</p>
+                                        <p class="font-bold text-xs">{{ $datosBancarios['transferencia']['rif'] }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Pago Móvil -->
+                            <div id="info-pagomovil-admin" class="hidden space-y-2">
+                                <div class="p-2 bg-white rounded-lg">
+                                    <p class="text-xs text-emerald-600 font-semibold">Banco</p>
+                                    <p class="font-bold text-sm">{{ $datosBancarios['pagomovil']['banco'] }}</p>
+                                </div>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div class="p-2 bg-white rounded-lg">
+                                        <p class="text-xs text-emerald-600 font-semibold">Teléfono</p>
+                                        <p class="font-mono text-sm">{{ $datosBancarios['pagomovil']['telefono'] }}</p>
+                                    </div>
+                                    <div class="p-2 bg-white rounded-lg">
+                                        <p class="text-xs text-emerald-600 font-semibold">RIF</p>
+                                        <p class="font-bold text-sm">{{ $datosBancarios['pagomovil']['rif'] }}</p>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -243,6 +272,46 @@ document.addEventListener('DOMContentLoaded', function() {
 
     montoBsInput?.addEventListener('input', actualizarCalculos);
     tasaSelect?.addEventListener('change', actualizarCalculos);
+    
+    // Mostrar datos bancarios según método de pago seleccionado
+    // Mostrar datos bancarios según método de pago seleccionado
+    const metodoSelect = document.getElementById('id_metodo');
+    const bankDetailsCard = document.getElementById('bank-details-card');
+    const infoTransf = document.getElementById('info-transf-admin');
+    const infoPagoMovil = document.getElementById('info-pagomovil-admin');
+    const bankCardTitle = document.getElementById('bank-card-title');
+    
+    function toggleBankDetails() {
+        if (!metodoSelect || !bankDetailsCard) return;
+
+        const selectedOption = metodoSelect.options[metodoSelect.selectedIndex];
+        if (!selectedOption) return;
+
+        const metodoNombre = selectedOption.text.toLowerCase().trim();
+        console.log('Método seleccionado:', metodoNombre);
+        
+        // Ocultar todos primero
+        infoTransf?.classList.add('hidden');
+        infoPagoMovil?.classList.add('hidden');
+        bankDetailsCard.classList.add('hidden');
+        
+        // Mostrar según el método seleccionado
+        if (metodoNombre.includes('transferencia')) {
+            infoTransf?.classList.remove('hidden');
+            if (bankCardTitle) bankCardTitle.textContent = 'Datos para Transferencia';
+            bankDetailsCard.classList.remove('hidden');
+        } else if (metodoNombre.includes('pago móvil') || metodoNombre.includes('pago movil') || metodoNombre.includes('pagomovil')) {
+            infoPagoMovil?.classList.remove('hidden');
+            if (bankCardTitle) bankCardTitle.textContent = 'Datos Pago Móvil';
+            bankDetailsCard.classList.remove('hidden');
+        }
+    }
+
+    if (metodoSelect) {
+        metodoSelect.addEventListener('change', toggleBankDetails);
+        // Ejecutar al cargar por si hay un valor seleccionado
+        toggleBankDetails();
+    }
 });
 </script>
 @endsection

@@ -20,6 +20,7 @@
                 <div class="flex gap-3">
                     <form action="{{ route('pagos.rechazar', $pago->id_pago) }}" method="POST" id="rechazarPagoForm">
                         @csrf
+                        @method('PATCH')
                         <input type="hidden" name="motivo" id="motivoRechazo">
                         <button type="button" onclick="openModal('modalRechazo')" class="btn btn-danger text-white shadow-lg shadow-rose-200">
                             <i class="bi bi-x-lg mr-2"></i> Rechazar Pago
@@ -28,6 +29,7 @@
 
                     <form action="{{ route('pagos.confirmar', $pago->id_pago) }}" method="POST">
                         @csrf
+                        @method('PATCH')
                         <button type="submit" class="btn btn-success text-white shadow-lg shadow-emerald-200">
                             <i class="bi bi-check-lg mr-2"></i> Confirmar Pago
                         </button>

@@ -258,7 +258,7 @@
             formData.append('_token', '{{ csrf_token() }}');
 
             const response = await fetch(`{{ url('pagos') }}/${currentPagoId}/confirmar`, {
-                method: 'POST',
+                method: 'PATCH',
                 body: formData,
                 headers: { 'X-Requested-With': 'XMLHttpRequest' }
             });
@@ -299,7 +299,7 @@
             formData.append('_token', '{{ csrf_token() }}');
 
             const response = await fetch(`{{ url('pagos') }}/${currentPagoId}/rechazar`, {
-                method: 'POST',
+                method: 'PATCH',
                 body: formData,
                 headers: { 'X-Requested-With': 'XMLHttpRequest' }
             });
