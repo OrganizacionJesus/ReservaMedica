@@ -4,6 +4,35 @@
 
 @section('content')
 <div x-data="ordenMedicaForm()" class="space-y-6">
+    <!-- Toast Notification -->
+    <div x-show="showToast" 
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0 transform translate-y-2"
+         x-transition:enter-end="opacity-100 transform translate-y-0"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100 transform translate-y-0"
+         x-transition:leave-end="opacity-0 transform translate-y-2"
+         class="fixed top-20 right-6 z-50">
+        <div class="flex items-center gap-3 px-6 py-4 rounded-xl shadow-2xl border-l-4"
+             :class="{
+                 'bg-green-50 border-green-500 text-green-800': toastType === 'success',
+                 'bg-blue-50 border-blue-500 text-blue-800': toastType === 'info'
+             }">
+            <div class="flex-shrink-0">
+                <i class="bi text-2xl" :class="{
+                    'bi-check-circle-fill text-green-500': toastType === 'success',
+                    'bi-info-circle-fill text-blue-500': toastType === 'info'
+                }"></i>
+            </div>
+            <div>
+                <p class="font-semibold" x-text="toastTitle"></p>
+                <p class="text-sm opacity-80" x-text="toastMessage"></p>
+            </div>
+            <button @click="showToast = false" class="ml-4 text-gray-400 hover:text-gray-600">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+    </div>
     <!-- Header -->
     <div class="flex items-center gap-4">
         <a href="{{ route('ordenes-medicas.index') }}" class="btn btn-outline">
@@ -139,26 +168,10 @@
                     </div>
                 </div>
 
-                <!-- Diagnóstico e Indicaciones Generales -->
-                <div class="card p-6">
-                    <h3 class="text-lg font-display font-bold text-gray-900 mb-4 flex items-center gap-2">
-                        <i class="bi bi-clipboard2-pulse text-medical-600"></i>
-                        Diagnóstico e Indicaciones
-                    </h3>
-
-                    <div class="space-y-4">
-                        <div>
-                            <label class="form-label">Diagnóstico Principal</label>
-                            <textarea name="diagnostico_principal" rows="2" class="form-textarea" 
-                                      placeholder="Diagnóstico que justifica la orden..."></textarea>
-                        </div>
-                        <div>
-                            <label class="form-label">Indicaciones Generales</label>
-                            <textarea name="indicaciones" rows="2" class="form-textarea" 
-                                      placeholder="Indicaciones adicionales para el paciente..."></textarea>
-                        </div>
-                    </div>
-                </div>
+                <!-- Diagnóstico e Indicaciones Generales - OCULTO: Se maneja en la evolución clínica -->
+                <!-- Campos hidden para mantener compatibilidad -->
+                <input type="hidden" name="diagnostico_principal" value="">
+                <input type="hidden" name="indicaciones" value="">
 
                 <!-- ============================================================ -->
                 <!-- RECETA - Medicamentos -->
@@ -609,6 +622,25 @@ function ordenMedicaForm() {
     return {
         tipoOrden: 'Receta',
         
+        // Sistema de notificaciones toast
+        showToast: false,
+        toastType: 'success',
+        toastTitle: '',
+        toastMessage: '',
+        
+        // Método para mostrar toast
+        mostrarToast(titulo, mensaje, tipo = 'success') {
+            this.toastTitle = titulo;
+            this.toastMessage = mensaje;
+            this.toastType = tipo;
+            this.showToast = true;
+            
+            // Auto-ocultar después de 3 segundos
+            setTimeout(() => {
+                this.showToast = false;
+            }, 3000);
+        },
+        
         // Array de órdenes confirmadas (pendientes de guardar)
         ordenesConfirmadas: [],
         
@@ -669,6 +701,9 @@ function ordenMedicaForm() {
                 data: dataOrden
             });
             
+            // Mostrar mensaje de éxito
+            this.mostrarToast('¡Medicamento Agregado!', this.formMedicamento.medicamento + ' se añadió a la orden', 'success');
+            
             // Limpiar formulario
             this.formMedicamento = {
                 medicamento: '',
@@ -689,10 +724,15 @@ function ordenMedicaForm() {
                 return;
             }
             
+            const nombreExamen = this.formExamen.nombre_examen;
+            
             this.ordenesConfirmadas.push({
                 tipo: 'Laboratorio',
                 data: { ...this.formExamen }
             });
+            
+            // Mostrar mensaje de éxito
+            this.mostrarToast('¡Examen Agregado!', nombreExamen + ' se añadió a la orden', 'success');
             
             // Limpiar formulario
             this.formExamen = {
@@ -714,6 +754,9 @@ function ordenMedicaForm() {
                     urgente: false
                 }
             });
+            
+            // Mostrar mensaje de éxito
+            this.mostrarToast('¡Examen Agregado!', nombre + ' se añadió a la orden', 'success');
         },
         
         // Confirmar imagen
@@ -723,10 +766,16 @@ function ordenMedicaForm() {
                 return;
             }
             
+            const tipoEstudio = this.formImagen.tipo_estudio;
+            const region = this.formImagen.region_anatomica;
+            
             this.ordenesConfirmadas.push({
                 tipo: 'Imagenologia',
                 data: { ...this.formImagen }
             });
+            
+            // Mostrar mensaje de éxito
+            this.mostrarToast('¡Estudio Agregado!', tipoEstudio + ' de ' + region + ' se añadió a la orden', 'success');
             
             // Limpiar formulario
             this.formImagen = {
@@ -746,10 +795,15 @@ function ordenMedicaForm() {
                 return;
             }
             
+            const especialidad = this.formReferencia.especialidad_destino;
+            
             this.ordenesConfirmadas.push({
                 tipo: 'Referencia',
                 data: { ...this.formReferencia }
             });
+            
+            // Mostrar mensaje de éxito
+            this.mostrarToast('¡Referencia Agregada!', 'Referencia a ' + especialidad + ' se añadió a la orden', 'success');
             
             // Limpiar formulario
             this.formReferencia = {

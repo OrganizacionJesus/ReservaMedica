@@ -157,8 +157,8 @@
                         
                         @foreach($horas as $hora)
                             <tr class="border-b border-gray-100 hover:bg-gray-50/50">
-                                <td class="px-3 py-2 text-gray-600 font-medium bg-gray-50">
-                                    {{ $hora }}
+                                <td class="px-3 py-2 text-gray-600 font-medium bg-gray-50 text-xs">
+                                    {{ $hora }} - {{ \Carbon\Carbon::parse($hora)->addMinutes(30)->format('H:i') }}
                                 </td>
                                 @foreach($diasSemana as $dia)
                                     @php
