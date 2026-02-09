@@ -839,7 +839,7 @@ class AuthController extends Controller
         
         Mail::send('emails.recuperar-password', [
             'usuario' => $usuario,
-            'resetUrl' => $resetUrl
+            'urlRecuperacion' => $resetUrl
         ], function($message) use ($usuario) {
             $message->to($usuario->correo)
                     ->subject('Recuperación de Contraseña - Sistema Médico');
