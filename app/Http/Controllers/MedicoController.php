@@ -424,6 +424,45 @@ class MedicoController extends Controller
             'domingo' => 'Domingo'
         ];
 
+        \Log::info('Guardando horario médico', [
+            'medico_id' => $id,
+            'input_raw' => $request->all(),
+            'horarios_input' => $input
+        ]);
+
+        // 0. Validación de Integridad (Campos requeridos si el turno está activo)
+        foreach ($daysOfWeek as $dayKey) {
+            if (!isset($input[$dayKey])) continue;
+            $dayData = $input[$dayKey];
+            $diaNombre = $dbDays[$dayKey];
+
+            // Validar Turno Mañana
+            if (isset($dayData['manana_activa']) && $dayData['manana_activa'] == '1') {
+                if (empty($dayData['manana_consultorio_id'])) {
+                    return redirect()->back()->with('error', "Error en {$diaNombre} (Mañana): Debe seleccionar un CONSULTORIO.");
+                }
+                if (empty($dayData['manana_especialidad_id'])) {
+                    return redirect()->back()->with('error', "Error en {$diaNombre} (Mañana): Debe seleccionar una ESPECIALIDAD.");
+                }
+                if (empty($dayData['manana_inicio']) || empty($dayData['manana_fin'])) {
+                    return redirect()->back()->with('error', "Error en {$diaNombre} (Mañana): Debe definir hora de inicio y fin.");
+                }
+            }
+
+            // Validar Turno Tarde
+            if (isset($dayData['tarde_activa']) && $dayData['tarde_activa'] == '1') {
+                if (empty($dayData['tarde_consultorio_id'])) {
+                    return redirect()->back()->with('error', "Error en {$diaNombre} (Tarde): Debe seleccionar un CONSULTORIO.");
+                }
+                if (empty($dayData['tarde_especialidad_id'])) {
+                    return redirect()->back()->with('error', "Error en {$diaNombre} (Tarde): Debe seleccionar una ESPECIALIDAD.");
+                }
+                if (empty($dayData['tarde_inicio']) || empty($dayData['tarde_fin'])) {
+                    return redirect()->back()->with('error', "Error en {$diaNombre} (Tarde): Debe definir hora de inicio y fin.");
+                }
+            }
+        }
+
         // 1. Validación de Especialidades vs Consultorio
         // Recopilamos todos los IDs de consultorios involucrados para cargar sus especialidades permitidas
         $consultorioIds = [];

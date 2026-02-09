@@ -813,7 +813,7 @@ class CitaController extends Controller
                 $horaInicio = Carbon::createFromFormat('H:i', $request->hora_inicio);
                 $horaFin = $horaInicio->copy()->addMinutes(30)->format('H:i');
 
-                // Verificar disponibilidad del médico
+                // Verificar disponibilidad del médico (Cita existente)
                 $citaExistente = Cita::where('medico_id', $request->medico_id)
                                     ->where('fecha_cita', $request->fecha_cita)
                                     ->where('hora_inicio', $request->hora_inicio)
@@ -823,6 +823,20 @@ class CitaController extends Controller
 
                 if ($citaExistente) {
                     throw new \Exception('El médico no está disponible en ese horario. Por favor seleccione otra hora.');
+                }
+
+                // Verificar que el horario esté dentro del turno del médico
+                $diaSemana = $this->obtenerDiaSemana($request->fecha_cita);
+                $turnoValido = MedicoConsultorio::where('medico_id', $request->medico_id)
+                    ->where('consultorio_id', $request->consultorio_id)
+                    ->where('dia_semana', $diaSemana)
+                    ->where('status', true)
+                    ->whereTime('horario_inicio', '<=', $request->hora_inicio)
+                    ->whereTime('horario_fin', '>', $request->hora_inicio) // Mayor estricto para dar tiempo a la cita
+                    ->exists();
+
+                if (!$turnoValido) {
+                    throw new \Exception('El médico no tiene turno disponible en el horario seleccionado.');
                 }
 
                 // Obtener dirección para la cita (especialmente relevante si es Domicilio)
@@ -988,6 +1002,28 @@ class CitaController extends Controller
             
             $cita = Cita::findOrFail($id);
             
+            // Seguridad: Validar que el usuario tenga permiso sobre este consultorio (si es Admin Local)
+            $user = auth()->user();
+            if ($user->rol_id == 1 && $user->administrador && $user->administrador->tipo_admin !== 'Root') {
+                $consultorioIds = $user->administrador->consultorios->pluck('id');
+                if (!$consultorioIds->contains($cita->consultorio_id)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'No tiene permiso para gestionar citas de este consultorio.'
+                    ], 403);
+                }
+            }
+
+            // Seguridad: Validar si es Paciente, que la cita sea suya
+            if ($user->rol_id == 3) { // 3 = Paciente
+                if ($cita->paciente && $cita->paciente->user_id !== $user->id) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'No tiene permiso para gestionar esta cita.'
+                    ], 403);
+                }
+            }
+            
             // Validar
             $request->validate([
                 'motivo_cancelacion' => 'required|string',
@@ -1007,8 +1043,11 @@ class CitaController extends Controller
             }
             
             $cita->observaciones = $nuevaObservacion;
-            // Opcional: Podríamos tener un estado 'solicitud_cancelacion' si el enum lo permite.
-            // Si no, lo dejamos en pendiente pero notificamos.
+            
+            // AUTOMÁTICO: Cambiar estado a 'Cancelada' para liberar el horario
+            // Esto refleja la solicitud del usuario de "Cancelación Directa"
+            $cita->estado_cita = 'Cancelada';
+            
             $cita->save();
 
             // Notificar a los administradores relevantes sobre la cancelación
@@ -1042,7 +1081,7 @@ class CitaController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Solicitud de cancelación enviada correctamente. El administrador revisará su caso.'
+                'message' => 'Su cita ha sido cancelada exitosamente.'
             ]);
 
         } catch (\Exception $e) {
@@ -1240,6 +1279,15 @@ class CitaController extends Controller
     public function cambiarEstado(Request $request, $id)
     {
         $cita = Cita::findOrFail($id);
+        
+        // Seguridad: Validar que el usuario tenga permiso sobre este consultorio (si es Admin Local)
+        $user = auth()->user();
+        if ($user->rol_id == 1 && $user->administrador && $user->administrador->tipo_admin !== 'Root') {
+            $consultorioIds = $user->administrador->consultorios->pluck('id');
+            if (!$consultorioIds->contains($cita->consultorio_id)) {
+                abort(403, 'No tiene permiso para gestionar citas de este consultorio.');
+            }
+        }
         
         $validator = Validator::make($request->all(), [
             'estado_cita' => 'required|in:Programada,Confirmada,En Progreso,Completada,Cancelada,No Asistió',
@@ -1466,6 +1514,7 @@ class CitaController extends Controller
      */
     public function getHorariosDisponibles(Request $request)
     {
+        Log::info('getHorariosDisponibles', $request->all());
         $medicoId = $request->medico_id;
         $consultorioId = $request->consultorio_id;
         $fecha = $request->fecha;
@@ -1476,14 +1525,15 @@ class CitaController extends Controller
         
         $diaSemana = $this->obtenerDiaSemana($fecha);
         
-        // Obtener horario del médico para ese día en ese consultorio
-        $horarioMedico = MedicoConsultorio::where('medico_id', $medicoId)
+        // Obtener TODOS los horarios del médico para ese día en ese consultorio (Turnos múltiples)
+        $horariosMedico = MedicoConsultorio::where('medico_id', $medicoId)
             ->where('consultorio_id', $consultorioId)
             ->where('dia_semana', $diaSemana)
             ->where('status', true)
-            ->first();
+            ->orderBy('horario_inicio')
+            ->get();
         
-        if (!$horarioMedico) {
+        if ($horariosMedico->isEmpty()) {
             return response()->json([
                 'disponible' => false,
                 'mensaje' => 'El médico no trabaja este día en este consultorio',
@@ -1491,7 +1541,7 @@ class CitaController extends Controller
             ]);
         }
         
-        // Obtener citas ya agendadas para ese día
+        // Obtener citas ya agendadas para ese día (para marcar como ocupadas)
         $citasOcupadas = Cita::where('medico_id', $medicoId)
             ->where('fecha_cita', $fecha)
             ->where('status', true)
@@ -1505,28 +1555,60 @@ class CitaController extends Controller
             })
             ->toArray();
         
-        // Generar slots de 30 minutos
-        $horaInicio = Carbon::createFromFormat('H:i:s', $horarioMedico->horario_inicio);
-        $horaFin = Carbon::createFromFormat('H:i:s', $horarioMedico->horario_fin);
-        
-        $slots = [];
-        $current = $horaInicio->copy();
-        
-        while ($current < $horaFin) {
-            $horaStr = $current->format('H:i');
-            $slots[] = [
-                'hora' => $horaStr,
-                'disponible' => !in_array($horaStr, $citasOcupadas),
-                'ocupada' => in_array($horaStr, $citasOcupadas)
-            ];
-            $current->addMinutes(30);
+        $allSlots = [];
+        $horarioInicioGlobal = null;
+        $horarioFinGlobal = null;
+
+        // Iterar sobre cada turno (ej: mañana y tarde)
+        foreach ($horariosMedico as $horario) {
+            // Actualizar rangos globales para referencia
+            if (!$horarioInicioGlobal || $horario->horario_inicio < $horarioInicioGlobal) {
+                $horarioInicioGlobal = $horario->horario_inicio;
+            }
+            if (!$horarioFinGlobal || $horario->horario_fin > $horarioFinGlobal) {
+                $horarioFinGlobal = $horario->horario_fin;
+            }
+
+            // Generar slots de 30 minutos para este turno
+            $horaInicio = Carbon::createFromFormat('H:i:s', $horario->horario_inicio);
+            $horaFin = Carbon::createFromFormat('H:i:s', $horario->horario_fin);
+            
+            $current = $horaInicio->copy();
+            
+            while ($current < $horaFin) {
+                $horaStr = $current->format('H:i');
+                
+                // Evitar duplicados si los turnos se solapan (raro pero posible)
+                $yaExiste = false;
+                foreach ($allSlots as $slot) {
+                    if ($slot['hora'] == $horaStr) {
+                        $yaExiste = true;
+                        break;
+                    }
+                }
+
+                if (!$yaExiste) {
+                     $allSlots[] = [
+                        'hora' => $horaStr,
+                        'disponible' => !in_array($horaStr, $citasOcupadas),
+                        'ocupada' => in_array($horaStr, $citasOcupadas)
+                    ];
+                }
+               
+                $current->addMinutes(30);
+            }
         }
+        
+        // Ordenar slots por hora
+        usort($allSlots, function($a, $b) {
+            return strcmp($a['hora'], $b['hora']);
+        });
         
         return response()->json([
             'disponible' => true,
-            'horario_inicio' => $horarioMedico->horario_inicio,
-            'horario_fin' => $horarioMedico->horario_fin,
-            'horarios' => $slots
+            'horario_inicio' => $horarioInicioGlobal,
+            'horario_fin' => $horarioFinGlobal,
+            'horarios' => $allSlots
         ]);
     }
 

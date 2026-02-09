@@ -16,7 +16,7 @@
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 relative z-10">
         <!-- Consulta General / Primera Vez -->
         <label class="cursor-pointer relative group">
-            <input type="radio" name="tipo_consulta" value="Primera Vez" class="peer sr-only" onchange="actualizarResumenTipo(this.value)">
+            <input type="radio" name="proposito_visita" value="Primera Vez" class="peer sr-only" onchange="actualizarResumenTipo(this.value)">
             
             <div class="h-full p-6 rounded-3xl border-2 border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-800/50 
                         hover:border-indigo-400 dark:hover:border-indigo-400 hover:shadow-lg hover:shadow-indigo-500/10 hover:-translate-y-1
@@ -46,7 +46,7 @@
 
         <!-- Control / Seguimiento -->
         <label class="cursor-pointer relative group">
-            <input type="radio" name="tipo_consulta" value="Control" class="peer sr-only" onchange="actualizarResumenTipo(this.value)">
+            <input type="radio" name="proposito_visita" value="Control" class="peer sr-only" onchange="actualizarResumenTipo(this.value)">
             
             <div class="h-full p-6 rounded-3xl border-2 border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-800/50 
                         hover:border-cyan-400 dark:hover:border-cyan-400 hover:shadow-lg hover:shadow-cyan-500/10 hover:-translate-y-1

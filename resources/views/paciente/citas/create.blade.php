@@ -67,6 +67,7 @@
     <form action="{{ route('paciente.citas.store') }}" method="POST" id="citaForm" class="hidden space-y-6 animate-in fade-in slide-in-from-bottom duration-500" onsubmit="return validarFormularioCompleto()">
         @csrf
         <input type="hidden" name="tipo_cita" id="tipo_cita" value="">
+        <input type="hidden" name="tipo_consulta" value="Presencial">
         <input type="hidden" name="misma_direccion" id="misma_direccion_input" value="1">
         <input type="hidden" name="paciente_especial_existente_id" id="paciente_especial_existente_id" value="">
 
@@ -325,6 +326,52 @@
 
     // All other original JS functions remain (validarFormulario, cargar* functions, etc)
     // They would be included in the full implementation
+    // Enable Date Selection Logic
+    window.enableDateSelection = function() {
+        const card = document.getElementById('fecha_hora_card');
+        if(card) {
+            card.classList.remove('opacity-50', 'pointer-events-none');
+            card.classList.add('opacity-100', 'shadow-lg', 'ring-1', 'ring-sky-100');
+            
+            // Smooth scroll to card
+            setTimeout(() => {
+                card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 500);
+        }
+    };
+
+    // Enable Consultation Type Logic
+    window.enableConsultationType = function() {
+        const card = document.getElementById('tipo_consulta_card');
+        if(card) {
+            card.classList.remove('opacity-50', 'pointer-events-none');
+            card.classList.add('opacity-100', 'shadow-lg', 'ring-1', 'ring-indigo-100');
+            
+            setTimeout(() => {
+                card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 500);
+        }
+    }
+
+    // Enable Reason Logic
+    window.enableReason = function() {
+        const card = document.getElementById('motivo_card');
+        if(card) {
+            card.classList.remove('opacity-50', 'pointer-events-none');
+            card.classList.add('opacity-100', 'shadow-lg', 'ring-1', 'ring-rose-100');
+            
+            setTimeout(() => {
+                card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 500);
+        }
+    }
+
+    // Helper to update summary and trigger next step
+    window.actualizarResumenTipo = function(valor) {
+        document.getElementById('resumen-modalidad').textContent = valor;
+        // Trigger next step enable
+        window.enableReason();
+    }
 </script>
 @endpush
 @endsection

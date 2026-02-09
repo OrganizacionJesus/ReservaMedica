@@ -10,10 +10,7 @@
             <h1 class="text-2xl font-display font-bold text-gray-900 dark:text-white">Gestión de Facturación</h1>
             <p class="text-gray-600 dark:text-gray-400 mt-1">Admin istra facturas y cobros</p>
         </div>
-        <a href="{{ route('facturacion.create') }}" class="btn btn-primary">
-            <i class="bi bi-plus-lg"></i>
-            <span>Nueva Factura</span>
-        </a>
+
     </div>
 
     {{-- Tabs --}}

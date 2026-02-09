@@ -17,176 +17,311 @@
         </div>
     </div>
 
-    <form action="{{ route('pagos.store') }}" method="POST" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        @csrf
-
-        <!-- Main Form Column -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Main Content Column -->
         <div class="lg:col-span-2 space-y-6">
-            <!-- Factura -->
-            <div class="card p-6 shadow-sm border-gray-100 relative overflow-hidden">
-                <div class="absolute top-0 right-0 -mt-2 -mr-2 w-24 h-24 bg-blue-50 rounded-full blur-3xl opacity-50"></div>
-
-                <h3 class="text-lg font-display font-bold text-gray-900 mb-6 flex items-center gap-2">
-                    <span class="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center shadow-sm shadow-blue-200">
-                        <i class="bi bi-receipt text-sm"></i>
-                    </span>
-                    Seleccionar Factura Pendiente
-                </h3>
-
-                    <div class="space-y-4">
-                        <div>
-                            <label class="form-label font-semibold text-gray-700 mb-1">Factura Pendiente</label>
-                            <select name="id_factura_paciente" id="factura_id" class="form-select select2" required>
-                                <option value="">Seleccionar factura...</option>
-                                @foreach($facturas as $factura)
-                                @php
-                                    $totalPagado = $factura->pagos->where('estado', 'Confirmado')->sum('monto_equivalente_usd');
-                                    $saldoPendiente = $factura->monto_usd - $totalPagado;
-                                @endphp
-                                <option value="{{ $factura->id }}" 
-                                        data-monto-usd="{{ $saldoPendiente }}"
-                                        data-paciente="{{ optional($factura->paciente)->nombre_completo ?? 'N/A' }}"
-                                        data-cedula="{{ optional($factura->paciente)->cedula ?? 'N/A' }}"
-                                        data-nro="{{ $factura->numero_factura }}"
-                                        {{ request('factura_id') == $factura->id ? 'selected' : '' }}>
-                                    {{ $factura->numero_factura }} - {{ optional($factura->paciente)->nombre_completo }} (Pendiente: ${{ number_format($saldoPendiente, 2) }})
-                                </option>
-                                @endforeach
-                            </select>
-                        </div>
-
-                        <div id="facturaInfo" class="hidden p-4 bg-blue-50 rounded-xl border border-blue-200">
-                            <div class="grid grid-cols-2 gap-4">
-                                <div>
-                                    <p class="text-sm text-gray-600">Paciente</p>
-                                    <p class="font-semibold text-gray-900" id="facturaPaciente">-</p>
-                                </div>
-                                <div>
-                                    <p class="text-sm text-gray-600">Monto Pendiente (USD)</p>
-                                    <p class="text-2xl font-bold text-blue-700" id="facturaMonto">$0.00</p>
-                                    <input type="hidden" id="max_usd" value="0">
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+            
+            {{-- Panel Expandible: Citas sin Factura --}}
+            @if(isset($citasSinFactura) && $citasSinFactura->isNotEmpty())
+            <div id="citasSinFacturaPanel" class="card p-6 shadow-sm border-blue-200 hidden">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-display font-bold text-gray-900 flex items-center gap-2">
+                        <span class="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center">
+                            <i class="bi bi-calendar-x text-sm"></i>
+                        </span>
+                        Citas sin Factura
+                    </h3>
+                    <button type="button" onclick="toggleCitasSinFactura()" class="text-gray-400 hover:text-gray-600">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
                 </div>
 
-                <!-- Detalle de Pago -->
-                <div class="card p-6 shadow-sm border-gray-100 relative overflow-hidden">
-                    <div class="absolute top-0 right-0 -mt-2 -mr-2 w-24 h-24 bg-emerald-50 rounded-full blur-3xl opacity-50"></div>
+                <p class="text-sm text-gray-600 mb-4">
+                    Selecciona una cita para generar su factura y poder registrar el pago.
+                </p>
 
-                    <h3 class="text-lg font-display font-bold text-gray-900 mb-6 flex items-center gap-2">
-                        <span class="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center shadow-sm shadow-emerald-200">
-                            <i class="bi bi-cash-stack text-sm"></i>
-                        </span>
-                        Información de Recaudación
-                    </h3>
+                <div class="space-y-3 max-h-96 overflow-y-auto">
+                    @foreach($citasSinFactura as $cita)
+                    <div class="p-4 bg-gray-50 rounded-lg hover:bg-blue-50 transition-colors border border-gray-200 hover:border-blue-300">
+                        <div class="flex items-start justify-between gap-4">
+                            <div class="flex-1">
+                                <div class="flex items-center gap-2 mb-2">
+                                    <span class="badge badge-{{ $cita->estado_cita == 'Completada' ? 'success' : 'info' }}">
+                                        {{ $cita->estado_cita }}
+                                    </span>
+                                    <span class="text-xs text-gray-500">
+                                        #{{ $cita->id }}
+                                    </span>
+                                </div>
+                                <p class="font-semibold text-gray-900">
+                                    {{ optional($cita->paciente)->nombre_completo ?? 'Paciente N/A' }}
+                                </p>
+                                <p class="text-sm text-gray-600">
+                                    {{ optional($cita->paciente)->cedula ?? 'N/A' }}
+                                </p>
+                                <div class="mt-2 flex flex-wrap gap-3 text-xs text-gray-600">
+                                    <span>
+                                        <i class="bi bi-calendar3"></i>
+                                        {{ \Carbon\Carbon::parse($cita->fecha_cita)->format('d/m/Y') }}
+                                    </span>
+                                    <span>
+                                        <i class="bi bi-clock"></i>
+                                        {{ \Carbon\Carbon::parse($cita->hora_inicio)->format('h:i A') }}
+                                    </span>
+                                    <span>
+                                        <i class="bi bi-person-badge"></i>
+                                        {{ optional($cita->medico)->primer_nombre }} {{ optional($cita->medico)->primer_apellido }}
+                                    </span>
+                                    <span class="font-semibold text-green-700">
+                                        <i class="bi bi-cash"></i>
+                                        ${{ number_format($cita->tarifa + ($cita->tarifa_extra ?? 0), 2) }}
+                                    </span>
+                                </div>
+                            </div>
+                            <form action="{{ route('facturacion.generar', $cita->id) }}" method="POST" 
+                                  onsubmit="return confirm('¿Generar factura para esta cita?')">
+                                @csrf
+                                <button type="submit" class="btn btn-sm btn-primary whitespace-nowrap">
+                                    <i class="bi bi-file-earmark-plus"></i>
+                                    Generar Factura
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                    @endforeach
+                </div>
+            </div>
+            @endif
 
-                    <div class="space-y-4">
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Formulario Principal -->
+            <form id="pagoForm" action="{{ route('pagos.store') }}" method="POST">
+                @csrf
+                <div class="space-y-6">
+                    <!-- Factura -->
+                    <div class="card p-6 shadow-sm border-gray-100 relative overflow-hidden">
+                        <div class="absolute top-0 right-0 -mt-2 -mr-2 w-24 h-24 bg-blue-50 rounded-full blur-3xl opacity-50"></div>
+
+                        <h3 class="text-lg font-display font-bold text-gray-900 mb-6 flex items-center gap-2">
+                            <span class="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center shadow-sm shadow-blue-200">
+                                <i class="bi bi-receipt text-sm"></i>
+                            </span>
+                            Seleccionar Factura Pendiente
+                        </h3>
+
+                        <div class="space-y-4">
                             <div>
-                                <label class="form-label font-semibold">Tasa de Cambio</label>
-                                <select name="tasa_aplicada_id" id="tasa_id" class="form-select" required>
-                                    @foreach($tasas as $tasa)
-                                    <option value="{{ $tasa->id }}" data-valor="{{ $tasa->valor }}">
-                                        {{ $tasa->nombre }} ({{ number_format($tasa->valor, 2) }} Bs.)
+                                <label class="form-label font-semibold text-gray-700 mb-1">Factura Pendiente</label>
+                                <select name="id_factura_paciente" id="factura_id" class="form-select select2" required>
+                                    <option value="">Seleccionar factura...</option>
+                                    @foreach($facturas as $factura)
+                                    @php
+                                        $totalPagado = $factura->pagos->where('estado', 'Confirmado')->sum('monto_equivalente_usd');
+                                        $saldoPendiente = $factura->monto_usd - $totalPagado;
+                                    @endphp
+                                    <option value="{{ $factura->id }}" 
+                                            data-monto-usd="{{ $saldoPendiente }}"
+                                            data-paciente="{{ optional($factura->paciente)->nombre_completo ?? 'N/A' }}"
+                                            data-cedula="{{ optional($factura->paciente)->cedula ?? 'N/A' }}"
+                                            data-nro="{{ $factura->numero_factura }}"
+                                            {{ request('factura_id') == $factura->id ? 'selected' : '' }}>
+                                        {{ $factura->numero_factura }} - {{ optional($factura->paciente)->nombre_completo }} (Pendiente: ${{ number_format($saldoPendiente, 2) }})
                                     </option>
                                     @endforeach
                                 </select>
                             </div>
-                            <div>
-                                <label class="form-label font-semibold">Monto en Bolívares (Bs.)</label>
-                                <div class="relative">
-                                    <span class="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-gray-400">Bs.</span>
-                                    <input type="number" name="monto_pagado_bs" id="monto_bs" class="input pl-12 font-bold text-lg" step="0.01" required placeholder="0.00">
+
+                            {{-- Alerta: Acceso Rápido a Generación de Facturas --}}
+                            @if(isset($citasSinFactura) && $citasSinFactura->isNotEmpty())
+                            <div class="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                                <div class="flex items-start gap-3">
+                                    <i class="bi bi-info-circle text-amber-600 text-xl flex-shrink-0 mt-0.5"></i>
+                                    <div class="flex-1">
+                                        <h4 class="font-bold text-gray-900 mb-1">¿La cita no tiene factura?</h4>
+                                        <p class="text-sm text-gray-600 mb-3">
+                                            Si necesitas registrar un pago pero la cita aún no tiene factura asociada, 
+                                            puedes generarla directamente desde aquí.
+                                        </p>
+                                        <button type="button" onclick="toggleCitasSinFactura()" 
+                                                class="btn btn-sm btn-outline border-amber-300 text-amber-700 hover:bg-amber-100">
+                                            <i class="bi bi-search mr-1"></i>
+                                            Ver Citas sin Factura ({{ $citasSinFactura->count() }})
+                                        </button>
+                                    </div>
                                 </div>
-                                <p class="text-xs text-gray-500 mt-1" id="monto_usd_calc">Equivale a: $0.00 USD</p>
+                            </div>
+                            @endif
+
+                            <div id="facturaInfo" class="hidden p-4 bg-blue-50 rounded-xl border border-blue-200">
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <p class="text-sm text-gray-600">Paciente</p>
+                                        <p class="font-semibold text-gray-900" id="facturaPaciente">-</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm text-gray-600">Monto Pendiente (USD)</p>
+                                        <p class="text-2xl font-bold text-blue-700" id="facturaMonto">$0.00</p>
+                                        <input type="hidden" id="max_usd" value="0">
+                                    </div>
+                                </div>
                             </div>
                         </div>
+                    </div>
 
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Detalle de Pago -->
+                    <div class="card p-6 shadow-sm border-gray-100 relative overflow-hidden">
+                        <div class="absolute top-0 right-0 -mt-2 -mr-2 w-24 h-24 bg-emerald-50 rounded-full blur-3xl opacity-50"></div>
+
+                        <h3 class="text-lg font-display font-bold text-gray-900 mb-6 flex items-center gap-2">
+                            <span class="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center shadow-sm shadow-emerald-200">
+                                <i class="bi bi-cash-stack text-sm"></i>
+                            </span>
+                            Información de Recaudación
+                        </h3>
+
+                        <div class="space-y-4">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="form-label font-semibold">Tasa de Cambio</label>
+                                    <select name="tasa_aplicada_id" id="tasa_id" class="form-select" required>
+                                        @foreach($tasas as $tasa)
+                                        <option value="{{ $tasa->id }}" data-valor="{{ $tasa->valor }}">
+                                            {{ $tasa->nombre }} ({{ number_format($tasa->valor, 2) }} Bs.)
+                                        </option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="form-label font-semibold">Monto en Bolívares (Bs.)</label>
+                                    <div class="relative">
+                                        <span class="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-gray-400">Bs.</span>
+                                        <input type="number" name="monto_pagado_bs" id="monto_bs" class="input pl-12 font-bold text-lg" step="0.01" required placeholder="0.00">
+                                    </div>
+                                    <p class="text-xs text-gray-500 mt-1" id="monto_usd_calc">Equivale a: $0.00 USD</p>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="form-label font-semibold">Método de Pago</label>
+                                    <select name="id_metodo" id="id_metodo" class="form-select" required>
+                                        <option value="">Seleccionar...</option>
+                                        @foreach($metodosPago as $metodo)
+                                        <option value="{{ $metodo->id_metodo }}">{{ $metodo->nombre }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="form-label font-semibold">Referencia</label>
+                                    <input type="text" name="referencia" class="input" placeholder="Nro de comprobante" required>
+                                </div>
+                            </div>
+
                             <div>
-                                <label class="form-label font-semibold">Método de Pago</label>
-                                <select name="id_metodo" id="id_metodo" class="form-select" required>
-                                    <option value="">Seleccionar...</option>
-                                    @foreach($metodosPago as $metodo)
-                                    <option value="{{ $metodo->id_metodo }}">{{ $metodo->nombre }}</option>
-                                    @endforeach
-                                </select>
+                                <label class="form-label font-semibold">Fecha de Pago</label>
+                                <input type="date" name="fecha_pago" class="input" value="{{ date('Y-m-d') }}" required>
                             </div>
+
                             <div>
-                                <label class="form-label font-semibold">Referencia</label>
-                                <input type="text" name="referencia" class="input" placeholder="Nro de comprobante" required>
+                                <label class="form-label font-semibold">Observaciones</label>
+                                <textarea name="comentarios" rows="3" class="form-textarea" placeholder="Opcional...">{{ old('comentarios') }}</textarea>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </form>
+        </div>
 
-                        <div>
-                            <label class="form-label font-semibold">Fecha de Pago</label>
-                            <input type="date" name="fecha_pago" class="input" value="{{ date('Y-m-d') }}" required>
-                        </div>
+        <!-- Sidebar -->
+        <div class="space-y-6">
+            <!-- Actions -->
+            <div class="card p-6">
+                <h3 class="text-lg font-display font-bold text-gray-900 mb-4">Acciones</h3>
+                <div class="space-y-3">
+                    <button type="submit" form="pagoForm" class="btn btn-success w-full">
+                        <i class="bi bi-check-lg"></i>
+                        Registrar Pago
+                    </button>
+                     <a href="{{ route('pagos.index') }}" class="btn btn-outline w-full py-3 justify-center">
+                        <i class="bi bi-x-lg mr-2"></i>
+                        Cancelar
+                    </a>
+                </div>
+            </div>
 
-                        <div>
-                            <label class="form-label font-semibold">Observaciones</label>
-                            <textarea name="comentarios" rows="3" class="form-textarea" placeholder="Opcional...">{{ old('comentarios') }}</textarea>
-                        </div>
+            <!-- Info -->
+            <div class="card p-6 bg-emerald-50 border-emerald-200">
+                <div class="flex gap-3">
+                    <i class="bi bi-info-circle text-emerald-600 text-xl"></i>
+                    <div>
+                        <h4 class="font-semibold text-gray-900 mb-1">Importante</h4>
+                        <p class="text-sm text-gray-600">El pago se registrará automáticamente y se actualizará el estado de la factura.</p>
                     </div>
                 </div>
             </div>
 
-            <!-- Sidebar -->
-            <div class="space-y-6">
-                <!-- Actions -->
-                <div class="card p-6">
-                    <h3 class="text-lg font-display font-bold text-gray-900 mb-4">Acciones</h3>
-                    <div class="space-y-3">
-                        <button type="submit" class="btn btn-success w-full">
-                            <i class="bi bi-check-lg"></i>
-                            Registrar Pago
-                        </button>
-                         <a href="{{ route('pagos.index') }}" class="btn btn-outline w-full py-3 justify-center">
-                            <i class="bi bi-x-lg mr-2"></i>
-                            Cancelar
-                        </a>
+            <!-- Bank Details Card -->
+            <div id="bank-details-card" class="card p-6 hidden bg-blue-50 border-blue-200">
+                <div class="flex items-start gap-3">
+                    <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+                        <i class="bi bi-bank text-blue-600"></i>
                     </div>
-                </div>
-
-                <!-- Info -->
-                <div class="card p-6 bg-emerald-50 border-emerald-200">
-                    <div class="flex gap-3">
-                        <i class="bi bi-info-circle text-emerald-600 text-xl"></i>
-                        <div>
-                            <h4 class="font-semibold text-gray-900 mb-1">Importante</h4>
-                            <p class="text-sm text-gray-600">El pago se registrará automáticamente y se actualizará el estado de la factura.</p>
+                    <div class="flex-1">
+                        <h4 class="font-bold text-gray-900 mb-3" id="bank-card-title">Datos Bancarios</h4>
+                        
+                        <!-- Transferencia -->
+                        <div id="info-transf-admin" class="hidden space-y-2">
+                            <div class="p-2 bg-white rounded-lg">
+                                <p class="text-xs text-blue-600 font-semibold">Banco</p>
+                                <p class="font-bold text-sm">{{ $datosBancarios['transferencia']['banco'] }}</p>
+                            </div>
+                            <div class="p-2 bg-white rounded-lg">
+                                <p class="text-xs text-blue-600 font-semibold">Cuenta</p>
+                                <p class="font-mono text-sm">{{ $datosBancarios['transferencia']['cuenta'] }}</p>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div class="p-2 bg-white rounded-lg">
+                                    <p class="text-xs text-blue-600 font-semibold">Titular</p>
+                                    <p class="font-bold text-xs">{{ $datosBancarios['transferencia']['titular'] }}</p>
+                                </div>
+                                <div class="p-2 bg-white rounded-lg">
+                                    <p class="text-xs text-blue-600 font-semibold">RIF</p>
+                                    <p class="font-bold text-xs">{{ $datosBancarios['transferencia']['rif'] }}</p>
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                </div>
-
-                <!-- Payment Methods Info -->
-                <div class="card p-6">
-                    <h3 class="text-lg font-display font-bold text-gray-900 mb-3">Métodos Aceptados</h3>
-                    <div class="space-y-2 text-sm">
-                        <div class="flex items-center gap-2 text-gray-700">
-                            <i class="bi bi-check-circle text-emerald-600"></i>
-                            <span>Efectivo</span>
-                        </div>
-                        <div class="flex items-center gap-2 text-gray-700">
-                            <i class="bi bi-check-circle text-emerald-600"></i>
-                            <span>Tarjeta Débito/Crédito</span>
-                        </div>
-                        <div class="flex items-center gap-2 text-gray-700">
-                            <i class="bi bi-check-circle text-emerald-600"></i>
-                            <span>Transferencia Bancaria</span>
-                        </div>
-                        <div class="flex items-center gap-2 text-gray-700">
-                            <i class="bi bi-check-circle text-emerald-600"></i>
-                            <span>Cheque</span>
+                        
+                        <!-- Pago Móvil -->
+                        <div id="info-pagomovil-admin" class="hidden space-y-2">
+                            <div class="p-2 bg-white rounded-lg">
+                                <p class="text-xs text-emerald-600 font-semibold">Banco</p>
+                                <p class="font-bold text-sm">{{ $datosBancarios['pagomovil']['banco'] }}</p>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div class="p-2 bg-white rounded-lg">
+                                    <p class="text-xs text-emerald-600 font-semibold">Teléfono</p>
+                                    <p class="font-mono text-sm">{{ $datosBancarios['pagomovil']['telefono'] }}</p>
+                                </div>
+                                <div class="p-2 bg-white rounded-lg">
+                                    <p class="text-xs text-emerald-600 font-semibold">RIF</p>
+                                    <p class="font-bold text-sm">{{ $datosBancarios['pagomovil']['rif'] }}</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-    </form>
+    </div>
 </div>
+
+<script>
+    function toggleCitasSinFactura() {
+        const panel = document.getElementById('citasSinFacturaPanel');
+        if (panel) {
+            panel.classList.toggle('hidden');
+        }
+    }
+</script>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -243,6 +378,45 @@ document.addEventListener('DOMContentLoaded', function() {
 
     montoBsInput?.addEventListener('input', actualizarCalculos);
     tasaSelect?.addEventListener('change', actualizarCalculos);
+    
+    // Mostrar datos bancarios según método de pago seleccionado
+    const metodoSelect = document.getElementById('id_metodo');
+    const bankDetailsCard = document.getElementById('bank-details-card');
+    const infoTransf = document.getElementById('info-transf-admin');
+    const infoPagoMovil = document.getElementById('info-pagomovil-admin');
+    const bankCardTitle = document.getElementById('bank-card-title');
+    
+    function toggleBankDetails() {
+        if (!metodoSelect || !bankDetailsCard) return;
+
+        const selectedOption = metodoSelect.options[metodoSelect.selectedIndex];
+        if (!selectedOption) return;
+
+        const metodoNombre = selectedOption.text.toLowerCase().trim();
+        console.log('Método seleccionado:', metodoNombre);
+        
+        // Ocultar todos primero
+        infoTransf?.classList.add('hidden');
+        infoPagoMovil?.classList.add('hidden');
+        bankDetailsCard.classList.add('hidden');
+        
+        // Mostrar según el método seleccionado
+        if (metodoNombre.includes('transferencia')) {
+            infoTransf?.classList.remove('hidden');
+            if (bankCardTitle) bankCardTitle.textContent = 'Datos para Transferencia';
+            bankDetailsCard.classList.remove('hidden');
+        } else if (metodoNombre.includes('pago móvil') || metodoNombre.includes('pago movil') || metodoNombre.includes('pagomovil')) {
+            infoPagoMovil?.classList.remove('hidden');
+            if (bankCardTitle) bankCardTitle.textContent = 'Datos Pago Móvil';
+            bankDetailsCard.classList.remove('hidden');
+        }
+    }
+
+    if (metodoSelect) {
+        metodoSelect.addEventListener('change', toggleBankDetails);
+        // Ejecutar al cargar por si hay un valor seleccionado
+        toggleBankDetails();
+    }
 });
 </script>
 @endsection

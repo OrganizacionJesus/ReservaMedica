@@ -247,6 +247,7 @@
                 });
             },
             
+            
             // Filtro de consultorios por especialidad
             isConsultorioAllowed(especialidadId, consultorioId) {
                 if (!especialidadId) return true; // Si no hay especialidad, mostrar todos
@@ -258,6 +259,35 @@
                 return allowed.includes(parseInt(consultorioId));
             }
         };
+    };
+
+    // IMPORTANTE: Esta función debe estar FUERA del factory makeScheduleCard
+    // para que sea accesible desde el onclick del botón
+    window.validateAndSubmit = function() {
+        const form = document.getElementById('horariosForm');
+        const data = new FormData(form);
+        const days = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'];
+        
+        for (const day of days) {
+            // Verificar Mañana
+            if (data.get(`horarios[${day}][manana_activa]`) === '1') {
+                if (!data.get(`horarios[${day}][manana_consultorio_id]`) || 
+                    !data.get(`horarios[${day}][manana_especialidad_id]`)) {
+                    alert(`Error en ${day.toUpperCase()}: Horario de MAÑANA activo sin consultorio o especialidad seleccionada.`);
+                    return;
+                }
+            }
+            // Verificar Tarde
+            if (data.get(`horarios[${day}][tarde_activa]`) === '1') {
+                if (!data.get(`horarios[${day}][tarde_consultorio_id]`) || 
+                    !data.get(`horarios[${day}][tarde_especialidad_id]`)) {
+                    alert(`Error en ${day.toUpperCase()}: Horario de TARDE activo sin consultorio o especialidad seleccionada.`);
+                    return;
+                }
+            }
+        }
+        
+        form.submit();
     };
 </script>
 
@@ -275,7 +305,7 @@
                 @endif
             </p>
         </div>
-        <button class="btn btn-primary" onclick="document.getElementById('horariosForm').submit()">
+        <button class="btn btn-primary" onclick="validateAndSubmit()">
             <i class="bi bi-save mr-2"></i>
             Guardar Cambios
         </button>
