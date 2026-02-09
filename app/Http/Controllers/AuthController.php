@@ -17,6 +17,10 @@ use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Models\KnownDevice;
+use App\Notifications\NewDeviceLoginNotification;
+use App\Notifications\PasswordChangedNotification;
+use App\Notifications\AccountLockedNotification;
 
 class AuthController extends Controller
 {
@@ -46,7 +50,7 @@ class AuthController extends Controller
 
         if (!$usuario) {
             return redirect()->back()
-                ->withErrors(['correo' => 'El correo electrónico no coincide con nuestros registros.'])
+                ->withErrors(['correo' => 'Las credenciales no coinciden con nuestros registros.'])
                 ->withInput();
         }
 
@@ -85,59 +89,80 @@ class AuthController extends Controller
 
         // Verificar contraseña
         if ($usuario->password !== $passwordHash) {
+            // Implementar rate limiting por intentos fallidos
+            $sessionKey = "login_attempts_{$usuario->id}";
+            $attempts = session($sessionKey, 0) + 1;
+            session([$sessionKey => $attempts]);
+            
+            // Bloquear cuenta tras 5 intentos fallidos
+            if ($attempts >= 5) {
+                $blockedUntil = now()->addMinutes(15);
+                $usuario->update([
+                    'status' => 2,
+                    'blocked_until' => $blockedUntil,
+                    'lock_reason' => 'Múltiples intentos fallidos de inicio de sesión'
+                ]);
+                
+                session()->forget($sessionKey);
+                
+                // Enviar notificación de bloqueo
+                try {
+                    $usuario->notify(new AccountLockedNotification([
+                       'ip' => $request->ip(),
+                       'time' => now()->format('d/m/Y H:i A'),
+                       'unlock_time' => $blockedUntil->format('d/m/Y H:i A')
+                    ]));
+                } catch (\Exception $e) {
+                    Log::error('Error enviando notificación de bloqueo: ' . $e->getMessage());
+                }
+                
+                Log::warning('Account locked due to failed login attempts', [
+                    'user_id' => $usuario->id,
+                    'email' => $usuario->correo,
+                    'ip' => $request->ip()
+                ]);
+
+                return redirect()->back()
+                    ->withErrors(['correo' => "Cuenta bloqueada por seguridad hasta las {$blockedUntil->format('H:i')}. Demasiados intentos fallidos."])
+                    ->withInput();
+            }
+            
+            $remaining = 5 - $attempts;
             return redirect()->back()
-                ->withErrors(['password' => 'La contraseña es inválida.'])
+                ->withErrors(['password' => "Contraseña inválida. {$remaining} intento(s) restante(s)."])
                 ->withInput();
         }
+        
+        // Limpiar intentos fallidos en login exitoso
+        session()->forget("login_attempts_{$usuario->id}");
 
         // VALIDACIÓN DE ACCESO POR PORTAL CORRECTO
-        // Mapeo de roles string a IDs
         $mapaRoles = [
             'admin' => 1,
             'medico' => 2,
             'paciente' => 3
         ];
-
+        
         $rolSolicitado = $request->input('rol');
 
-        // Solo validamos si se especifica un rol en la URL de login
         if ($rolSolicitado && isset($mapaRoles[$rolSolicitado])) {
             $rolIdSolicitado = $mapaRoles[$rolSolicitado];
 
-            // Si el usuario intenta entrar a un portal que no es el suyo
             if ($usuario->rol_id !== $rolIdSolicitado) {
-
-                // Determinar a dónde debería ir y cómo se llama su rol real
                 $rutaCorrecta = 'login';
                 $nombreRolReal = '';
                 $portalIntentado = '';
 
                 switch ($usuario->rol_id) {
-                    case 1:
-                        $rutaCorrecta = route('login', ['rol' => 'admin']);
-                        $nombreRolReal = 'Administrador';
-                        break;
-                    case 2:
-                        $rutaCorrecta = route('login', ['rol' => 'medico']);
-                        $nombreRolReal = 'Médico';
-                        break;
-                    case 3:
-                        $rutaCorrecta = route('login', ['rol' => 'paciente']);
-                        $nombreRolReal = 'Paciente';
-                        break;
+                    case 1: $rutaCorrecta = route('login', ['rol' => 'admin']); $nombreRolReal = 'Administrador'; break;
+                    case 2: $rutaCorrecta = route('login', ['rol' => 'medico']); $nombreRolReal = 'Médico'; break;
+                    case 3: $rutaCorrecta = route('login', ['rol' => 'paciente']); $nombreRolReal = 'Paciente'; break;
                 }
 
-                // Nombre bonito del portal intentado
                 switch ($rolSolicitado) {
-                    case 'admin':
-                        $portalIntentado = 'Administradores';
-                        break;
-                    case 'medico':
-                        $portalIntentado = 'Médicos';
-                        break;
-                    case 'paciente':
-                        $portalIntentado = 'Pacientes';
-                        break;
+                    case 'admin': $portalIntentado = 'Administradores'; break;
+                    case 'medico': $portalIntentado = 'Médicos'; break;
+                    case 'paciente': $portalIntentado = 'Pacientes'; break;
                 }
 
                 return redirect($rutaCorrecta)
@@ -147,53 +172,54 @@ class AuthController extends Controller
 
         // Verificar estado del perfil específico
         $perfilInactivo = false;
-
         switch ($usuario->rol_id) {
-            case 1: // Administrador
-                if ($usuario->administrador && !$usuario->administrador->status) {
-                    $perfilInactivo = true;
-                }
-                break;
-            case 2: // Medico
-                if ($usuario->medico && !$usuario->medico->status) {
-                    $perfilInactivo = true;
-                }
-                break;
-            case 3: // Paciente
-                if ($usuario->paciente && !$usuario->paciente->status) {
-                    $perfilInactivo = true;
-                }
-                break;
+            case 1: if ($usuario->administrador && !$usuario->administrador->status) $perfilInactivo = true; break;
+            case 2: if ($usuario->medico && !$usuario->medico->status) $perfilInactivo = true; break;
+            case 3: if ($usuario->paciente && !$usuario->paciente->status) $perfilInactivo = true; break;
         }
 
         if ($perfilInactivo) {
             return redirect()->back()->with('error', 'Su perfil de usuario ha sido desactivado.')->withInput();
         }
 
-        // Iniciar sesión usando el guard web explícitamente
-        Auth::guard('web')->login($usuario, true);
+        // Iniciar sesión usando el guard web explícitamente (remember-me opcional)
+        $remember = $request->boolean('remember', false);
+        Auth::guard('web')->login($usuario, $remember);
 
         // Flag para mostrar toasts solo al iniciar sesión
         session(['mostrar_bienvenida_toasts' => true]);
 
-        // Alerta de Seguridad (Login Notification)
+        // --- VALIDACIÓN DE DISPOSITIVO CONOCIDO ---
         try {
-            $destinatario = $usuario->paciente ?: ($usuario->medico ?: $usuario);
-            $destinatario->notify(new \App\Notifications\AlertaInicioSesion(
-                $request->ip(),
-                $request->header('User-Agent'),
-                now()->format('d/m/Y H:i:s')
-            ));
-        } catch (\Exception $e) {
-            Log::error('Error enviando alerta de login: ' . $e->getMessage());
-        }
+            $ip = $request->ip();
+            $userAgent = $request->header('User-Agent');
+            
+            $knownDevice = KnownDevice::where('user_id', $usuario->id)
+                ->where('ip_address', $ip)
+                ->where('user_agent', $userAgent)
+                ->first();
 
-        // Guardar en historial de passwords - ELIMINADO: Solo se debe guardar al registrar o cambiar, no al hacer login
-        // HistorialPassword::create([
-        //     'user_id' => $usuario->id,
-        //     'password_hash' => $passwordHash,
-        //     'status' => true
-        // ]);
+            if ($knownDevice) {
+                $knownDevice->update(['last_login_at' => now()]);
+            } else {
+                // Nuevo dispositivo detectado
+                KnownDevice::create([
+                    'user_id' => $usuario->id,
+                    'ip_address' => $ip,
+                    'user_agent' => $userAgent,
+                    'last_login_at' => now()
+                ]);
+
+                // Notificar nuevo inicio de sesión
+                $usuario->notify(new NewDeviceLoginNotification([
+                    'ip' => $ip,
+                    'device' => $userAgent,
+                    'time' => now()->format('d/m/Y H:i:s')
+                ]));
+            }
+        } catch (\Exception $e) {
+            Log::error('Error en verificación de dispositivo conocido: ' . $e->getMessage());
+        }
 
         // Redirigir según el rol
         return $this->redirectByRole($usuario);
@@ -209,15 +235,28 @@ class AuthController extends Controller
 
     public function register(Request $request)
     {
-        Log::info('Iniciando registro de paciente', ['correo' => $request->correo]);
+        Log::info('Iniciando registro debugging', $request->all());
 
-        $validator = Validator::make($request->all(), [
+        // Limpiar campos opcionales vacíos para evitar problemas de validación
+        if (empty($request->segundo_nombre)) {
+            $request->request->remove('segundo_nombre');
+        }
+        if (empty($request->segundo_apellido)) {
+            $request->request->remove('segundo_apellido');
+        }
+
+        $rules = [
             'rol_id' => 'required|in:2,3',
             'primer_nombre' => 'required|max:20|regex:/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/',
-            'segundo_nombre' => 'required|max:20|regex:/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/',
+            'segundo_nombre' => 'sometimes|nullable|max:20|regex:/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/',
             'primer_apellido' => 'required|max:20|regex:/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/',
-            'segundo_apellido' => 'required|max:20|regex:/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/',
+            'segundo_apellido' => 'sometimes|nullable|max:20|regex:/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/',
             'correo' => 'required|email|unique:usuarios,correo|max:150',
+        ];
+
+        Log::info('Debug rules applied:', $rules);
+
+        $validator = Validator::make($request->all(), $rules, [
             'password' => [
                 'required',
                 'min:8',
@@ -307,7 +346,7 @@ class AuthController extends Controller
                 RespuestaSeguridad::create([
                     'user_id' => $usuario->id,
                     'pregunta_id' => $request->input("pregunta_seguridad_$i"),
-                    'respuesta_hash' => md5(md5($respuesta)),
+                    'respuesta_hash' => $respuesta, // El modelo aplica md5(md5()) automáticamente
                     'status' => true
                 ]);
             }
@@ -350,9 +389,13 @@ class AuthController extends Controller
         }
     }
 
-    public function logout()
+    public function logout(Request $request)
     {
         Auth::logout();
+        
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+        
         return redirect()->route('home')->with('success', 'Sesión cerrada exitosamente');
     }
 
@@ -368,12 +411,16 @@ class AuthController extends Controller
         $usuario = Usuario::where('correo', $request->email)->first();
         
         if (!$usuario) {
-            return response()->json(['success' => false, 'message' => 'Correo no encontrado en el sistema.']);
+            // Anti-enumeración: responder siempre success aunque no exista
+            return response()->json([
+                'success' => true,
+                'message' => 'Si el correo existe en nuestro sistema, recibirás instrucciones de recuperación.'
+            ]);
         }
 
         // Generar token
         $token = Str::random(64);
-        DB::table('password_resets')->updateOrInsert(
+        DB::table('password_reset_tokens')->updateOrInsert(
             ['email' => $usuario->correo],
             ['token' => $token, 'created_at' => now()]
         );
@@ -394,8 +441,7 @@ class AuthController extends Controller
         $identifier = $request->identifier;
         
         Log::info('getSecurityQuestions called', [
-            'identifier' => $identifier,
-            'request_all' => $request->all()
+            'identifier' => $identifier
         ]);
         
         // Try to find user by email first
@@ -528,17 +574,14 @@ class AuthController extends Controller
             // Check 3: Raw (Legacy support - includes spaces and case)
             $rawHash = md5(md5($userAnswer));
             
-            Log::info("Verification attempt for Question {$questionId}", [
+            Log::info("Verification attempt for security question", [
                 'user_id' => $usuario->id,
-                'input_raw' => $userAnswer,
-                'input_normalized' => $normalizedAnswer,
-                'stored_hash' => $respuestaAlmacenada->respuesta_hash,
-                'generated_normalized_hash' => $normalizedHash,
-                'generated_trimmed_hash' => $trimmedHash,
-                'generated_raw_hash' => $rawHash,
-                'match_normalized' => ($respuestaAlmacenada->respuesta_hash === $normalizedHash),
-                'match_trimmed' => ($respuestaAlmacenada->respuesta_hash === $trimmedHash),
-                'match_raw' => ($respuestaAlmacenada->respuesta_hash === $rawHash)
+                'pregunta_id' => $questionId,
+                'matched' => (
+                    $respuestaAlmacenada->respuesta_hash === $normalizedHash ||
+                    $respuestaAlmacenada->respuesta_hash === $trimmedHash ||
+                    $respuestaAlmacenada->respuesta_hash === $rawHash
+                )
             ]);
             
             if ($respuestaAlmacenada->respuesta_hash !== $normalizedHash && 
@@ -554,7 +597,7 @@ class AuthController extends Controller
             session()->forget($sessionKey);
             
             $token = Str::random(64);
-            DB::table('password_resets')->updateOrInsert(
+            DB::table('password_reset_tokens')->updateOrInsert(
                 ['email' => $usuario->correo],
                 ['token' => $token, 'created_at' => now()]
             );
@@ -623,7 +666,7 @@ class AuthController extends Controller
 
     public function showResetPassword($token)
     {
-        $reset = DB::table('password_resets')->where('token', $token)->first();
+        $reset = DB::table('password_reset_tokens')->where('token', $token)->first();
 
         if (!$reset) {
             return redirect()->route('login')->with('error', 'Token inválido o expirado');
@@ -637,14 +680,25 @@ class AuthController extends Controller
         $validator = Validator::make($request->all(), [
             'token' => 'required',
             'email' => 'required|email',
-            'password' => 'required|min:8|confirmed'
+            'password' => [
+                'required',
+                'min:8',
+                'confirmed',
+                'regex:/[A-Z]/',      // Al menos una mayúscula
+                'regex:/[0-9]/',      // Al menos un número
+                'regex:/[@$!%*#?&.]/' // Al menos un símbolo
+            ]
+        ], [
+            'password.confirmed' => 'Las contraseñas no coinciden',
+            'password.min' => 'La contraseña debe tener al menos 8 caracteres',
+            'password.regex' => 'La contraseña debe contener al menos una mayúscula, un número y un símbolo (@$!%*#?&.)'
         ]);
 
         if ($validator->fails()) {
             return redirect()->back()->withErrors($validator);
         }
 
-        $reset = DB::table('password_resets')
+        $reset = DB::table('password_reset_tokens')
             ->where('email', $request->email)
             ->where('token', $request->token)
             ->first();
@@ -659,15 +713,22 @@ class AuthController extends Controller
             return redirect()->back()->with('error', 'Usuario no encontrado');
         }
 
-        // --- VALIDACIÓN DE HISTORIAL DE CONTRASEÑAS ---
+        // --- VALIDACIÓN DE HISTORIAL DE CONTRASEÑAS (Últimas 5) ---
         $newPasswordHash = md5(md5($request->password));
         
-        $passwordInHistory = HistorialPassword::where('user_id', $usuario->id)
-                                             ->where('password_hash', $newPasswordHash)
-                                             ->exists();
-        
-        if ($passwordInHistory) {
-            return redirect()->back()->with('error', 'La nueva contraseña no puede ser una de las que has usado anteriormente. Por seguridad, utiliza una diferente.');
+        // 1. Verificar contra la contraseña ACTUAL
+        if ($usuario->password === $newPasswordHash) {
+            return redirect()->back()->with('error', 'La nueva contraseña no puede ser igual a tu contraseña actual. Por favor, elige una diferente.');
+        }
+
+        // 2. Verificar en las últimas 5 contraseñas cambiadas
+        $latestPasswords = HistorialPassword::where('user_id', $usuario->id)
+            ->orderBy('created_at', 'desc')
+            ->take(5)
+            ->pluck('password_hash');
+
+        if ($latestPasswords->contains($newPasswordHash)) {
+            return redirect()->back()->with('error', 'La nueva contraseña no puede ser una de las últimas 5 que has usado. Por seguridad, utiliza una diferente.');
         }
 
         // --- INACTIVAR HISTORIAL ANTIGUO ---
@@ -685,12 +746,12 @@ class AuthController extends Controller
         ]);
 
         // --- ELIMINAR TOKEN DE RESETEO ---
-        DB::table('password_resets')->where('email', $request->email)->delete();
+        DB::table('password_reset_tokens')->where('email', $request->email)->delete();
 
         // --- NOTIFICACIONES ---
         try {
-            // Notificación por Email
-            $this->enviarEmailConfirmacionCambio($usuario);
+            // Notificación por Email usando la nueva clase
+            $usuario->notify(new PasswordChangedNotification());
             
             // Notificación de Sistema (Alerta al próximo login)
             if ($usuario->id) {
@@ -778,7 +839,7 @@ class AuthController extends Controller
         
         Mail::send('emails.recuperar-password', [
             'usuario' => $usuario,
-            'resetUrl' => $resetUrl
+            'urlRecuperacion' => $resetUrl
         ], function($message) use ($usuario) {
             $message->to($usuario->correo)
                     ->subject('Recuperación de Contraseña - Sistema Médico');
@@ -802,5 +863,29 @@ class AuthController extends Controller
         $existe = Usuario::where('correo', $correo)->exists();
 
         return response()->json(['existe' => $existe]);
+    }
+
+    // AJAX Validations for Register
+    public function checkEmail(Request $request)
+    {
+        $exists = Usuario::where('correo', $request->email)->exists();
+        return response()->json(['exists' => $exists]);
+    }
+
+    public function checkDocument(Request $request)
+    {
+        // Check in Paciente table
+        $exists = Paciente::where('tipo_documento', $request->tipo)
+                          ->where('numero_documento', $request->numero)
+                          ->exists();
+        
+        if (!$exists) {
+            // Check in Medico table
+            $exists = Medico::where('tipo_documento', $request->tipo)
+                            ->where('numero_documento', $request->numero)
+                            ->exists();
+        }
+
+        return response()->json(['exists' => $exists]);
     }
 }

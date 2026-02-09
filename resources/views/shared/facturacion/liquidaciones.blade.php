@@ -163,6 +163,7 @@
         <h3 class="font-bold text-lg mb-4">Nueva Liquidación</h3>
         <form action="{{ route('facturacion.crear-liquidacion') }}" method="POST">
             @csrf
+            <input type="hidden" name="accion" value="generar">
             <div class="space-y-4">
                 <div>
                     <label class="label"><span class="label-text font-bold">Tipo de Período</span></label>
@@ -180,6 +181,14 @@
                         <label class="label"><span class="label-text font-bold">Fecha Fin</span></label>
                         <input type="date" name="fecha_fin" class="input input-bordered w-full" required>
                     </div>
+                </div>
+                <div>
+                    <label class="label"><span class="label-text font-bold">Entidad (Opcional)</span></label>
+                    <select name="entidad_tipo" class="select select-bordered w-full">
+                        <option value="">Todas las entidades</option>
+                        <option value="Medico">Solo Médicos</option>
+                        <option value="Consultorio">Solo Consultorios</option>
+                    </select>
                 </div>
             </div>
             <div class="modal-action">
@@ -207,8 +216,16 @@ function generarLiquidacion(tipoEntidad, entidadId) {
         cancelButtonText: 'Cancelar'
     }).then((result) => {
         if (result.isConfirmed) {
-            // Implementar lógica de generación
-            Swal.fire('¡Generado!', 'La liquidación ha sido generada exitosamente', 'success');
+            // Abrir modal con datos precargados
+            const modal = document.getElementById('modal-nueva-liquidacion');
+            const form = modal.querySelector('form');
+            
+            // Precargar entidad si se especifica
+            if (entidadId) {
+                form.querySelector('select[name="entidad_tipo"]').value = tipoEntidad;
+            }
+            
+            modal.showModal();
         }
     });
 }

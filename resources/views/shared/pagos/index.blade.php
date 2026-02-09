@@ -255,6 +255,7 @@
 
         try {
             const formData = new FormData();
+            formData.append('_method', 'PATCH');
             formData.append('_token', '{{ csrf_token() }}');
 
             const response = await fetch(`{{ url('pagos') }}/${currentPagoId}/confirmar`, {
@@ -296,6 +297,7 @@
         try {
             const formData = new FormData();
             formData.append('motivo', motivo);
+            formData.append('_method', 'PATCH');
             formData.append('_token', '{{ csrf_token() }}');
 
             const response = await fetch(`{{ url('pagos') }}/${currentPagoId}/rechazar`, {

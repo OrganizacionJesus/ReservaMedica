@@ -14,11 +14,16 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\DB;
+use App\Models\Usuario;
+use App\Notifications\Admin\NuevoPagoRegistrado;
 
 class PagoController extends Controller
 {
     public function __construct()
     {
+        // Note: FacturacionService NOT injected here because billing now happens
+        // in MedicoController when cita is completed, not when payment is confirmed
         $this->middleware(function ($request, $next) {
             $user = auth()->user();
             if ($user && $user->administrador && $user->administrador->tipo_admin !== 'Root') {
@@ -99,7 +104,46 @@ class PagoController extends Controller
         $metodosPago = MetodoPago::where('status', true)->get();
         $tasas = TasaDolar::where('status', true)->orderBy('fecha_tasa', 'desc')->get();
         
-        return view('shared.pagos.create', compact('facturas', 'metodosPago', 'tasas'));
+        // Cargar datos bancarios de la configuración
+        $configKeys = [
+            'banco_transferencia_banco', 'banco_transferencia_cuenta', 
+            'banco_transferencia_rif', 'banco_transferencia_titular',
+            'banco_pagomovil_banco', 'banco_pagomovil_telefono', 'banco_pagomovil_rif'
+        ];
+        
+        $configuraciones = \App\Models\Configuracion::whereIn('key', $configKeys)->pluck('value', 'key');
+        
+        $datosBancarios = [
+            'transferencia' => [
+                'banco' => $configuraciones['banco_transferencia_banco'] ?? 'No configurado',
+                'cuenta' => $configuraciones['banco_transferencia_cuenta'] ?? '',
+                'rif' => $configuraciones['banco_transferencia_rif'] ?? '',
+                'titular' => $configuraciones['banco_transferencia_titular'] ?? ''
+            ],
+            'pagomovil' => [
+                'banco' => $configuraciones['banco_pagomovil_banco'] ?? 'No configurado',
+                'telefono' => $configuraciones['banco_pagomovil_telefono'] ?? '',
+                'rif' => $configuraciones['banco_pagomovil_rif'] ?? ''
+            ]
+        ];
+        
+        // Obtener citas sin factura (para acceso rápido a generación)
+        $citasSinFactura = \App\Models\Cita::with(['paciente', 'medico', 'especialidad', 'consultorio'])
+            ->whereIn('estado_cita', ['Programada', 'Confirmada', 'En Progreso', 'Completada'])
+            ->whereDoesntHave('facturaPaciente')
+            ->where('status', true)
+            ->orderBy('fecha_cita', 'desc')
+            ->limit(20); // Limitar a 20 más recientes
+
+        // Aplicar filtro si es administrador local
+        if ($user && $user->administrador && $user->administrador->tipo_admin !== 'Root') {
+            $consultorioIds = $user->administrador->consultorios->pluck('id')->toArray();
+            $citasSinFactura->whereIn('consultorio_id', $consultorioIds);
+        }
+
+        $citasSinFactura = $citasSinFactura->get();
+        
+        return view('shared.pagos.create', compact('facturas', 'metodosPago', 'tasas', 'datosBancarios', 'citasSinFactura'));
     }
 
     public function store(Request $request)
@@ -130,8 +174,8 @@ class PagoController extends Controller
                           ->where('estado', 'Confirmado')
                           ->sum('monto_equivalente_usd');
 
-        if (($totalPagado + $montoEquivalenteUSD) > $factura->monto_usd) {
-            return redirect()->back()->with('error', 'El pago excede el monto total de la factura')->withInput();
+        if (($totalPagado + $montoEquivalenteUSD) > ($factura->monto_usd + 0.05)) {
+            return redirect()->back()->with('error', 'El pago excede el monto total de la factura (incluso con margen de tolerancia)')->withInput();
         }
 
         $pago = Pago::create([
@@ -151,8 +195,21 @@ class PagoController extends Controller
         $this->actualizarEstadoFactura($factura->id);
 
         // Enviar notificación si el pago fue confirmado automáticamente
-        if ($pago->estado == 'Confirmado') {
-            $this->enviarNotificacionPago($pago);
+        try {
+            if ($pago->estado == 'Confirmado') {
+                $this->enviarNotificacionPago($pago);
+            } else {
+                // Notificar a los administradores sobre el nuevo pago pendiente
+                $admins = Usuario::whereHas('administrador', function($q) {
+                    $q->where('status', true);
+                })->get();
+                
+                foreach ($admins as $admin) {
+                    $admin->notify(new NuevoPagoRegistrado($pago));
+                }
+            }
+        } catch (\Exception $e) {
+            \Log::error('Error enviando notificación de pago: ' . $e->getMessage());
         }
 
         return redirect()->route('pagos.index')->with('success', 'Pago registrado exitosamente');
@@ -260,6 +317,7 @@ class PagoController extends Controller
             $this->actualizarEstadoFactura($pago->id_factura_paciente);
 
             // Actualizar estado de la cita a "Confirmada"
+            $cita = null;
             if ($pago->facturaPaciente && $pago->facturaPaciente->cita) {
                 $cita = $pago->facturaPaciente->cita;
                 
@@ -268,48 +326,49 @@ class PagoController extends Controller
                     $cita->update(['estado_cita' => 'Confirmada']);
                 }
 
-                // Ejecutar lógica de facturación avanzada (reparto de porcentajes)
-                if (!$cita->facturaCabecera) {
-                    $this->ejecutarFacturacionAvanzada($cita);
-                }
+                // ✅ CAMBIO ARQUITECTÓNICO: La facturación avanzada ahora se ejecuta
+                // cuando el médico completa la cita, NO cuando se confirma el pago.
+                // Esto evita crear montos pendientes de liquidación para citas no atendidas.
             }
 
             \DB::commit();
 
-            // Enviar notificación
-            $this->enviarNotificacionPago($pago);
-            
-            // Enviar notificación al paciente o representante (si es paciente especial)
-            if ($cita && $cita->paciente) {
-                $paciente = $cita->paciente;
-                $pacienteEspecial = $paciente->pacienteEspecial;
+            // Notificaciones
+            try {
+                // Enviar notificación
+                $this->enviarNotificacionPago($pago);
                 
-                if ($pacienteEspecial && $pacienteEspecial->representante) {
-                    // Es paciente especial: notificar al representante
-                    $representante = $pacienteEspecial->representante;
-                    $pacienteRepresentante = \App\Models\Paciente::where('tipo_documento', $representante->tipo_documento)
-                                              ->where('numero_documento', $representante->numero_documento)
-                                              ->first();
+                // Enviar notificación al paciente o representante (si es paciente especial)
+                if ($cita && $cita->paciente) {
+                    $paciente = $cita->paciente;
+                    $pacienteEspecial = $paciente->pacienteEspecial;
                     
-                    if ($pacienteRepresentante) {
-                        $pacienteRepresentante->notify(new \App\Notifications\PagoConfirmado($pago));
+                    if ($pacienteEspecial && $pacienteEspecial->representante) {
+                        // Es paciente especial: notificar al representante
+                        $representante = $pacienteEspecial->representante;
+                        $pacienteRepresentante = \App\Models\Paciente::where('tipo_documento', $representante->tipo_documento)
+                                                  ->where('numero_documento', $representante->numero_documento)
+                                                  ->first();
+                        
+                        if ($pacienteRepresentante) {
+                            $pacienteRepresentante->notify(new \App\Notifications\PagoConfirmado($pago));
+                        }
+                    } else {
+                        // Paciente regular: notificar directamente
+                        $paciente->notify(new \App\Notifications\PagoConfirmado($pago));
                     }
-                } else {
-                    // Paciente regular: notificar directamente
-                    $paciente->notify(new \App\Notifications\PagoConfirmado($pago));
-                }
 
-                // Notificar al médico sobre el pago confirmado
-                if ($cita->medico) {
-                    $cita->medico->notify(new \App\Notifications\Medico\PagoConfirmadoCita($pago));
+                    // Notificar al médico sobre el pago confirmado
+                    if ($cita->medico) {
+                        $cita->medico->notify(new \App\Notifications\Medico\PagoConfirmadoCita($pago));
+                    }
                 }
+            } catch (\Exception $ne) {
+                // Logueamos el error de correo pero dejamos que el proceso de confirmación termine
+                \Log::error('Error enviando notificación de pago confirmado: ' . $ne->getMessage());
             }
 
-            if ($request->ajax()) {
-                return response()->json(['success' => true, 'message' => 'Pago confirmado y cita actualizada exitosamente.']);
-            }
-
-            return redirect()->back()->with('success', 'Pago confirmado y cita actualizada exitosamente.');
+            return redirect()->route('facturacion.create')->with('success', 'Pago confirmado exitosamente' . (isset($ne) ? ' (la notificación por correo no pudo ser enviada)' : ''));
 
         } catch (\Exception $e) {
             \DB::rollBack();
@@ -323,138 +382,15 @@ class PagoController extends Controller
         }
     }
 
-    /**
-     * Ejecutar la lógica de facturación avanzada con reparto de porcentajes
-     */
-    private function ejecutarFacturacionAvanzada($cita)
-    {
-        $facturaPaciente = $cita->facturaPaciente;
-        if (!$facturaPaciente) {
-            return;
-        }
-
-        $tasa = $facturaPaciente->tasa;
-        if (!$tasa) {
-            $tasa = TasaDolar::where('status', true)->orderBy('fecha_tasa', 'desc')->first();
-        }
-
-        if (!$tasa) {
-            \Log::error('No se encontró tasa de cambio para facturación avanzada');
-            return;
-        }
-
-        // Crear cabecera de factura avanzada
-        $facturaCabecera = \App\Models\FacturaCabecera::create([
-            'cita_id' => $cita->id,
-            'nro_control' => $this->generarNumeroControl(),
-            'paciente_id' => $cita->paciente_id,
-            'medico_id' => $cita->medico_id,
-            'tasa_id' => $tasa->id,
-            'fecha_emision' => now(),
-            'status' => true
-        ]);
-
-        // Obtener configuración de reparto
-        $configReparto = \App\Models\ConfiguracionReparto::where('medico_id', $cita->medico_id)
-                                            ->where('consultorio_id', $cita->consultorio_id)
-                                            ->first();
-
-        if (!$configReparto) {
-            // Usar configuración por defecto (sin consultorio específico)
-            $configReparto = \App\Models\ConfiguracionReparto::where('medico_id', $cita->medico_id)
-                                                ->whereNull('consultorio_id')
-                                                ->first();
-        }
-
-        if (!$configReparto) {
-            // Configuración por defecto si no existe
-            $configReparto = new \stdClass();
-            $configReparto->porcentaje_medico = 70.00;
-            $configReparto->porcentaje_consultorio = 20.00;
-            $configReparto->porcentaje_sistema = 10.00;
-        }
-
-        // Crear detalles de factura
-        $this->crearDetallesFactura($facturaCabecera, $cita, $configReparto);
-
-        // Crear totales de factura
-        $this->crearTotalesFactura($facturaCabecera, $tasa);
-    }
-
-    private function generarNumeroControl()
-    {
-        $year = date('Y');
-        $sequence = \App\Models\FacturaCabecera::whereYear('fecha_emision', $year)->count() + 1;
-        return 'FACT-' . $year . '-' . str_pad($sequence, 6, '0', STR_PAD_LEFT);
-    }
-
-    private function crearDetallesFactura($facturaCabecera, $cita, $configReparto)
-    {
-        $tarifaUSD = $cita->tarifa + $cita->tarifa_extra;
-
-        // Detalle para el médico
-        \App\Models\FacturaDetalle::create([
-            'cabecera_id' => $facturaCabecera->id,
-            'entidad_tipo' => 'Medico',
-            'entidad_id' => $cita->medico_id,
-            'descripcion' => 'Honorarios médicos (' . $configReparto->porcentaje_medico . '%)',
-            'cantidad' => 1,
-            'precio_unitario_usd' => $tarifaUSD * ($configReparto->porcentaje_medico / 100),
-            'subtotal_usd' => $tarifaUSD * ($configReparto->porcentaje_medico / 100),
-            'status' => true
-        ]);
-
-        // Detalle para el consultorio (si aplica)
-        if ($cita->consultorio_id && $configReparto->porcentaje_consultorio > 0) {
-            \App\Models\FacturaDetalle::create([
-                'cabecera_id' => $facturaCabecera->id,
-                'entidad_tipo' => 'Consultorio',
-                'entidad_id' => $cita->consultorio_id,
-                'descripcion' => 'Uso de consultorio (' . $configReparto->porcentaje_consultorio . '%)',
-                'cantidad' => 1,
-                'precio_unitario_usd' => $tarifaUSD * ($configReparto->porcentaje_consultorio / 100),
-                'subtotal_usd' => $tarifaUSD * ($configReparto->porcentaje_consultorio / 100),
-                'status' => true
-            ]);
-        }
-
-        // Detalle para el sistema
-        if ($configReparto->porcentaje_sistema > 0) {
-            \App\Models\FacturaDetalle::create([
-                'cabecera_id' => $facturaCabecera->id,
-                'entidad_tipo' => 'Sistema',
-                'entidad_id' => null,
-                'descripcion' => 'Comisión del sistema (' . $configReparto->porcentaje_sistema . '%)',
-                'cantidad' => 1,
-                'precio_unitario_usd' => $tarifaUSD * ($configReparto->porcentaje_sistema / 100),
-                'subtotal_usd' => $tarifaUSD * ($configReparto->porcentaje_sistema / 100),
-                'status' => true
-            ]);
-        }
-    }
-
-    private function crearTotalesFactura($facturaCabecera, $tasa)
-    {
-        $detalles = $facturaCabecera->detalles;
-
-        foreach ($detalles as $detalle) {
-            $baseImponibleUSD = $detalle->subtotal_usd;
-            $totalFinalUSD = $baseImponibleUSD;
-            $totalFinalBS = $totalFinalUSD * $tasa->valor;
-
-            \App\Models\FacturaTotal::create([
-                'cabecera_id' => $facturaCabecera->id,
-                'entidad_tipo' => $detalle->entidad_tipo,
-                'entidad_id' => $detalle->entidad_id,
-                'base_imponible_usd' => $baseImponibleUSD,
-                'impuestos_usd' => 0,
-                'total_final_usd' => $totalFinalUSD,
-                'total_final_bs' => $totalFinalBS,
-                'estado_liquidacion' => 'Pendiente',
-                'status' => true
-            ]);
-        }
-    }
+    // ❌ ELIMINADO: Métodos duplicados de facturación movidos a FacturacionService
+    // - ejecutarFacturacionAvanzada()
+    // - generarNumeroControl()
+    // - crearDetallesFactura()
+    // - crearTotalesFactura()
+    //
+    // La facturación avanzada ahora se ejecuta en MedicoController cuando
+    // la cita se marca como "Completada", garantizando que solo se generen
+    // montos de liquidación para citas realmente atendidas.
 
     public function rechazarPago(Request $request, $id)
     {
@@ -481,38 +417,51 @@ class PagoController extends Controller
         
         
         // Enviar notificación al paciente o representante (si es paciente especial)
-        if ($pago->facturaPaciente && $pago->facturaPaciente->cita && $pago->facturaPaciente->cita->paciente) {
-            $cita = $pago->facturaPaciente->cita;
-            $paciente = $cita->paciente;
-            
-            // Verificar si es un paciente especial
-            $pacienteEspecial = $paciente->pacienteEspecial;
-            
-            if ($pacienteEspecial && $pacienteEspecial->representante) {
-                // Es paciente especial: notificar al representante
-                $representante = $pacienteEspecial->representante;
-                $pacienteRepresentante = \App\Models\Paciente::where('tipo_documento', $representante->tipo_documento)
-                                          ->where('numero_documento', $representante->numero_documento)
-                                          ->first();
+        try {
+            if ($pago->facturaPaciente && $pago->facturaPaciente->cita && $pago->facturaPaciente->cita->paciente) {
+                $cita = $pago->facturaPaciente->cita;
+                $paciente = $cita->paciente;
                 
-                if ($pacienteRepresentante) {
-                    $pacienteRepresentante->notify(new PagoRechazado($pago, $request->motivo));
+                // Verificar si es un paciente especial
+                $pacienteEspecial = $paciente->pacienteEspecial;
+                
+                if ($pacienteEspecial && $pacienteEspecial->representante) {
+                    // Es paciente especial: notificar al representante
+                    $representante = $pacienteEspecial->representante;
+                    $pacienteRepresentante = \App\Models\Paciente::where('tipo_documento', $representante->tipo_documento)
+                                              ->where('numero_documento', $representante->numero_documento)
+                                              ->first();
+                    
+                    if ($pacienteRepresentante) {
+                        $pacienteRepresentante->notify(new PagoRechazado($pago, $request->motivo));
+                    }
+                } else {
+                    // Paciente regular: notificar directamente
+                    $paciente->notify(new PagoRechazado($pago, $request->motivo));
                 }
-            } else {
-                // Paciente regular: notificar directamente
-                $paciente->notify(new PagoRechazado($pago, $request->motivo));
             }
+        } catch (\Exception $ne) {
+            \Log::error('Error enviando notificación de pago rechazado: ' . $ne->getMessage());
         }
 
         if ($request->ajax()) {
-            return response()->json(['success' => true, 'message' => 'Pago rechazado exitosamente']);
+            return response()->json(['success' => true, 'message' => 'Pago rechazado exitosamente' . (isset($ne) ? ' (la notificación por correo no pudo ser enviada)' : '')]);
         }
 
-        return redirect()->back()->with('success', 'Pago rechazado exitosamente');
+        return redirect()->route('facturacion.create')->with('success', 'Pago rechazado exitosamente' . (isset($ne) ? ' (la notificación por correo no pudo ser enviada)' : ''));
     }
 
     private function getEstadoInicial($metodoPagoId)
     {
+        $user = Auth::user();
+        
+        // Si es el paciente quien registra, SIEMPRE es pendiente, 
+        // independientemente del método (incluso efectivo)
+        if ($user->paciente) {
+            return 'Pendiente';
+        }
+
+        // Lógica para administradores
         $metodo = MetodoPago::find($metodoPagoId);
         
         if ($metodo && $metodo->requiere_confirmacion) {
@@ -546,6 +495,11 @@ class PagoController extends Controller
         try {
             $pago->load(['facturaPaciente.cita.paciente.usuario', 'facturaPaciente.cita.paciente.pacienteEspecial.representante']);
             
+            if (!$pago->facturaPaciente || !$pago->facturaPaciente->cita) {
+                \Log::warning("Intento de enviar notificación de pago {$pago->id_pago} sin factura o cita asociada.");
+                return;
+            }
+
             $paciente = $pago->facturaPaciente->cita->paciente;
             $pacienteEspecial = $paciente->pacienteEspecial;
             
@@ -684,7 +638,30 @@ class PagoController extends Controller
                            ->with('error', 'No se encuentra una tasa de cambio configurada. Contacte al administrador.');
         }
 
-        return view('paciente.pagos.registrar', compact('cita', 'metodosPago', 'tasaActual'));
+        // Obtener datos bancarios de la configuración
+        $configKeys = [
+            'banco_transferencia_banco', 'banco_transferencia_cuenta', 
+            'banco_transferencia_rif', 'banco_transferencia_titular',
+            'banco_pagomovil_banco', 'banco_pagomovil_telefono', 'banco_pagomovil_rif'
+        ];
+        
+        $configuraciones = \App\Models\Configuracion::whereIn('key', $configKeys)->pluck('value', 'key');
+        
+        $datosBancarios = [
+            'transferencia' => [
+                'banco' => $configuraciones['banco_transferencia_banco'] ?? 'No configurado',
+                'cuenta' => $configuraciones['banco_transferencia_cuenta'] ?? '',
+                'rif' => $configuraciones['banco_transferencia_rif'] ?? '',
+                'titular' => $configuraciones['banco_transferencia_titular'] ?? ''
+            ],
+            'pagomovil' => [
+                'banco' => $configuraciones['banco_pagomovil_banco'] ?? 'No configurado',
+                'telefono' => $configuraciones['banco_pagomovil_telefono'] ?? '',
+                'rif' => $configuraciones['banco_pagomovil_rif'] ?? ''
+            ]
+        ];
+
+        return view('paciente.pagos.registrar', compact('cita', 'metodosPago', 'tasaActual', 'datosBancarios'));
     }
 
     // Para pacientes - Registrar nuevo pago
@@ -702,7 +679,8 @@ class PagoController extends Controller
             'monto_pagado_bs' => 'required|numeric|min:0',
             'tasa_aplicada_id' => 'required|exists:tasas_dolar,id',
             'referencia' => 'required|max:255',
-            'comentarios' => 'nullable|string'
+            'comentarios' => 'nullable|string',
+            'comprobante' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:2048'
         ], [
             'cita_id.required' => 'Debe seleccionar una cita',
             'id_metodo.required' => 'Debe seleccionar un método de pago',
@@ -755,8 +733,7 @@ class PagoController extends Controller
             $comprobantePath = null;
             if ($request->hasFile('comprobante')) {
                 $file = $request->file('comprobante');
-                $filename = time() . '_' . $file->getClientOriginalName();
-                $comprobantePath = $file->storeAs('comprobantes_pagos', $filename, 'public');
+                $comprobantePath = $file->storeAs('comprobantes_pagos', $file->hashName(), 'public');
             }
 
             // Crear o verificar factura del paciente

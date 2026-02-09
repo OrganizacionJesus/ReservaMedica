@@ -9,6 +9,10 @@ class PreguntasCatalogoTableSeeder extends Seeder
 {
     public function run(): void
     {
+        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+        DB::table('preguntas_catalogo')->truncate();
+        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+
         $preguntas = [
             '¿Cuál es el nombre de tu primera mascota?',
             '¿En qué ciudad naciste?',

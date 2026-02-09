@@ -11,10 +11,7 @@
             <p class="text-gray-600 mt-1">Gestión de recetas, exámenes y referencias médicas</p>
         </div>
         <div class="flex items-center gap-2">
-            <a href="{{ route('ordenes-medicas.recetas') }}" class="btn btn-outline">
-                <i class="bi bi-prescription"></i>
-                <span>Recetas</span>
-            </a>
+
             @if(auth()->user()->rol_id == 2)
             <a href="{{ route('ordenes-medicas.create') }}" class="btn btn-primary">
                 <i class="bi bi-plus-lg"></i>
@@ -75,16 +72,7 @@
     <!-- Filters -->
     <div class="card p-6">
         <form method="GET" class="grid grid-cols-1 md:grid-cols-5 gap-4">
-            <div>
-                <label class="form-label">Tipo de Orden</label>
-                <select name="tipo" class="form-select">
-                    <option value="">Todas</option>
-                    <option value="receta" {{ request('tipo') == 'receta' ? 'selected' : '' }}>Receta Médica</option>
-                    <option value="laboratorio" {{ request('tipo') == 'laboratorio' ? 'selected' : '' }}>Examen de Laboratorio</option>
-                    <option value="imagenologia" {{ request('tipo') == 'imagenologia' ? 'selected' : '' }}>Imagenología</option>
-                    <option value="referencia" {{ request('tipo') == 'referencia' ? 'selected' : '' }}>Referencia</option>
-                </select>
-            </div>
+
             <div>
                 <label class="form-label">Paciente</label>
                 <input type="text" name="paciente" class="input" placeholder="Buscar..." value="{{ request('paciente') }}">
@@ -143,15 +131,15 @@
                             </div>
                         </td>
                         <td class="px-6 py-4">
-                            @if($orden->tipo == 'receta')
+                            @if($orden->tipo_orden == 'Receta')
                             <span class="badge badge-purple">
                                 <i class="bi bi-prescription"></i> Receta
                             </span>
-                            @elseif($orden->tipo == 'laboratorio')
+                            @elseif($orden->tipo_orden == 'Laboratorio')
                             <span class="badge badge-info">
                                 <i class="bi bi-activity"></i> Laboratorio
                             </span>
-                            @elseif($orden->tipo == 'imagenologia')
+                            @elseif($orden->tipo_orden == 'Imagenologia')
                             <span class="badge badge-success">
                                 <i class="bi bi-x-ray"></i> Imagenología
                             </span>

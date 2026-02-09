@@ -128,6 +128,11 @@ class Medico extends Model
         return $this->hasMany(SolicitudHistorial::class, 'medico_propietario_id');
     }
 
+    public function datosPago()
+    {
+        return $this->hasOne(DatoPagoMedico::class, 'medico_id');
+    }
+
     public function getNombreCompletoAttribute()
     {
         return $this->primer_nombre . ' ' . $this->primer_apellido;

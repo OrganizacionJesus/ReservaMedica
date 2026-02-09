@@ -214,7 +214,7 @@
 </script>
 
 <script type="module">
-import { validateEmail } from '{{ asset("js/validators.js") }}';
+import { validateEmail, preventInvalidInput } from '{{ asset("js/validators.js") }}';
 import { showToast, shakeElement, toggleSubmitButton } from '{{ asset("js/alerts.js") }}';
 
 const emailInput = document.getElementById('correo');
@@ -222,8 +222,11 @@ const passwordInput = document.getElementById('password');
 const loginForm = document.getElementById('loginForm');
 const submitBtn = document.getElementById('submitBtn');
 
-// Email validation on blur
+// Email validation on blur & Input Blocking
 if(emailInput) {
+    // Bloqueo estricto de caracteres inválidos (espacios, etc.)
+    preventInvalidInput(emailInput, 'email');
+
     emailInput.addEventListener('blur', () => {
         const email = emailInput.value;
         if (email.length > 0) {
@@ -231,6 +234,10 @@ if(emailInput) {
             if(!result.valid) {
                 emailInput.classList.add('border-red-300', 'focus:border-red-500', 'focus:ring-red-500/20');
                 emailInput.classList.remove('border-slate-200', 'focus:border-medical-500', 'focus:ring-medical-500/20');
+                // Mostrar toast advertencia si el formato es muy incorrecto
+                if(email.length > 5 && !email.includes('@')) {
+                     showToast('warning', 'El correo debe contener un @', 3000);
+                }
             } else {
                 emailInput.classList.remove('border-red-300', 'focus:border-red-500', 'focus:ring-red-500/20');
                 emailInput.classList.add('border-slate-200', 'focus:border-medical-500', 'focus:ring-medical-500/20');

@@ -3,115 +3,336 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{ config('app.name', 'Sistema Médico') }} - Salud Integral</title>
+    <title>{{ config('app.name', 'Sistema Médico') }} - Reservas Médicas Profesionales</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        
+        * {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+        
+        .gradient-bg {
+            background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #0e7490 100%);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .gradient-bg::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at 20% 50%, rgba(59, 130, 246, 0.3) 0%, transparent 50%),
+                        radial-gradient(circle at 80% 80%, rgba(14, 116, 144, 0.3) 0%, transparent 50%);
+            animation: gradientShift 15s ease infinite;
+        }
+        
+        @keyframes gradientShift {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
+        }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        
+        .glass-card:hover {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: rgba(255, 255, 255, 0.3);
+            transform: translateY(-4px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+        }
+        
+        .stat-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-2px) scale(1.02);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+        }
+        
+        .navbar-glass {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #2563eb 0%, #0e7490 100%);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .btn-primary::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            transition: left 0.5s ease;
+        }
+        
+        .btn-primary:hover::before {
+            left: 100%;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 24px rgba(37, 99, 235, 0.4);
+        }
+        
+        .portal-card {
+            background: white;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 2px solid transparent;
+        }
+        
+        .portal-card:hover {
+            border-color: #3b82f6;
+            transform: translateY(-8px);
+            box-shadow: 0 20px 50px rgba(59, 130, 246, 0.2);
+        }
+        
+        .icon-circle {
+            width: 64px;
+            height: 64px;
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 20px;
+            box-shadow: 0 8px 20px rgba(37, 99, 235, 0.3);
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.8s ease-out forwards;
+            opacity: 0;
+        }
+        
+        .fade-in-delay-1 { animation-delay: 0.1s; }
+        .fade-in-delay-2 { animation-delay: 0.2s; }
+        .fade-in-delay-3 { animation-delay: 0.3s; }
+        
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .feature-step {
+            position: relative;
+            padding-left: 2.5rem;
+        }
+        
+        .feature-step::before {
+            content: '';
+            position: absolute;
+            left: 0.75rem;
+            top: 2.5rem;
+            bottom: -2rem;
+            width: 2px;
+            background: linear-gradient(180deg, #3b82f6 0%, transparent 100%);
+        }
+        
+        .feature-step:last-child::before {
+            display: none;
+        }
+        
+        .step-number {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 2rem;
+            height: 2rem;
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            font-size: 0.875rem;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+        }
+    </style>
 </head>
-<body class="font-sans antialiased text-slate-600 bg-slate-50 selection:bg-medical-100 selection:text-medical-700">
+<body class="min-h-screen bg-slate-50 text-slate-700">
     
     <!-- Navbar -->
-    <nav class="fixed w-full z-50 bg-white/90 backdrop-blur-md border-b border-gray-100 shadow-sm transition-all duration-300" id="navbar">
-        <div class="container mx-auto px-6 h-20 flex justify-between items-center">
+    <nav class="sticky top-0 z-50 navbar-glass" id="navbar">
+        <div class="container mx-auto px-4 sm:px-6 h-16 flex justify-between items-center">
             <!-- Brand -->
-            <a href="#" class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-xl bg-medical-600 flex items-center justify-center text-white shadow-lg shadow-medical-200">
-                    <i class="bi bi-heart-pulse-fill"></i>
+            <a href="{{ url('/') }}" class="flex items-center gap-2.5 group">
+                <div class="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-600 to-cyan-600 flex items-center justify-center shadow-lg group-hover:shadow-blue-500/50 transition-shadow">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                    </svg>
                 </div>
-                <span class="font-display font-bold text-xl text-slate-800 tracking-tight">{{ config('app.name', 'SisMed') }}</span>
+                <div class="leading-tight hidden sm:block">
+                    <div class="font-bold text-base text-slate-900 tracking-tight">{{ config('app.name', 'SisMed') }}</div>
+                    <div class="text-xs font-semibold text-slate-500">Reservas Médicas</div>
+                </div>
             </a>
 
             <!-- Desktop Menu -->
-            <div class="hidden md:flex items-center gap-8">
-                <a href="{{ route('login', ['rol' => 'paciente']) }}" class="font-medium text-slate-600 hover:text-medical-600 transition-colors">Iniciar Sesión</a>
-                <a href="{{ route('register', ['rol' => 'paciente']) }}" class="btn bg-medical-600 text-white hover:bg-medical-700 shadow-md shadow-medical-200 rounded-lg px-6 py-2.5 font-medium transition-all hover:-translate-y-0.5">
-                    Registrarme
+            <div class="hidden md:flex items-center gap-4">
+                <a href="#portales" class="text-sm font-semibold text-slate-600 hover:text-blue-600 transition-colors px-3 py-2 rounded-lg hover:bg-slate-100">Portales</a>
+                <a href="#como-funciona" class="text-sm font-semibold text-slate-600 hover:text-blue-600 transition-colors px-3 py-2 rounded-lg hover:bg-slate-100">¿Cómo funciona?</a>
+                <div class="h-6 w-px bg-slate-300"></div>
+                <a href="{{ route('login', ['rol' => 'paciente']) }}" class="inline-flex items-center justify-center h-10 px-4 rounded-xl border-2 border-slate-300 text-sm font-semibold text-slate-700 hover:border-blue-600 hover:text-blue-600 transition-all">Ingresar</a>
+                <a href="{{ route('register', ['rol' => 'paciente']) }}" class="btn-primary inline-flex items-center justify-center h-10 px-5 rounded-xl text-sm font-semibold text-white relative">
+                    Crear cuenta
                 </a>
+            </div>
+
+            <!-- Mobile Menu -->
+            <div class="flex items-center gap-2 md:hidden">
+                <a href="{{ route('login', ['rol' => 'paciente']) }}" class="inline-flex items-center justify-center h-9 px-3 rounded-lg border-2 border-slate-300 text-sm font-semibold text-slate-700">Ingresar</a>
+                <a href="{{ route('register', ['rol' => 'paciente']) }}" class="btn-primary inline-flex items-center justify-center h-9 px-4 rounded-lg text-sm font-semibold text-white relative">Registrarse</a>
             </div>
         </div>
     </nav>
 
     <!-- Hero Section -->
-    <section class="relative pt-32 pb-20 lg:pt-40 lg:pb-32 overflow-hidden bg-white">
-        <!-- Subtle Pattern Background -->
-        <div class="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'none\' fill-rule=\'evenodd\'%3E%3Cg fill=\'%230ea5e9\' fill-opacity=\'0.03\'%3E%3Cpath d=\'M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')]"></div>
-        
-        <!-- Gradient Blobs -->
-        <div class="absolute top-0 right-0 w-[800px] h-[800px] bg-gradient-to-b from-medical-50 to-transparent rounded-full blur-3xl opacity-60 -translate-y-1/2 translate-x-1/2"></div>
-        
-        <div class="container mx-auto px-6 relative z-10">
-            <div class="flex flex-col lg:flex-row items-center gap-16">
-                <!-- Text Content -->
-                <div class="lg:w-1/2 space-y-8 text-center lg:text-left animate-slide-in-up">
-                    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 border border-blue-100 text-blue-600 text-sm font-semibold mb-2">
-                        <span class="relative flex h-2 w-2">
-                          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                          <span class="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
-                        </span>
-                        Plataforma de Salud Digital
+    <section class="gradient-bg relative">
+        <div class="container mx-auto px-4 sm:px-6 py-16 sm:py-20 lg:py-24 relative z-10">
+            <div class="grid gap-8 lg:grid-cols-2 lg:gap-12 items-center">
+                <!-- Hero Content -->
+                <div class="text-center lg:text-left text-white fade-in">
+                    <div class="inline-block px-4 py-1.5 rounded-full bg-white/20 backdrop-blur-sm border border-white/30 mb-4">
+                        <p class="text-xs font-bold text-white uppercase tracking-wider">Sistema de Reservas Médicas</p>
                     </div>
-
-                    <h1 class="text-5xl lg:text-6xl font-display font-bold text-slate-900 leading-tight">
-                        Tu salud, gestionada con <br>
-                        <span class="text-transparent bg-clip-text bg-gradient-to-r from-medical-600 to-blue-500">excelencia y calidez</span>
+                    <h1 class="text-4xl sm:text-5xl lg:text-6xl font-black text-white leading-tight mb-4">
+                        Tu salud,<br/>
+                        <span class="bg-gradient-to-r from-cyan-300 to-blue-300 bg-clip-text text-transparent">más accesible</span>
                     </h1>
-                    
-                    <p class="text-lg text-slate-500 leading-relaxed max-w-2xl mx-auto lg:mx-0">
-                        Simplificamos la conexión entre médicos y pacientes. Agenda citas, consulta resultados y gestiona tu historial clínico en un entorno seguro y moderno.
+                    <p class="text-base sm:text-lg text-blue-100 leading-relaxed mb-8 max-w-xl mx-auto lg:mx-0">
+                        Agenda citas médicas en segundos. Portal simple para pacientes, panel profesional para médicos y administración.
                     </p>
 
-                    <div class="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start pt-4">
-                        <a href="{{ route('register', ['rol' => 'paciente']) }}" class="btn bg-slate-900 text-white hover:bg-slate-800 h-12 px-8 rounded-lg text-base shadow-xl flex items-center justify-center gap-2 transition-all hover:-translate-y-1">
-                            Crear Cuenta Gratis
-                            <i class="bi bi-arrow-right"></i>
+                    <div class="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start mb-12 fade-in fade-in-delay-1">
+                        <a href="{{ route('register', ['rol' => 'paciente']) }}" class="inline-flex items-center justify-center h-14 px-8 rounded-xl bg-white text-blue-600 text-base font-bold hover:bg-blue-50 transition-all hover:scale-105 shadow-xl hover:shadow-2xl">
+                            Crear cuenta gratis
+                            <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path>
+                            </svg>
                         </a>
-                        <a href="#demo" class="btn bg-white border border-slate-200 text-slate-700 hover:border-medical-500 hover:text-medical-600 h-12 px-8 rounded-lg text-base flex items-center justify-center gap-2 transition-all">
-                            <i class="bi bi-play-circle-fill"></i>
-                            Ver Cómo Funciona
+                        <a href="{{ route('login', ['rol' => 'paciente']) }}" class="inline-flex items-center justify-center h-14 px-8 rounded-xl border-2 border-white text-white text-base font-bold hover:bg-white/10 transition-all backdrop-blur-sm">
+                            Ya tengo cuenta
                         </a>
                     </div>
-                    
-                    <div class="pt-8 border-t border-slate-100 flex items-center justify-center lg:justify-start gap-8">
-                        <div>
-                            <p class="text-2xl font-bold text-slate-900">24/7</p>
-                            <p class="text-sm text-slate-500">Soporte Activo</p>
+
+                    <!-- Stats -->
+                    <div class="grid grid-cols-3 gap-4 max-w-md mx-auto lg:mx-0 fade-in fade-in-delay-2">
+                        <div class="text-center">
+                            <div class="text-2xl sm:text-3xl font-black text-white">3</div>
+                            <div class="text-xs sm:text-sm text-blue-200 font-semibold mt-1">Portales</div>
                         </div>
-                        <div class="w-px h-10 bg-slate-200"></div>
-                        <div>
-                            <p class="text-2xl font-bold text-slate-900">100%</p>
-                            <p class="text-sm text-slate-500">Datos Seguros</p>
+                        <div class="text-center border-l border-r border-white/30">
+                            <div class="text-2xl sm:text-3xl font-black text-white">24/7</div>
+                            <div class="text-xs sm:text-sm text-blue-200 font-semibold mt-1">Acceso</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-2xl sm:text-3xl font-black text-white">100%</div>
+                            <div class="text-xs sm:text-sm text-blue-200 font-semibold mt-1">Seguro</div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Visual Content -->
-                <div class="lg:w-1/2 relative">
-                    <div class="relative rounded-2xl overflow-hidden shadow-2xl border-4 border-white/50 animate-float">
-                        <img src="https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?q=80&w=2070&auto=format&fit=crop" alt="Dashboard Preview" class="w-full">
-                        
-                        <!-- Floating Card 1 -->
-                        <div class="absolute top-8 left-8 bg-white/90 backdrop-blur p-4 rounded-xl shadow-lg border border-white/50 animate-slide-in-left">
-                            <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-600">
-                                    <i class="bi bi-calendar-check-fill"></i>
-                                </div>
-                                <div>
-                                    <p class="text-xs text-slate-500 font-medium">Cita Confirmada</p>
-                                    <p class="text-sm font-bold text-slate-800">Hoy, 10:00 AM</p>
-                                </div>
-                            </div>
+                <!-- Quick Access Card -->
+                <div class="glass-card rounded-3xl p-6 sm:p-8 transition-all fade-in fade-in-delay-3">
+                    <div class="flex items-center justify-between mb-6">
+                        <h3 class="text-xl font-bold text-white">Acceso Rápido</h3>
+                        <div class="px-3 py-1 rounded-full bg-white/20 border border-white/30">
+                            <p class="text-xs font-bold text-white">Selecciona tu rol</p>
                         </div>
-
-                        <!-- Floating Card 2 -->
-                        <div class="absolute bottom-8 right-8 bg-white/90 backdrop-blur p-4 rounded-xl shadow-lg border border-white/50 animate-slide-in-right" style="animation-delay: 0.5s">
-                            <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
-                                    <i class="bi bi-person-video"></i>
+                    </div>
+                    
+                    <div class="space-y-3 mb-6">
+                        <a href="{{ route('login', ['rol' => 'paciente']) }}" class="block rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 hover:border-white/40 px-5 py-4 transition-all group">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-lg bg-blue-500/30 flex items-center justify-center">
+                                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                                        </svg>
+                                    </div>
+                                    <span class="text-base font-bold text-white">Paciente</span>
                                 </div>
-                                <div>
-                                    <p class="text-xs text-slate-500 font-medium">Dr. Rodríguez</p>
-                                    <p class="text-sm font-bold text-slate-800">Consulta Virtual</p>
-                                </div>
+                                <svg class="w-5 h-5 text-white/60 group-hover:text-white group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                                </svg>
                             </div>
+                        </a>
+
+                        <a href="{{ route('login', ['rol' => 'medico']) }}" class="block rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 hover:border-white/40 px-5 py-4 transition-all group">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-lg bg-cyan-500/30 flex items-center justify-center">
+                                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                        </svg>
+                                    </div>
+                                    <span class="text-base font-bold text-white">Médico</span>
+                                </div>
+                                <svg class="w-5 h-5 text-white/60 group-hover:text-white group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                                </svg>
+                            </div>
+                        </a>
+
+                        <a href="{{ route('login', ['rol' => 'admin']) }}" class="block rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 hover:border-white/40 px-5 py-4 transition-all group">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-lg bg-purple-500/30 flex items-center justify-center">
+                                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path>
+                                        </svg>
+                                    </div>
+                                    <span class="text-base font-bold text-white">Administrador</span>
+                                </div>
+                                <svg class="w-5 h-5 text-white/60 group-hover:text-white group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                                </svg>
+                            </div>
+                        </a>
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-2">
+                        <div class="rounded-lg bg-white/10 border border-white/20 p-3 text-center backdrop-blur-sm">
+                            <svg class="w-6 h-6 text-white mx-auto mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                            </svg>
+                            <p class="text-xs font-bold text-white">Citas</p>
+                        </div>
+                        <div class="rounded-lg bg-white/10 border border-white/20 p-3 text-center backdrop-blur-sm">
+                            <svg class="w-6 h-6 text-white mx-auto mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                            <p class="text-xs font-bold text-white">Historial</p>
+                        </div>
+                        <div class="rounded-lg bg-white/10 border border-white/20 p-3 text-center backdrop-blur-sm">
+                            <svg class="w-6 h-6 text-white mx-auto mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                            </svg>
+                            <p class="text-xs font-bold text-white">Pagos</p>
                         </div>
                     </div>
                 </div>
@@ -119,80 +340,181 @@
         </div>
     </section>
 
-    <!-- Services Grid -->
-    <section class="py-24 bg-slate-50">
-        <div class="container mx-auto px-6">
-            <div class="text-center max-w-2xl mx-auto mb-16">
-                <h2 class="text-sm font-bold text-medical-600 tracking-wider uppercase mb-2">Nuestros Portales</h2>
-                <h3 class="text-3xl font-display font-bold text-slate-900">Acceso personalizado para cada rol</h3>
+    <!-- Portals Section -->
+    <section id="portales" class="py-16 sm:py-20 bg-slate-50">
+        <div class="container mx-auto px-4 sm:px-6">
+            <div class="text-center max-w-3xl mx-auto mb-12">
+                <div class="inline-block px-4 py-1.5 rounded-full bg-blue-100 border border-blue-200 mb-4">
+                    <span class="text-xs font-bold text-blue-700 uppercase tracking-wider">Portales Especializados</span>
+                </div>
+                <h2 class="text-3xl sm:text-4xl font-black text-slate-900 mb-4">Diseñado para cada rol</h2>
+                <p class="text-base text-slate-600 leading-relaxed">Cada usuario tiene un portal personalizado con las herramientas que necesita.</p>
             </div>
 
-            <div class="grid md:grid-cols-3 gap-8">
-                <!-- Patient -->
-                <div class="bg-white rounded-2xl p-8 border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
-                    <div class="w-14 h-14 rounded-xl bg-green-50 text-green-600 flex items-center justify-center text-2xl mb-6 group-hover:bg-green-600 group-hover:text-white transition-colors">
-                        <i class="bi bi-people-fill"></i>
+            <div class="grid md:grid-cols-3 gap-6 lg:gap-8 mb-16">
+                <!-- Portal Paciente -->
+                <div class="portal-card rounded-2xl p-6 sm:p-8 shadow-lg">
+                    <div class="icon-circle mb-6">
+                        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                        </svg>
                     </div>
-                    <h4 class="text-xl font-bold text-slate-900 mb-3">Portal Paciente</h4>
-                    <p class="text-slate-500 mb-6 leading-relaxed">
-                        Gestiona tus citas médicas, accede a tu historial clínico y recibe recordatorios automáticos.
+                    <h3 class="text-2xl font-black text-slate-900 mb-3">Portal Paciente</h3>
+                    <p class="text-sm text-slate-600 mb-6 leading-relaxed">
+                        Gestiona tus citas, accede a tu historial médico y recibe recordatorios automáticos. Todo en un solo lugar.
                     </p>
-                    <a href="{{ route('login', ['rol' => 'paciente']) }}" class="inline-flex items-center font-semibold text-green-600 group-hover:gap-2 transition-all">
-                        Ingresar <i class="bi bi-arrow-right ml-2"></i>
-                    </a>
+                    <div class="space-y-2 mb-6">
+                        <div class="flex items-center gap-2 text-sm text-slate-700">
+                            <svg class="w-5 h-5 text-green-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                            </svg>
+                            <span class="font-medium">Agendar citas online</span>
+                        </div>
+                        <div class="flex items-center gap-2 text-sm text-slate-700">
+                            <svg class="w-5 h-5 text-green-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                            </svg>
+                            <span class="font-medium">Historial clínico digital</span>
+                        </div>
+                        <div class="flex items-center gap-2 text-sm text-slate-700">
+                            <svg class="w-5 h-5 text-green-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                            </svg>
+                            <span class="font-medium">Recordatorios automáticos</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <a href="{{ route('login', ['rol' => 'paciente']) }}" class="text-sm font-bold text-blue-600 hover:text-blue-700 transition-colors">Ingresar →</a>
+                        <a href="{{ route('register', ['rol' => 'paciente']) }}" class="text-sm font-bold text-slate-700 hover:text-blue-600 transition-colors">Registrarme</a>
+                    </div>
                 </div>
 
-                <!-- Doctor -->
-                <div class="bg-white rounded-2xl p-8 border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
-                    <div class="w-14 h-14 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-2xl mb-6 group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                        <i class="bi bi-heart-pulse-fill"></i>
+                <!-- Portal Médico -->
+                <div class="portal-card rounded-2xl p-6 sm:p-8 shadow-lg">
+                    <div class="icon-circle mb-6" style="background: linear-gradient(135deg, #0e7490 0%, #0891b2 100%);">
+                        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
                     </div>
-                    <h4 class="text-xl font-bold text-slate-900 mb-3">Portal Médico</h4>
-                    <p class="text-slate-500 mb-6 leading-relaxed">
-                        Control total de tu agenda, historias clínicas digitales y seguimiento detallado de pacientes.
+                    <h3 class="text-2xl font-black text-slate-900 mb-3">Portal Médico</h3>
+                    <p class="text-sm text-slate-600 mb-6 leading-relaxed">
+                        Control total de tu agenda, historias clínicas y seguimiento de pacientes con herramientas profesionales.
                     </p>
-                    <a href="{{ route('login', ['rol' => 'medico']) }}" class="inline-flex items-center font-semibold text-blue-600 group-hover:gap-2 transition-all">
-                        Ingresar <i class="bi bi-arrow-right ml-2"></i>
-                    </a>
+                    <div class="space-y-2 mb-6">
+                        <div class="flex items-center gap-2 text-sm text-slate-700">
+                            <svg class="w-5 h-5 text-green-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                            </svg>
+                            <span class="font-medium">Gestión de agenda</span>
+                        </div>
+                        <div class="flex items-center gap-2 text-sm text-slate-700">
+                            <svg class="w-5 h-5 text-green-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                            </svg>
+                            <span class="font-medium">Historias clínicas completas</span>
+                        </div>
+                        <div class="flex items-center gap-2 text-sm text-slate-700">
+                            <svg class="w-5 h-5 text-green-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                            </svg>
+                            <span class="font-medium">Panel de control avanzado</span>
+                        </div>
+                    </div>
+                    <a href="{{ route('login', ['rol' => 'medico']) }}" class="text-sm font-bold text-cyan-600 hover:text-cyan-700 transition-colors">Ingresar →</a>
                 </div>
 
-                <!-- Admin -->
-                <div class="bg-white rounded-2xl p-8 border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
-                    <div class="w-14 h-14 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center text-2xl mb-6 group-hover:bg-purple-600 group-hover:text-white transition-colors">
-                        <i class="bi bi-shield-lock-fill"></i>
+                <!-- Portal Admin -->
+                <div class="portal-card rounded-2xl p-6 sm:p-8 shadow-lg">
+                    <div class="icon-circle mb-6" style="background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);">
+                        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path>
+                        </svg>
                     </div>
-                    <h4 class="text-xl font-bold text-slate-900 mb-3">Administración</h4>
-                    <p class="text-slate-500 mb-6 leading-relaxed">
-                        Panel de control integral para la gestión de usuarios, configuraciones y reportes del sistema.
+                    <h3 class="text-2xl font-black text-slate-900 mb-3">Administración</h3>
+                    <p class="text-sm text-slate-600 mb-6 leading-relaxed">
+                        Panel de control integral para gestión de usuarios, configuraciones y reportes completos del sistema.
                     </p>
-                    <a href="{{ route('login', ['rol' => 'admin']) }}" class="inline-flex items-center font-semibold text-purple-600 group-hover:gap-2 transition-all">
-                        Ingresar <i class="bi bi-arrow-right ml-2"></i>
-                    </a>
+                    <div class="space-y-2 mb-6">
+                        <div class="flex items-center gap-2 text-sm text-slate-700">
+                            <svg class="w-5 h-5 text-green-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                            </svg>
+                            <span class="font-medium">Gestión de usuarios</span>
+                        </div>
+                        <div class="flex items-center gap-2 text-sm text-slate-700">
+                            <svg class="w-5 h-5 text-green-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                            </svg>
+                            <span class="font-medium">Reportes y estadísticas</span>
+                        </div>
+                        <div class="flex items-center gap-2 text-sm text-slate-700">
+                            <svg class="w-5 h-5 text-green-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                            </svg>
+                            <span class="font-medium">Configuración del sistema</span>
+                        </div>
+                    </div>
+                    <a href="{{ route('login', ['rol' => 'admin']) }}" class="text-sm font-bold text-purple-600 hover:text-purple-700 transition-colors">Ingresar →</a>
+                </div>
+            </div>
+
+            <!-- How it Works Section -->
+            <div id="como-funciona" class="max-w-4xl mx-auto">
+                <div class="text-center mb-10">
+                    <h2 class="text-2xl sm:text-3xl font-black text-slate-900 mb-3">¿Cómo funciona?</h2>
+                    <p class="text-base text-slate-600">Agenda tu cita médica en 3 simples pasos</p>
+                </div>
+
+                <div class="grid md:grid-cols-3 gap-6">
+                    <div class="feature-step">
+                        <div class="step-number">1</div>
+                        <div class="stat-card rounded-xl p-6 h-full">
+                            <h4 class="text-lg font-black text-slate-900 mb-2">Regístrate</h4>
+                            <p class="text-sm text-slate-600 leading-relaxed">Crea tu cuenta con tus datos personales. Es rápido, seguro y completamente gratuito.</p>
+                        </div>
+                    </div>
+
+                    <div class="feature-step">
+                        <div class="step-number">2</div>
+                        <div class="stat-card rounded-xl p-6 h-full">
+                            <h4 class="text-lg font-black text-slate-900 mb-2">Agenda tu cita</h4>
+                            <p class="text-sm text-slate-600 leading-relaxed">Selecciona especialidad, consultorio, médico y horario disponible según tu preferencia.</p>
+                        </div>
+                    </div>
+
+                    <div class="feature-step">
+                        <div class="step-number">3</div>
+                        <div class="stat-card rounded-xl p-6 h-full">
+                            <h4 class="text-lg font-black text-slate-900 mb-2">Confirma y asiste</h4>
+                            <p class="text-sm text-slate-600 leading-relaxed">Recibe confirmación y recordatorios. Accede a tu comprobante desde tu portal personal.</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </section>
 
     <!-- Footer -->
-    <footer class="bg-white border-t border-slate-200 py-12">
-        <div class="container mx-auto px-6">
-            <div class="flex flex-col md:flex-row justify-between items-center gap-6">
+    <footer class="bg-slate-900 border-t border-slate-800 py-8">
+        <div class="container mx-auto px-4 sm:px-6">
+            <div class="flex flex-col md:flex-row justify-between items-center gap-4">
                 <!-- Brand -->
-                <div class="flex items-center gap-2">
-                    <div class="w-8 h-8 rounded-lg bg-medical-600 flex items-center justify-center text-white text-sm">
-                        <i class="bi bi-heart-pulse-fill"></i>
+                <div class="flex items-center gap-2.5">
+                    <div class="h-9 w-9 rounded-lg bg-gradient-to-br from-blue-600 to-cyan-600 flex items-center justify-center shadow-lg">
+                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                        </svg>
                     </div>
-                    <span class="font-bold text-slate-800 text-lg">{{ config('app.name') }}</span>
+                    <span class="font-bold text-white text-base">{{ config('app.name') }}</span>
                 </div>
                 
                 <div class="text-slate-400 text-sm font-medium">
                     &copy; {{ date('Y') }} Sistema Médico Integral. Todos los derechos reservados.
                 </div>
 
-                <div class="flex gap-6 text-slate-400">
-                    <a href="#" class="hover:text-medical-600 transition-colors"><i class="bi bi-facebook text-xl"></i></a>
-                    <a href="#" class="hover:text-medical-600 transition-colors"><i class="bi bi-twitter-x text-xl"></i></a>
-                    <a href="#" class="hover:text-medical-600 transition-colors"><i class="bi bi-linkedin text-xl"></i></a>
+                <div class="flex gap-3">
+                    <a href="{{ route('login', ['rol' => 'paciente']) }}" class="inline-flex items-center justify-center h-10 px-5 rounded-lg border-2 border-slate-700 text-sm font-semibold text-slate-300 hover:border-blue-500 hover:text-white transition-all">Ingresar</a>
+                    <a href="{{ route('register', ['rol' => 'paciente']) }}" class="btn-primary inline-flex items-center justify-center h-10 px-5 rounded-lg text-sm font-semibold text-white relative">Crear cuenta</a>
                 </div>
             </div>
         </div>

@@ -255,12 +255,32 @@
                 {{-- Botón Iniciar Consulta oculto para admins --}}
                 
                 @if(in_array($cita->estado_cita, ['Programada', 'Confirmada']))
+                    <form action="{{ route('citas.cambiar-estado', $cita->id) }}" method="POST">
+                        @csrf
+                        <input type="hidden" name="estado_cita" value="En Progreso">
+                        <button type="submit" class="btn btn-primary w-full justify-start">
+                            <i class="bi bi-play-circle mr-2"></i>
+                            Iniciar Consulta / En Sala
+                        </button>
+                    </form>
+                    
                     <button onclick="document.getElementById('modal-cancelar').showModal()" class="btn btn-outline w-full justify-start text-danger-600 border-danger-300 hover:bg-danger-50">
                         <i class="bi bi-x-circle mr-2"></i>
                         Cancelar Cita
                     </button>
                 @endif
                 
+                @if($cita->estado_cita == 'En Progreso')
+                    <form action="{{ route('citas.cambiar-estado', $cita->id) }}" method="POST">
+                        @csrf
+                        <input type="hidden" name="estado_cita" value="Completada">
+                        <button type="submit" class="btn btn-success w-full justify-start text-white">
+                            <i class="bi bi-check-all mr-2"></i>
+                            Finalizar Consulta
+                        </button>
+                    </form>
+                @endif
+
                 @if($cita->estado_cita != 'Completada')
                 <button class="btn btn-outline w-full justify-start" onclick="alert('Funcionalidad de recordatorio en desarrollo')">
                     <i class="bi bi-bell mr-2"></i>
@@ -269,6 +289,24 @@
                 @endif
             </div>
         </div>
+
+        {{-- Botón Generar Factura (Solo para Admin si no existe factura) --}}
+        @if(auth()->user()->administrador && !$cita->facturaPaciente)
+        <div class="card p-6 bg-blue-50 border-blue-200">
+            <h4 class="font-bold text-gray-900 mb-3 flex items-center">
+                <i class="bi bi-receipt text-blue-600 mr-2"></i>
+                Facturación
+            </h4>
+            <p class="text-sm text-gray-600 mb-4">Esta cita aún no tiene factura asociada. Genere una para registrar el pago.</p>
+            <form action="{{ route('facturacion.generar', $cita->id) }}" method="POST" onsubmit="return confirm('¿Confirma que desea generar la factura para esta cita?')">
+                @csrf
+                <button type="submit" class="btn btn-primary w-full justify-center">
+                    <i class="bi bi-file-earmark-plus mr-2"></i>
+                    Generar Factura
+                </button>
+            </form>
+        </div>
+        @endif
 
         <!-- Información Financiera -->
         <div class="card p-6 bg-gray-50 border-gray-200">

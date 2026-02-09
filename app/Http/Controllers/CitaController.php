@@ -14,6 +14,7 @@ use App\Models\MedicoConsultorio;
 use App\Models\FacturaCabecera;
 use App\Models\Notificacion;
 use App\Models\Usuario;
+use App\Services\FacturacionService;
 use Illuminate\Http\Request;
 
 use Illuminate\Support\Facades\Validator;
@@ -24,6 +25,13 @@ use Carbon\Carbon;
 
 class CitaController extends Controller
 {
+    protected FacturacionService $facturacionService;
+
+    public function __construct(FacturacionService $facturacionService)
+    {
+        $this->facturacionService = $facturacionService;
+    }
+
     public function index(Request $request)
     {
         $user = auth()->user();
@@ -150,6 +158,11 @@ class CitaController extends Controller
         // Filtro por Consultorio (Sede)
         if ($request->filled('consultorio_id')) {
             $query->where('consultorio_id', $request->consultorio_id);
+        }
+
+        // Filtro por Tipo de Consulta
+        if ($request->filled('tipo_consulta')) {
+            $query->where('tipo_consulta', $request->tipo_consulta);
         }
 
         // Filtro por Estado de Cita
@@ -310,6 +323,16 @@ class CitaController extends Controller
 
         Log::info('Creando cita', ['user_id' => $user->id, 'rol' => $user->rol_id, 'data' => $request->all()]);
 
+        
+        Log::info('Creando cita', [
+            'user_id' => $user->id,
+            'rol' => $user->rol_id,
+            'tipo_cita' => $request->input('tipo_cita'),
+            'medico_id' => $request->input('medico_id'),
+            'consultorio_id' => $request->input('consultorio_id'),
+            'fecha_cita' => $request->input('fecha_cita')
+        ]);
+        
         // Reglas de validación base
         $rules = [
             'tipo_cita' => 'required|in:propia,terceros',
@@ -793,7 +816,7 @@ class CitaController extends Controller
                 $horaInicio = Carbon::createFromFormat('H:i', $request->hora_inicio);
                 $horaFin = $horaInicio->copy()->addMinutes(30)->format('H:i');
 
-                // Verificar disponibilidad del médico
+                // Verificar disponibilidad del médico (Cita existente)
                 $citaExistente = Cita::where('medico_id', $request->medico_id)
                     ->where('fecha_cita', $request->fecha_cita)
                     ->where('hora_inicio', $request->hora_inicio)
@@ -803,6 +826,20 @@ class CitaController extends Controller
 
                 if ($citaExistente) {
                     throw new \Exception('El médico no está disponible en ese horario. Por favor seleccione otra hora.');
+                }
+
+                // Verificar que el horario esté dentro del turno del médico
+                $diaSemana = $this->obtenerDiaSemana($request->fecha_cita);
+                $turnoValido = MedicoConsultorio::where('medico_id', $request->medico_id)
+                    ->where('consultorio_id', $request->consultorio_id)
+                    ->where('dia_semana', $diaSemana)
+                    ->where('status', true)
+                    ->whereTime('horario_inicio', '<=', $request->hora_inicio)
+                    ->whereTime('horario_fin', '>', $request->hora_inicio) // Mayor estricto para dar tiempo a la cita
+                    ->exists();
+
+                if (!$turnoValido) {
+                    throw new \Exception('El médico no tiene turno disponible en el horario seleccionado.');
                 }
 
                 // Obtener dirección para la cita (especialmente relevante si es Domicilio)
@@ -911,6 +948,9 @@ class CitaController extends Controller
         if ($user->rol_id == 3) {
             // Verificar que la cita pertenezca al paciente o a uno de sus representados
             $pacienteUsuario = $user->paciente;
+            if (!$pacienteUsuario) {
+                abort(403, 'No se encontró el perfil de paciente.');
+            }
             $esPropia = $cita->paciente_id == $pacienteUsuario->id;
 
             // Si no es propia, verificar si es de un paciente especial representado por este usuario
@@ -926,6 +966,10 @@ class CitaController extends Controller
                         ->where('paciente_especial_id', $cita->paciente_especial_id)
                         ->exists();
                 }
+            }
+
+            if (!$esPropia && !$esTercero) {
+                abort(403, 'No tiene permiso para ver esta cita.');
             }
 
             return view('paciente.citas.show', compact('cita'));
@@ -962,7 +1006,29 @@ class CitaController extends Controller
             DB::beginTransaction();
 
             $cita = Cita::findOrFail($id);
+            
+            // Seguridad: Validar que el usuario tenga permiso sobre este consultorio (si es Admin Local)
+            $user = auth()->user();
+            if ($user->rol_id == 1 && $user->administrador && $user->administrador->tipo_admin !== 'Root') {
+                $consultorioIds = $user->administrador->consultorios->pluck('id');
+                if (!$consultorioIds->contains($cita->consultorio_id)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'No tiene permiso para gestionar citas de este consultorio.'
+                    ], 403);
+                }
+            }
 
+            // Seguridad: Validar si es Paciente, que la cita sea suya
+            if ($user->rol_id == 3) { // 3 = Paciente
+                if ($cita->paciente && $cita->paciente->user_id !== $user->id) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'No tiene permiso para gestionar esta cita.'
+                    ], 403);
+                }
+            }
+            
             // Validar
             $request->validate([
                 'motivo_cancelacion' => 'required|string',
@@ -982,8 +1048,11 @@ class CitaController extends Controller
             }
 
             $cita->observaciones = $nuevaObservacion;
-            // Opcional: Podríamos tener un estado 'solicitud_cancelacion' si el enum lo permite.
-            // Si no, lo dejamos en pendiente pero notificamos.
+            
+            // AUTOMÁTICO: Cambiar estado a 'Cancelada' para liberar el horario
+            // Esto refleja la solicitud del usuario de "Cancelación Directa"
+            $cita->estado_cita = 'Cancelada';
+            
             $cita->save();
 
             // Notificar a los administradores relevantes sobre la cancelación
@@ -1017,7 +1086,7 @@ class CitaController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Solicitud de cancelación enviada correctamente. El administrador revisará su caso.'
+                'message' => 'Su cita ha sido cancelada exitosamente.'
             ]);
 
         } catch (\Exception $e) {
@@ -1221,6 +1290,16 @@ class CitaController extends Controller
     {
         $cita = Cita::findOrFail($id);
 
+        
+        // Seguridad: Validar que el usuario tenga permiso sobre este consultorio (si es Admin Local)
+        $user = auth()->user();
+        if ($user->rol_id == 1 && $user->administrador && $user->administrador->tipo_admin !== 'Root') {
+            $consultorioIds = $user->administrador->consultorios->pluck('id');
+            if (!$consultorioIds->contains($cita->consultorio_id)) {
+                abort(403, 'No tiene permiso para gestionar citas de este consultorio.');
+            }
+        }
+        
         $validator = Validator::make($request->all(), [
             'estado_cita' => 'required|in:Programada,Confirmada,En Progreso,Completada,Cancelada,No Asistió',
             'observaciones' => 'nullable|string'
@@ -1239,6 +1318,30 @@ class CitaController extends Controller
         }
 
         $cita->save();
+
+        // 🎯 NUEVO: Ejecutar facturación avanzada si se marca como Completada
+        if ($request->estado_cita == 'Completada' && $estadoAnterior != 'Completada') {
+            try {
+                // Verificar que exista pago confirmado
+                $pagoConfirmado = $cita->facturaPaciente?->pagos()
+                    ->where('estado', 'Confirmado')
+                    ->where('status', true)
+                    ->exists();
+                
+                if (!$pagoConfirmado) {
+                    return redirect()->back()->with('error', 'No se puede completar una cita sin pago confirmado');
+                }
+
+                // Ejecutar facturación avanzada (reparto Médico/Consultorio/Sistema)
+                if (!$cita->facturaCabecera) {
+                    $this->facturacionService->ejecutarFacturacionAvanzada($cita);
+                }
+            } catch (\Exception $e) {
+                \Log::error('Error ejecutando facturación al completar cita: ' . $e->getMessage());
+                return redirect()->back()->
+ with('error', 'La cita se completó pero hubo un error en la facturación: ' . $e->getMessage());
+            }
+        }
 
         try {
             $paciente = $cita->paciente;
@@ -1270,6 +1373,36 @@ class CitaController extends Controller
         }
 
         return redirect()->back()->with('success', 'Estado de la cita actualizado correctamente');
+    }
+
+    public function comprobante($id)
+    {
+        $cita = Cita::with(['medico.especialidad', 'consultorio', 'paciente', 'facturaPaciente.pagos', 'facturaPaciente.tasa'])->findOrFail($id);
+        $user = auth()->user();
+
+        // Verificación de seguridad básica para pacientes
+        if ($user->rol_id == 3) {
+            $paciente = $user->paciente;
+            if (!$paciente) abort(403);
+
+            $esPropio = $cita->paciente_id == $paciente->id;
+            $esTercero = false;
+
+            if (!$esPropio) {
+                 $representante = Representante::where('tipo_documento', $paciente->tipo_documento)
+                                               ->where('numero_documento', $paciente->numero_documento)
+                                               ->first();
+                 if ($representante) {
+                      $esTercero = $representante->pacientesEspeciales()->where('paciente_id', $cita->paciente_id)->exists();
+                 }
+            }
+
+            if (!$esPropio && !$esTercero) {
+                abort(403, 'No tiene permiso para ver este comprobante.');
+            }
+        }
+
+        return view('paciente.citas.comprobante', compact('cita'));
     }
 
     // =========================================================================
@@ -1335,6 +1468,35 @@ class CitaController extends Controller
         return response()->json($consultorios);
     }
 
+    public function getConsultoriosPorEspecialidad($especialidadId, Request $request)
+{
+    Log::info('Buscando consultorios', ['especialidad' => $especialidadId, 'medico' => $request->medico_id]);
+    
+    $especialidad = Especialidad::find($especialidadId);
+    
+    if (!$especialidad) {
+        return response()->json([]);
+    }
+    
+    $medicoId = $request->medico_id;
+
+    $query = $especialidad->consultorios()
+        ->where('especialidad_consultorio.status', true)
+        ->where('consultorios.status', true);
+
+    // If medico_id is provided, filter consultories where this doctor works
+    if ($medicoId) {
+        $query->whereHas('medicos', function($q) use ($medicoId) {
+            $q->where('medicos.id', $medicoId)
+              ->where('medico_consultorio.status', true);
+        });
+    }
+
+    $consultorios = $query->orderBy('nombre')
+        ->get(['consultorios.id', 'consultorios.nombre', 'consultorios.direccion_detallada', 'consultorios.estado_id']);
+    
+    return response()->json($consultorios);
+}    
     /**
      * Obtener médicos por especialidad y consultorio
      */
@@ -1356,6 +1518,20 @@ class CitaController extends Controller
             ->where('status', true)
             ->get();
 
+        
+        $medicos = Medico::whereHas('especialidades', function($q) use ($especialidadId) {
+                $q->where('especialidades.id', $especialidadId)
+                  ->where('medico_especialidad.status', true);
+            })
+        ->when($consultorioId, function($query) use ($consultorioId) {
+            $query->whereHas('consultorios', function($q) use ($consultorioId) {
+                $q->where('consultorios.id', $consultorioId)
+                  ->where('medico_consultorio.status', true);
+            });
+        })
+        ->where('status', true)
+        ->get();
+        
         Log::info('Médicos encontrados: ' . $medicos->count());
 
         $result = $medicos->map(function ($medico) use ($especialidadId) {
@@ -1379,6 +1555,7 @@ class CitaController extends Controller
      */
     public function getHorariosDisponibles(Request $request)
     {
+        Log::info('getHorariosDisponibles', $request->all());
         $medicoId = $request->medico_id;
         $consultorioId = $request->consultorio_id;
         $fecha = $request->fecha;
@@ -1397,6 +1574,16 @@ class CitaController extends Controller
             ->first();
 
         if (!$horarioMedico) {
+        
+        // Obtener TODOS los horarios del médico para ese día en ese consultorio (Turnos múltiples)
+        $horariosMedico = MedicoConsultorio::where('medico_id', $medicoId)
+            ->where('consultorio_id', $consultorioId)
+            ->where('dia_semana', $diaSemana)
+            ->where('status', true)
+            ->orderBy('horario_inicio')
+            ->get();
+        
+        if ($horariosMedico->isEmpty()) {
             return response()->json([
                 'disponible' => false,
                 'mensaje' => 'El médico no trabaja este día en este consultorio',
@@ -1405,6 +1592,8 @@ class CitaController extends Controller
         }
 
         // Obtener citas ya agendadas para ese día
+        
+        // Obtener citas ya agendadas para ese día (para marcar como ocupadas)
         $citasOcupadas = Cita::where('medico_id', $medicoId)
             ->where('fecha_cita', $fecha)
             ->where('status', true)
@@ -1435,11 +1624,61 @@ class CitaController extends Controller
             $current->addMinutes(30);
         }
 
+        
+        $allSlots = [];
+        $horarioInicioGlobal = null;
+        $horarioFinGlobal = null;
+
+        // Iterar sobre cada turno (ej: mañana y tarde)
+        foreach ($horariosMedico as $horario) {
+            // Actualizar rangos globales para referencia
+            if (!$horarioInicioGlobal || $horario->horario_inicio < $horarioInicioGlobal) {
+                $horarioInicioGlobal = $horario->horario_inicio;
+            }
+            if (!$horarioFinGlobal || $horario->horario_fin > $horarioFinGlobal) {
+                $horarioFinGlobal = $horario->horario_fin;
+            }
+
+            // Generar slots de 30 minutos para este turno
+            $horaInicio = Carbon::createFromFormat('H:i:s', $horario->horario_inicio);
+            $horaFin = Carbon::createFromFormat('H:i:s', $horario->horario_fin);
+            
+            $current = $horaInicio->copy();
+            
+            while ($current < $horaFin) {
+                $horaStr = $current->format('H:i');
+                
+                // Evitar duplicados si los turnos se solapan (raro pero posible)
+                $yaExiste = false;
+                foreach ($allSlots as $slot) {
+                    if ($slot['hora'] == $horaStr) {
+                        $yaExiste = true;
+                        break;
+                    }
+                }
+
+                if (!$yaExiste) {
+                     $allSlots[] = [
+                        'hora' => $horaStr,
+                        'disponible' => !in_array($horaStr, $citasOcupadas),
+                        'ocupada' => in_array($horaStr, $citasOcupadas)
+                    ];
+                }
+               
+                $current->addMinutes(30);
+            }
+        }
+        
+        // Ordenar slots por hora
+        usort($allSlots, function($a, $b) {
+            return strcmp($a['hora'], $b['hora']);
+        });
+        
         return response()->json([
             'disponible' => true,
-            'horario_inicio' => $horarioMedico->horario_inicio,
-            'horario_fin' => $horarioMedico->horario_fin,
-            'horarios' => $slots
+            'horario_inicio' => $horarioInicioGlobal,
+            'horario_fin' => $horarioFinGlobal,
+            'horarios' => $allSlots
         ]);
     }
 

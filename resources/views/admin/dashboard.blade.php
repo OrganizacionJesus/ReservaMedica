@@ -4,370 +4,368 @@
     $admin = auth()->user()->administrador;
     $temaDinamico = $admin->tema_dinamico ?? false;
     $bannerColor = $admin->banner_color ?? 'bg-gradient-to-r from-blue-700 via-indigo-700 to-purple-700';
-    $baseColorClass = str_contains($bannerColor, 'from-') ? $bannerColor : '';
-    $baseColorStyle = str_contains($bannerColor, '#') ? 'background-color: ' . $bannerColor : '';
+    
+    $baseColorClass = '';
+    $baseColorStyle = '';
+    
+    if ($temaDinamico) {
+        if (str_starts_with($bannerColor, '#')) {
+            $baseColorStyle = "background: linear-gradient(135deg, {$bannerColor} 0%, " . adjustBrightness($bannerColor, -20) . " 100%);";
+        } else {
+            $baseColorClass = $bannerColor;
+        }
+    }
+
+    if (!function_exists('adjustBrightness')) {
+        function adjustBrightness($hex, $steps) {
+            $steps = max(-255, min(255, $steps));
+            $hex = str_replace('#', '', $hex);
+            if (strlen($hex) == 3) {
+                $hex = str_repeat(substr($hex, 0, 1), 2) . str_repeat(substr($hex, 1, 1), 2) . str_repeat(substr($hex, 2, 1), 2);
+            }
+            $r = hexdec(substr($hex, 0, 2));
+            $g = hexdec(substr($hex, 2, 2));
+            $b = hexdec(substr($hex, 4, 2));
+            $r = max(0, min(255, $r + $steps));
+            $g = max(0, min(255, $g + $steps));
+            $b = max(0, min(255, $b + $steps));
+            return '#' . str_pad(dechex($r), 2, '0', STR_PAD_LEFT)
+                . str_pad(dechex($g), 2, '0', STR_PAD_LEFT)
+                . str_pad(dechex($b), 2, '0', STR_PAD_LEFT);
+        }
+    }
 @endphp
 
 @section('title', 'Dashboard Administrativo')
 
-@section('content')
-<!-- Welcome Banner -->
-<div class="relative overflow-hidden rounded-3xl {{ $baseColorClass }} shadow-xl mb-8" 
-     style="{{ $baseColorStyle }}; border: 1px solid rgba(255,255,255,0.1);">
-     
-    @if(!$baseColorClass && !$baseColorStyle)
-        <div class="absolute inset-0 bg-gradient-to-r from-blue-700 via-indigo-700 to-purple-700"></div>
-    @endif
+@push('styles')
+<style>
+    .glass-card {
+        background: rgba(255, 255, 255, 0.85);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.5);
+        border-radius: 20px;
+        box-shadow: 0 10px 40px -10px rgba(0,0,0,0.08);
+        overflow: hidden; /* Prevent overflow */
+    }
+    .dark .glass-card {
+        background: rgba(17, 24, 39, 0.8);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        box-shadow: 0 10px 40px -10px rgba(0,0,0,0.3);
+    }
+    
+    /* Chart Container improvements */
+    .chart-wrapper {
+        min-height: 300px;
+        width: 100%;
+        position: relative;
+        padding: 0 10px; /* Safety padding */
+    }
 
-    <div class="absolute top-0 right-0 -mt-10 -mr-10 w-64 h-64 bg-white/20 rounded-full mix-blend-overlay filter blur-3xl"></div>
-    <div class="absolute bottom-0 left-0 -mb-10 -ml-10 w-64 h-64 bg-white/10 rounded-full mix-blend-overlay filter blur-3xl"></div>
+    .stat-hover {
+        transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .stat-hover:hover {
+        transform: translateY(-2px);
+    }
+</style>
+@endpush
+
+@section('content')
+{{-- Premium Header --}}
+<div class="relative overflow-hidden rounded-3xl mb-8 {{ $baseColorClass }} shadow-xl border border-white/20" style="{{ $baseColorStyle }}">
+    @if(!$baseColorClass && !$baseColorStyle)
+        <div class="absolute inset-0 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600"></div>
+    @endif
+    
+    {{-- Decorative Orbs --}}
+    <div class="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -mr-32 -mt-32"></div>
+    <div class="absolute bottom-0 left-0 w-64 h-64 bg-white/10 rounded-full blur-2xl -ml-20 -mb-20"></div>
+
     <div class="relative z-10 p-8">
-        <div class="flex flex-col md:flex-row items-center justify-between gap-6">
-            <div class="text-white text-center md:text-left" style="color: var(--text-on-medical, #ffffff);">
-                <h2 class="text-3xl md:text-4xl font-display font-bold mb-2">
-                    ¡Bienvenido, {{ $admin->primer_nombre }}!
+        <div class="flex flex-col xl:flex-row xl:items-center justify-between gap-8">
+            <div class="text-white">
+                <h2 class="text-3xl font-display font-bold mb-2">
+                    ¡Bienvenido, {{ $admin->primer_nombre }}! 👋
                 </h2>
-                <p class="text-white/90 text-lg flex items-center gap-2 justify-center md:justify-start" style="color: var(--text-on-medical, #ffffff); opacity: 0.9;">
-                    <i class="bi bi-calendar3"></i>
+                <p class="text-white/80 font-medium flex items-center gap-2">
+                    <i class="bi bi-calendar4"></i>
+                    @php \Carbon\Carbon::setLocale('es'); @endphp
                     {{ \Carbon\Carbon::now()->isoFormat('dddd, D [de] MMMM [de] YYYY') }}
                 </p>
             </div>
-            <div class="flex gap-3">
-                <a href="{{ route('admin.perfil.edit') }}" class="btn bg-white text-gray-900 hover:bg-gray-50 border-none shadow-md" style="color: var(--medical-500, #1d4ed8);">
-                    <i class="bi bi-palette"></i> Personalizar Portal
-                </a>
-            </div>
-        </div>
-        
-        <!-- Mini Stats -->
-        <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mt-6">
-            <div class="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-white">
-                <i class="bi bi-person-badge text-2xl mb-2"></i>
-                <p class="text-2xl font-bold">{{ $stats['medicos'] ?? 0 }}</p>
-                <p class="text-sm text-white/80">Médicos</p>
-            </div>
-            <div class="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-white">
-                <i class="bi bi-people text-2xl mb-2"></i>
-                <p class="text-2xl font-bold">{{ $stats['pacientes'] ?? 0 }}</p>
-                <p class="text-sm text-white/80">Pacientes</p>
-            </div>
-            <div class="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-white">
-                <i class="bi bi-calendar-check text-2xl mb-2"></i>
-                <p class="text-2xl font-bold">{{ $stats['citas_hoy'] ?? 0 }}</p>
-                <p class="text-sm text-white/80">Citas Hoy</p>
-            </div>
-            <div class="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-white">
-                <i class="bi bi-currency-dollar text-2xl mb-2"></i>
-                <p class="text-2xl font-bold">${{ number_format($stats['ingresos_mes'] ?? 0, 0) }}</p>
-                <p class="text-sm text-white/80">Ingresos</p>
-            </div>
-            <div class="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-white">
-                <i class="bi bi-person-check text-2xl mb-2"></i>
-                <p class="text-2xl font-bold">{{ $stats['usuarios_activos'] ?? 0 }}</p>
-                <p class="text-sm text-white/80">Usuarios Activos</p>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Enhanced Stats Grid -->
-<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-    <!-- Médicos -->
-    <div class="card p-6 bg-white border-gray-100 hover:border-medical-500 transition-all group">
-        <div class="flex justify-between items-start">
-            <div>
-                <p class="text-sm font-semibold text-gray-500 mb-2 group-hover:text-medical-600 transition-colors">Médicos Activos</p>
-                <h3 class="text-4xl font-display font-bold text-gray-900 decoration-medical-500 decoration-4">{{ $stats['medicos_activos'] ?? 0 }}</h3>
-                <p class="text-sm text-emerald-600 mt-2 flex items-center gap-1 font-medium">
-                    <i class="bi bi-graph-up"></i> +{{ $stats['medicos_nuevos_mes'] ?? 0 }} este mes
-                </p>
-            </div>
-            <div class="w-14 h-14 bg-medical-50 text-medical-600 rounded-2xl flex items-center justify-center shadow-sm group-hover:bg-medical-500 group-hover:text-white transition-all">
-                <i class="bi bi-person-badge text-2xl"></i>
-            </div>
-        </div>
-        <div class="mt-4 pt-4 border-t border-gray-50">
-            <a href="{{ route('medicos.index') }}" class="text-gray-500 hover:text-medical-600 font-bold text-xs flex items-center gap-1 uppercase tracking-wider">
-                Gestionar médicos <i class="bi bi-arrow-right"></i>
-            </a>
-        </div>
-    </div>
-
-    <!-- Pacientes -->
-    <div class="card p-6 bg-white border-gray-100 hover:border-medical-500 transition-all group">
-        <div class="flex justify-between items-start">
-            <div>
-                <p class="text-sm font-semibold text-gray-500 mb-2 group-hover:text-medical-600 transition-colors">Total Pacientes</p>
-                <h3 class="text-4xl font-display font-bold text-gray-900">{{ $stats['total_pacientes'] ?? 0 }}</h3>
-                <p class="text-sm text-emerald-600 mt-2 flex items-center gap-1 font-medium">
-                    <i class="bi bi-person-plus"></i> +{{ $stats['pacientes_nuevos_semana'] ?? 0 }} esta semana
-                </p>
-            </div>
-            <div class="w-14 h-14 bg-medical-50 text-medical-600 rounded-2xl flex items-center justify-center shadow-sm group-hover:bg-medical-500 group-hover:text-white transition-all">
-                <i class="bi bi-people text-2xl"></i>
-            </div>
-        </div>
-        <div class="mt-4 pt-4 border-t border-gray-50">
-            <a href="{{ route('pacientes.index') }}" class="text-gray-500 hover:text-medical-600 font-bold text-xs flex items-center gap-1 uppercase tracking-wider">
-                Gestionar pacientes <i class="bi bi-arrow-right"></i>
-            </a>
-        </div>
-    </div>
-
-    <!-- Citas -->
-    <div class="card p-6 bg-white border-gray-100 hover:border-medical-500 transition-all group">
-        <div class="flex justify-between items-start">
-            <div>
-                <p class="text-sm font-semibold text-gray-500 mb-2 group-hover:text-medical-600 transition-colors">Citas del Día</p>
-                <h3 class="text-4xl font-display font-bold text-gray-900">{{ $stats['citas_hoy'] ?? 0 }}</h3>
-                <p class="text-sm text-medical-600 mt-2 font-medium">
-                    {{ $stats['citas_completadas_hoy'] ?? 0 }} completadas
-                </p>
-            </div>
-            <div class="w-14 h-14 bg-medical-50 text-medical-600 rounded-2xl flex items-center justify-center shadow-sm group-hover:bg-medical-500 group-hover:text-white transition-all">
-                <i class="bi bi-calendar-check text-2xl"></i>
-            </div>
-        </div>
-        <div class="mt-4 pt-4 border-t border-gray-50">
-            <a href="{{ route('citas.index') }}" class="text-gray-500 hover:text-medical-600 font-bold text-xs flex items-center gap-1 uppercase tracking-wider">
-                Ver agenda <i class="bi bi-arrow-right"></i>
-            </a>
-        </div>
-    </div>
-
-    <!-- Ingresos -->
-    <div class="card p-6 bg-white border-gray-100 hover:border-medical-500 transition-all group">
-        <div class="flex justify-between items-start">
-            <div>
-                <p class="text-sm font-semibold text-gray-500 mb-2 group-hover:text-medical-600 transition-colors">Ingresos del Mes</p>
-                <h3 class="text-4xl font-display font-bold text-gray-900">${{ number_format($stats['ingresos_mes'] ?? 0, 0) }}</h3>
-                <p class="text-sm text-emerald-600 mt-2 flex items-center gap-1 font-medium">
-                    <i class="bi bi-arrow-up"></i> +{{ $stats['crecimiento_ingresos'] ?? 0 }}% vs mes anterior
-                </p>
-            </div>
-            <div class="w-14 h-14 bg-medical-50 text-medical-600 rounded-2xl flex items-center justify-center shadow-sm group-hover:bg-medical-500 group-hover:text-white transition-all">
-                <i class="bi bi-currency-dollar text-2xl"></i>
-            </div>
-        </div>
-        <div class="mt-4 pt-4 border-t border-gray-50">
-            <a href="{{ route('facturacion.index') }}" class="text-gray-500 hover:text-medical-600 font-bold text-xs flex items-center gap-1 uppercase tracking-wider">
-                Ver reportes <i class="bi bi-arrow-right"></i>
-            </a>
-        </div>
-    </div>
-</div>
-
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-    <!-- Left Column: Charts & Activity -->
-    <div class="lg:col-span-2 space-y-8">
-        <!-- Activity Chart -->
-        <div class="card p-6">
-            <div class="flex items-center justify-between mb-6">
-                <div>
-                    <h3 class="text-lg font-display font-bold text-gray-900 flex items-center gap-2">
-                        <i class="bi bi-graph-up text-blue-600"></i>
-                        Resumen de Actividad
-                    </h3>
-                    <p class="text-sm text-gray-600 mt-1">Citas de los últimos 7 días</p>
-                </div>
-                <select class="form-select text-sm w-auto py-1.5 px-3">
-                    <option>Últimos 7 días</option>
-                    <option>Último mes</option>
-                    <option>Este año</option>
-                </select>
-            </div>
             
-            <!-- Chart -->
-            <div class="h-64 flex items-end justify-between gap-2 px-2">
-                @foreach([40, 65, 45, 80, 55, 70, 60] as $index => $h)
-                <div class="w-full bg-medical-500/20 hover:bg-medical-500 rounded-t-xl relative group transition-all cursor-pointer" style="height: {{ $h }}%">
-                    <div class="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white text-[10px] font-bold py-1 px-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap shadow-xl">
-                        {{ $h }} citas
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 w-full xl:w-auto">
+                @foreach([
+                    ['icon' => 'person-badge', 'value' => $stats['medicos'], 'label' => 'Médicos', 'bg' => 'bg-emerald-500/20', 'route' => route('medicos.index')],
+                    ['icon' => 'people', 'value' => $stats['pacientes'], 'label' => 'Pacientes', 'bg' => 'bg-blue-500/20', 'route' => route('pacientes.index')],
+                    ['icon' => 'calendar-check', 'value' => $stats['citas_hoy'], 'label' => 'Citas Hoy', 'bg' => 'bg-amber-500/20', 'route' => route('citas.index')],
+                    ['icon' => 'currency-dollar', 'value' => number_format($stats['ingresos_mes']/1000, 1) . 'k', 'label' => 'Ingresos', 'bg' => 'bg-purple-500/20', 'route' => route('pagos.index')]
+                ] as $stat)
+                <a href="{{ $stat['route'] }}" class="block bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/10 hover:bg-white/20 transition-all cursor-pointer group">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl {{ $stat['bg'] }} flex items-center justify-center text-white group-hover:scale-110 transition-transform">
+                            <i class="bi bi-{{ $stat['icon'] }} text-lg"></i>
+                        </div>
+                        <div>
+                            <p class="text-xl font-bold text-white leading-none">{{ $stat['value'] }}</p>
+                            <p class="text-[11px] font-bold text-white/70 uppercase tracking-wide mt-1">{{ $stat['label'] }}</p>
+                        </div>
                     </div>
-                </div>
+                </a>
                 @endforeach
             </div>
-            <div class="flex justify-between mt-4 text-xs text-gray-500 px-2 font-medium">
-                <span>Lun</span><span>Mar</span><span>Mié</span><span>Jue</span><span>Vie</span><span>Sáb</span><span>Dom</span>
-            </div>
+        </div>
+    </div>
+</div>
+
+<div class="grid grid-cols-12 gap-6">
+    {{-- Left Column (Charts) --}}
+    <div class="col-span-12 lg:col-span-8 space-y-6">
+        
+        {{-- Charts Row --}}
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {{-- Weekly Chart --}}
+            <a href="{{ route('citas.index') }}" class="glass-card p-6 h-full flex flex-col block hover:shadow-lg transition-shadow cursor-pointer">
+                <div class="flex justify-between items-start mb-6">
+                    <div>
+                        <h3 class="font-bold text-gray-900 dark:text-white text-lg group-hover:text-blue-600 transition-colors">Actividad Semanal</h3>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Total citas últimos 7 días</p>
+                    </div>
+                    <span class="px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-xs font-bold dark:bg-blue-900/30 dark:text-blue-300">
+                        {{ array_sum($chartData['weekly']['data']) }} citas
+                    </span>
+                </div>
+                <div class="chart-wrapper flex-1">
+                    <div id="weeklyChart" class="h-full w-full pointer-events-none"></div>
+                </div>
+            </a>
+
+            {{-- Status Distribution --}}
+            <a href="{{ route('citas.index') }}" class="glass-card p-6 h-full flex flex-col block hover:shadow-lg transition-shadow cursor-pointer">
+                <div class="flex justify-between items-start mb-6">
+                    <div>
+                        <h3 class="font-bold text-gray-900 dark:text-white text-lg">Distribución</h3>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Estado de citas</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                         <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                         <span class="text-xs text-gray-500 font-medium">Completadas</span>
+                    </div>
+                </div>
+                <div class="chart-wrapper flex-1 d-flex items-center justify-center">
+                    <div id="statusChart" class="h-full w-full pointer-events-none"></div>
+                </div>
+            </a>
         </div>
 
-        <!-- System Health -->
-        <div class="card p-6">
-            <h3 class="text-lg font-display font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <i class="bi bi-heart-pulse text-medical-600"></i>
-                Salud del Sistema
-            </h3>
-            <div class="grid grid-cols-3 gap-4">
-                <div class="text-center p-4 bg-medical-50/30 rounded-2xl border border-medical-100/50">
-                    <div class="w-16 h-16 mx-auto rounded-2xl bg-medical-50 flex items-center justify-center mb-2 shadow-inner">
-                        <i class="bi bi-cloud-check text-medical-600 text-2xl"></i>
-                    </div>
-                    <p class="text-sm font-bold text-gray-900">Servidor</p>
-                    <p class="text-[10px] text-emerald-600 font-bold uppercase tracking-widest mt-1">Operativo</p>
+        {{-- Revenue Chart --}}
+        <a href="{{ route('pagos.index') }}" class="glass-card p-6 block hover:shadow-lg transition-shadow cursor-pointer">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h3 class="font-bold text-gray-900 dark:text-white text-lg">Ingresos Mensuales</h3>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Rendimiento financiero {{ now()->year }}</p>
                 </div>
-                <div class="text-center p-4 bg-medical-50/30 rounded-2xl border border-medical-100/50">
-                    <div class="w-16 h-16 mx-auto rounded-2xl bg-medical-50 flex items-center justify-center mb-2 shadow-inner">
-                        <i class="bi bi-database text-medical-600 text-2xl"></i>
-                    </div>
-                    <p class="text-sm font-bold text-gray-900">Base de Datos</p>
-                    <p class="text-[10px] text-emerald-600 font-bold uppercase tracking-widest mt-1">Conectada</p>
-                </div>
-                <div class="text-center p-4 bg-medical-50/30 rounded-2xl border border-medical-100/50">
-                    <div class="w-16 h-16 mx-auto rounded-2xl bg-medical-50 flex items-center justify-center mb-2 shadow-inner">
-                        <i class="bi bi-shield-check text-medical-600 text-2xl"></i>
-                    </div>
-                    <p class="text-sm font-bold text-gray-900">Seguridad</p>
-                    <p class="text-[10px] text-emerald-600 font-bold uppercase tracking-widest mt-1">Activa</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Recent Activity Feed -->
-        <div class="card">
-            <div class="p-6 border-b border-gray-200">
-                <h3 class="text-lg font-display font-bold text-gray-900 flex items-center gap-2">
-                    <i class="bi bi-activity text-emerald-600"></i>
-                    Actividad Reciente
-                </h3>
-            </div>
-            <div class="divide-y divide-gray-100 max-h-[400px] overflow-y-auto">
-                @forelse($actividadReciente ?? [] as $actividad)
-                <div class="p-4 hover:bg-gray-50 transition-colors flex gap-3">
-                    <div class="w-10 h-10 rounded-full {{ $actividad->tipo_clase ?? 'bg-blue-100' }} flex items-center justify-center flex-shrink-0">
-                        <i class="bi {{ $actividad->icono ?? 'bi-check' }} {{ $actividad->icono_clase ?? 'text-blue-600' }}"></i>
-                    </div>
-                    <div class="flex-1 min-w-0">
-                        <p class="text-sm text-gray-800">{{ $actividad->descripcion ?? 'Actividad' }}</p>
-                        <p class="text-xs text-gray-500 mt-1">
-                            {{ isset($actividad->created_at) ? \Carbon\Carbon::parse($actividad->created_at)->diffForHumans() : 'Hace unos momentos' }}
+                <div class="flex items-center gap-4">
+                    <div class="text-right">
+                        <p class="text-2xl font-bold text-gray-900 dark:text-white">${{ number_format($stats['ingresos_mes']) }}</p>
+                        <p class="text-xs font-bold {{ $stats['crecimiento_ingresos'] >= 0 ? 'text-emerald-500' : 'text-rose-500' }}">
+                            {{ $stats['crecimiento_ingresos'] > 0 ? '+' : '' }}{{ $stats['crecimiento_ingresos'] }}% vs mes anterior
                         </p>
                     </div>
                 </div>
+            </div>
+            <div class="chart-wrapper" style="height: 350px;">
+                <div id="revenueChart" class="h-full w-full pointer-events-none"></div>
+            </div>
+        </a>
+    </div>
+
+    {{-- Right Column (Sidebar) --}}
+    <div class="col-span-12 lg:col-span-4 space-y-6">
+        
+        {{-- Tasks Card --}}
+        <a href="{{ route('citas.index') }}" class="glass-card p-6 block hover:shadow-lg transition-shadow cursor-pointer">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="font-bold text-gray-900 dark:text-white text-lg">Tareas Pendientes</h3>
+                <span class="bg-amber-100 text-amber-700 px-2 py-1 rounded-lg text-xs font-bold dark:bg-amber-900/30 dark:text-amber-300">
+                    Prioridad
+                </span>
+            </div>
+            <div class="space-y-4">
+                @foreach([
+                    ['title' => 'Citas sin confirmar', 'count' => $tareas['citas_sin_confirmar'], 'color' => 'amber', 'icon' => 'exclamation-circle'],
+                    ['title' => 'Pagos en revisión', 'count' => $tareas['pagos_pendientes'], 'color' => 'rose', 'icon' => 'wallet2'],
+                    ['title' => 'Resultados Lab', 'count' => $tareas['resultados_pendientes'], 'color' => 'blue', 'icon' => 'file-earmark-medical']
+                ] as $task)
+                <div class="flex items-center justify-between p-3 rounded-xl bg-gray-50 dark:bg-gray-800/50 hover:bg-white dark:hover:bg-gray-800 border border-transparent hover:border-gray-200 dark:hover:border-gray-700 transition-all stat-hover group">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-lg bg-{{ $task['color'] }}-100 dark:bg-{{ $task['color'] }}-900/30 flex items-center justify-center text-{{ $task['color'] }}-600 dark:text-{{ $task['color'] }}-400">
+                            <i class="bi bi-{{ $task['icon'] }}"></i>
+                        </div>
+                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ $task['title'] }}</span>
+                    </div>
+                    <span class="font-bold text-gray-900 dark:text-white">{{ $task['count'] }}</span>
+                </div>
+                @endforeach
+            </div>
+        </a>
+
+        {{-- Activity Feed --}}
+        <a href="{{ route('admin.notificaciones.index') }}" class="glass-card p-6 block hover:shadow-lg transition-shadow cursor-pointer">
+            <h3 class="font-bold text-gray-900 dark:text-white text-lg mb-6">Actividad</h3>
+            <div class="relative pl-4 border-l-2 border-gray-100 dark:border-gray-800 space-y-6">
+                @forelse($actividadReciente as $actividad)
+                <div class="relative group">
+                    <div class="absolute -left-[21px] top-1 w-3 h-3 rounded-full bg-blue-500 border-4 border-white dark:border-gray-900 group-hover:scale-125 transition-transform"></div>
+                    <div>
+                        <p class="text-sm font-medium text-gray-800 dark:text-gray-200">{{ $actividad->descripcion }}</p>
+                        <p class="text-xs text-gray-400 mt-1">{{ \Carbon\Carbon::parse($actividad->created_at)->diffForHumans() }}</p>
+                    </div>
+                </div>
                 @empty
-                <!-- Placeholder activity -->
-                <div class="p-4 hover:bg-gray-50 transition-colors flex gap-3">
-                    <div class="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
-                        <i class="bi bi-check text-emerald-600"></i>
-                    </div>
-                    <div class="flex-1">
-                        <p class="text-sm text-gray-800"><span class="font-semibold">Dr. Pérez</span> completó una cita.</p>
-                        <p class="text-xs text-gray-500 mt-1">Hace 5 min</p>
-                    </div>
-                </div>
-                <div class="p-4 hover:bg-gray-50 transition-colors flex gap-3">
-                    <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                        <i class="bi bi-person-plus text-blue-600"></i>
-                    </div>
-                    <div class="flex-1">
-                        <p class="text-sm text-gray-800">Nuevo paciente: <span class="font-semibold">María González</span></p>
-                        <p class="text-xs text-gray-500 mt-1">Hace 15 min</p>
-                    </div>
-                </div>
-                <div class="p-4 hover:bg-gray-50 transition-colors flex gap-3">
-                    <div class="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
-                        <i class="bi bi-calendar-plus text-amber-600"></i>
-                    </div>
-                    <div class="flex-1">
-                        <p class="text-sm text-gray-800">Cita agendada para <span class="font-semibold">Mañana 10:00 AM</span></p>
-                        <p class="text-xs text-gray-500 mt-1">Hace 1 hora</p>
-                    </div>
+                <div class="text-center py-4 text-gray-400">
+                    <p class="text-sm">Sin actividad reciente</p>
                 </div>
                 @endforelse
             </div>
-            <div class="p-3 bg-gray-50 border-t border-gray-100 text-center">
-                <a href="{{ route('notificaciones.index') }}" class="text-sm text-medical-600 font-bold hover:text-medical-700 uppercase tracking-widest text-[10px]">Ver toda la actividad →</a>
-            </div>
-        </div>
-    </div>
+        </a>
 
-    <!-- Right Sidebar -->
-    <div class="space-y-6">
-        <!-- Pending Tasks -->
-        <div class="card p-6">
-            <h3 class="text-lg font-display font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <i class="bi bi-list-check text-amber-600"></i>
-                Tareas Pendientes
-            </h3>
-            <div class="space-y-3">
-                <div class="p-3 bg-amber-50 rounded-lg border border-amber-200">
-                    <p class="font-semibold text-gray-900 text-sm">{{ $tareas['citas_sin_confirmar'] ?? 0 }} citas sin confirmar</p>
-                    <p class="text-xs text-gray-600 mt-1">Requieren atención</p>
-                </div>
-                <div class="p-3 bg-rose-50 rounded-lg border border-rose-200">
-                    <p class="font-semibold text-gray-900 text-sm">{{ $tareas['pagos_pendientes'] ?? 0 }} pagos pendientes</p>
-                    <p class="text-xs text-gray-600 mt-1">Por procesar</p>
-                </div>
-                <div class="p-3 bg-blue-50 rounded-lg border border-blue-200">
-                    <p class="font-semibold text-gray-900 text-sm">{{ $tareas['resultados_pendientes'] ?? 0 }} resultados pendientes</p>
-                    <p class="text-xs text-gray-600 mt-1">Laboratorios por entregar</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Quick Actions -->
-        <div class="card p-6">
-            <h3 class="text-lg font-display font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <i class="bi bi-lightning-charge text-amber-600"></i>
-                Acciones Rápidas
-            </h3>
-            <div class="space-y-2">
-                <a href="{{ route('medicos.create') }}" class="flex items-center gap-3 px-4 py-2.5 rounded-xl border border-gray-100 text-gray-600 hover:bg-medical-50 hover:text-medical-600 hover:border-medical-200 transition-all text-sm font-medium">
-                    <i class="bi bi-person-badge"></i> Nuevo Médico
-                </a>
-                <a href="{{ route('pacientes.create') }}" class="flex items-center gap-3 px-4 py-2.5 rounded-xl border border-gray-100 text-gray-600 hover:bg-medical-50 hover:text-medical-600 hover:border-medical-200 transition-all text-sm font-medium">
-                    <i class="bi bi-person-plus"></i> Nuevo Paciente
-                </a>
-                <a href="{{ route('citas.create') }}" class="flex items-center gap-3 px-4 py-2.5 rounded-xl border border-gray-100 text-gray-600 hover:bg-medical-50 hover:text-medical-600 hover:border-medical-200 transition-all text-sm font-medium">
-                    <i class="bi bi-calendar-plus"></i> Agendar Cita
-                </a>
-                <a href="{{ route('administradores.create') }}" class="flex items-center gap-3 px-4 py-2.5 rounded-xl border border-gray-100 text-gray-600 hover:bg-medical-50 hover:text-medical-600 hover:border-medical-200 transition-all text-sm font-medium">
-                    <i class="bi bi-shield-check"></i> Nuevo Admin
-                </a>
-            </div>
-        </div>
-
-        <!-- System Info -->
-        <div class="card p-6">
-            <h3 class="text-lg font-display font-bold text-gray-900 mb-4">Información del Sistema</h3>
-            <div class="space-y-3 text-sm">
-                <div class="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
-                    <span class="text-gray-600">Versión</span>
-                    <span class="font-semibold text-gray-900">1.0.0</span>
-                </div>
-                <div class="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
-                    <span class="text-gray-600">Uptime</span>
-                    <span class="font-semibold text-gray-900">99.9%</span>
-                </div>
-                <div class="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
-                    <span class="text-gray-600">Almacenamiento</span>
-                    <span class="font-semibold text-gray-900">45% usado</span>
-                </div>
-            </div>
-        </div>
-
-        <!-- Shortcuts Grid -->
-        <div class="card p-6">
-            <h4 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Enlaces Rápidos</h4>
+        {{-- Quick Actions --}}
+        <div class="glass-card p-6">
+            <h3 class="font-bold text-gray-900 dark:text-white text-lg mb-4">Acciones</h3>
             <div class="grid grid-cols-2 gap-3">
-                <a href="{{ route('especialidades.index') }}" class="p-4 text-center bg-gray-50 hover:bg-medical-50 rounded-2xl border border-transparent hover:border-medical-200 transition-all group">
-                    <i class="bi bi-bookmark text-2xl text-gray-400 group-hover:text-medical-600 mb-1 block group-hover:scale-110 transition-transform"></i>
-                    <span class="text-[10px] font-bold text-gray-600 group-hover:text-medical-700 uppercase">Especialidades</span>
+                @if($admin->tipo_admin === 'Root')
+                <a href="{{ route('medicos.create') }}" class="p-4 rounded-xl bg-violet-50 dark:bg-violet-900/20 hover:bg-violet-100 dark:hover:bg-violet-900/30 transition-colors text-center group">
+                    <i class="bi bi-person-badge text-2xl text-violet-600 dark:text-violet-400 mb-2 block group-hover:scale-110 transition-transform"></i>
+                    <span class="text-xs font-bold text-violet-700 dark:text-violet-300">Nuevo Médico</span>
                 </a>
-                <a href="{{ route('consultorios.index') }}" class="p-4 text-center bg-gray-50 hover:bg-medical-50 rounded-2xl border border-transparent hover:border-medical-200 transition-all group">
-                    <i class="bi bi-building text-2xl text-gray-400 group-hover:text-medical-600 mb-1 block group-hover:scale-110 transition-transform"></i>
-                    <span class="text-[10px] font-bold text-gray-600 group-hover:text-medical-700 uppercase">Sedes</span>
+                @else
+                <a href="{{ route('pagos.create') }}" class="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors text-center group">
+                    <i class="bi bi-wallet2 text-2xl text-emerald-600 dark:text-emerald-400 mb-2 block group-hover:scale-110 transition-transform"></i>
+                    <span class="text-xs font-bold text-emerald-700 dark:text-emerald-300">Registrar Pago</span>
                 </a>
-                <a href="{{ route('configuracion.index') }}" class="p-4 text-center bg-gray-50 hover:bg-medical-50 rounded-2xl border border-transparent hover:border-medical-200 transition-all group">
-                    <i class="bi bi-gear text-2xl text-gray-400 group-hover:text-medical-600 mb-1 block group-hover:scale-110 transition-transform"></i>
-                    <span class="text-[10px] font-bold text-gray-600 group-hover:text-medical-700 uppercase">Ajustes</span>
+                @endif
+                <a href="{{ route('pacientes.create') }}" class="p-4 rounded-xl bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors text-center group">
+                    <i class="bi bi-person-add text-2xl text-blue-600 dark:text-blue-400 mb-2 block group-hover:scale-110 transition-transform"></i>
+                    <span class="text-xs font-bold text-blue-700 dark:text-blue-300">Nuevo Paciente</span>
                 </a>
-                <a href="{{ route('facturacion.index') }}" class="p-4 text-center bg-gray-50 hover:bg-medical-50 rounded-2xl border border-transparent hover:border-medical-200 transition-all group">
-                    <i class="bi bi-file-earmark-bar-graph text-2xl text-gray-400 group-hover:text-medical-600 mb-1 block group-hover:scale-110 transition-transform"></i>
-                    <span class="text-[10px] font-bold text-gray-600 group-hover:text-medical-700 uppercase">Reportes</span>
+                <a href="{{ route('citas.create') }}" class="col-span-2 p-3 rounded-xl bg-gray-900 dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors text-center flex items-center justify-center gap-2 group text-white dark:text-gray-900">
+                    <i class="bi bi-plus-circle text-lg"></i>
+                    <span class="text-sm font-bold">Nueva Cita</span>
                 </a>
             </div>
         </div>
+
     </div>
 </div>
 @endsection
+
+@push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/apexcharts@3.45.1/dist/apexcharts.min.js"></script>
+<script>
+    const chartData = @json($chartData);
+    const isDark = document.documentElement.classList.contains('dark');
+    
+    const theme = {
+        font: 'Inter, system-ui, sans-serif',
+        text: isDark ? '#9ca3af' : '#6b7280',
+        grid: isDark ? '#374151' : '#f3f4f6'
+    };
+
+    // Improved Weekly Chart - Fit to Container
+    new ApexCharts(document.querySelector("#weeklyChart"), {
+        series: [{ name: 'Citas', data: chartData.weekly.data }],
+        chart: { 
+            type: 'area', 
+            height: '100%', 
+            width: '100%',
+            toolbar: { show: false }, 
+            parentHeightOffset: 0,
+            zoom: { enabled: false }
+        },
+        stroke: { curve: 'smooth', width: 3, colors: ['#3b82f6'] },
+        fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.45, opacityTo: 0.05, stops: [0, 90, 100] } },
+        dataLabels: { enabled: false },
+        xaxis: { 
+            categories: chartData.weekly.labels, 
+            labels: { show: false }, // Hide X labels for cleaner mini-chart look
+            axisBorder: { show: false }, 
+            axisTicks: { show: false },
+            tooltip: { enabled: false }
+        },
+        yaxis: { show: false }, // Hide Y Axis
+        grid: { show: false, padding: { top: 0, right: 0, bottom: 0, left: 0 } }, // Remove grid & padding
+        tooltip: { theme: isDark ? 'dark' : 'light' }
+    }).render();
+
+    // Improved Status Donut - Better Fit
+    new ApexCharts(document.querySelector("#statusChart"), {
+        series: chartData.status.data,
+        chart: { 
+            type: 'donut', 
+            height: 220, // Specific height for donut to fit better
+            fontFamily: theme.font
+        },
+        labels: chartData.status.labels,
+        colors: ['#10b981', '#3b82f6', '#f59e0b', '#f43f5e'],
+        legend: { position: 'bottom', fontSize: '12px', labels: { colors: theme.text } },
+        dataLabels: { enabled: false },
+        plotOptions: {
+            pie: {
+                donut: {
+                    size: '75%',
+                    labels: {
+                        show: true,
+                        value: { fontSize: '24px', fontWeight: 700, color: isDark ? '#fff' : '#111827', offsetY: 5 },
+                        total: { 
+                            show: true, 
+                            label: 'Total', 
+                            fontSize: '12px',
+                            color: theme.text, 
+                            formatter: (w) => w.globals.seriesTotals.reduce((a, b) => a + b, 0) 
+                        }
+                    }
+                }
+            }
+        },
+        stroke: { show: false }
+    }).render();
+
+    // Improved Revenue Chart
+    new ApexCharts(document.querySelector("#revenueChart"), {
+        series: [{ name: 'Ingresos', data: chartData.revenue.data }],
+        chart: { 
+            type: 'bar', 
+            height: '100%', 
+            width: '100%',
+            toolbar: { show: false },
+            parentHeightOffset: 0
+        },
+        plotOptions: { bar: { borderRadius: 6, columnWidth: '55%' } },
+        colors: ['#8b5cf6'],
+        xaxis: { 
+            categories: chartData.revenue.labels, 
+            labels: { 
+                style: { colors: theme.text, fontSize: '11px', fontFamily: theme.font },
+                rotate: 0 
+            },
+            axisBorder: { show: false },
+            axisTicks: { show: false }
+        },
+        yaxis: { 
+            labels: { 
+                formatter: (val) => '$' + (val/1000).toFixed(0) + 'k',
+                style: { colors: theme.text, fontSize: '11px' }
+            } 
+        },
+        grid: { 
+            borderColor: theme.grid, 
+            strokeDashArray: 4,
+            padding: { top: 0, right: 0, bottom: 0, left: 10 }
+        },
+        dataLabels: { enabled: false },
+        tooltip: { theme: isDark ? 'dark' : 'light' }
+    }).render();
+</script>
+@endpush

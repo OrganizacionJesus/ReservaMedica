@@ -12,7 +12,7 @@
             </p>
         </div>
         <div class="flex gap-2">
-            <a href="{{ route('medicos.horarios', $medico->id) }}" class="btn btn-outline">
+            <a href="{{ route('medico.horario.edit') }}" class="btn btn-outline">
                 <i class="bi bi-clock mr-2"></i>
                 Editar Horarios Semanales
             </a>
@@ -101,15 +101,23 @@
                         <span class="text-gray-700">Horario de Trabajo</span>
                     </div>
                     <div class="flex items-center gap-2">
-                        <div class="w-5 h-5 rounded bg-teal-400"></div>
+                        <div class="w-5 h-5 rounded bg-blue-500"></div>
+                        <span class="text-gray-700">Cita Confirmada</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <div class="w-5 h-5 rounded bg-orange-500"></div>
                         <span class="text-gray-700">Cita Programada</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <div class="w-5 h-5 rounded bg-gray-600"></div>
+                        <span class="text-gray-700">Cita Completada</span>
                     </div>
                     <div class="flex items-center gap-2">
                         <div class="w-5 h-5 rounded bg-gray-200 border border-gray-300"></div>
                         <span class="text-gray-700">Disponible</span>
                     </div>
                     <div class="flex items-center gap-2">
-                        <div class="w-5 h-5 rounded bg-blue-400"></div>
+                        <div class="w-5 h-5 rounded bg-rose-400"></div>
                         <span class="text-gray-700">No Laborable</span>
                     </div>
                 </div>
@@ -149,8 +157,8 @@
                         
                         @foreach($horas as $hora)
                             <tr class="border-b border-gray-100 hover:bg-gray-50/50">
-                                <td class="px-3 py-2 text-gray-600 font-medium bg-gray-50">
-                                    {{ $hora }}
+                                <td class="px-3 py-2 text-gray-600 font-medium bg-gray-50 text-xs">
+                                    {{ $hora }} - {{ \Carbon\Carbon::parse($hora)->addMinutes(30)->format('H:i') }}
                                 </td>
                                 @foreach($diasSemana as $dia)
                                     @php
@@ -181,12 +189,15 @@
                                         $citasEnEstaHora = $citasPorFechaHora[$fecha][$hora] ?? [];
                                         $tieneCita = count($citasEnEstaHora) > 0;
                                         $infoCita = '';
+                                        $estadoCita = '';
+                                        
                                         if ($tieneCita) {
                                             $cita = $citasEnEstaHora[0];
+                                            $estadoCita = $cita->estado_cita;
                                             $nombrePaciente = $cita->paciente 
                                                 ? $cita->paciente->primer_nombre . ' ' . $cita->paciente->primer_apellido
                                                 : ($cita->pacienteEspecial->primer_nombre ?? 'Paciente');
-                                            $infoCita = $nombrePaciente . ' (' . \Carbon\Carbon::parse($cita->hora_inicio)->format('H:i') . ')';
+                                            $infoCita = $nombrePaciente . ' (' . $estadoCita . ')';
                                         }
                                         
                                         // Verificar si el médico trabaja en este horario
@@ -209,13 +220,25 @@
                                         
                                         // Determinar clase CSS y contenido
                                         if ($esNoLaborable) {
-                                            $cellClass = 'bg-blue-400 text-white';
+                                            $cellClass = 'bg-rose-400 text-white';
                                             $cellTitle = $motivoNoLaborable;
                                             $cellIcon = 'bi-x-lg';
                                         } elseif ($tieneCita) {
-                                            $cellClass = 'bg-teal-400 text-white';
+                                            if ($estadoCita === 'Confirmada') {
+                                                $cellClass = 'bg-blue-500 text-white';
+                                                $cellIcon = 'bi-check-circle-fill';
+                                            } elseif ($estadoCita === 'En Progreso') {
+                                                $cellClass = 'bg-purple-500 text-white';
+                                                $cellIcon = 'bi-play-circle-fill';
+                                            } elseif ($estadoCita === 'Completada') {
+                                                $cellClass = 'bg-gray-600 text-white';
+                                                $cellIcon = 'bi-check2-all';
+                                            } else {
+                                                // Programada
+                                                $cellClass = 'bg-orange-500 text-white';
+                                                $cellIcon = 'bi-calendar-event';
+                                            }
                                             $cellTitle = $infoCita;
-                                            $cellIcon = 'bi-person-fill';
                                         } elseif ($trabajaEnEstaHora) {
                                             $cellClass = 'bg-emerald-500 text-white';
                                             $cellTitle = $consultorioNombre;

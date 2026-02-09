@@ -61,6 +61,7 @@
                 <option value="">Todos los Estados</option>
                 <option value="pendiente" {{ request('estado') == 'pendiente' ? 'selected' : '' }}>Pendiente</option>
                 <option value="confirmada" {{ request('estado') == 'confirmada' ? 'selected' : '' }}>Confirmada</option>
+                <option value="En Progreso" {{ request('estado') == 'En Progreso' ? 'selected' : '' }}>En Progreso (En Sala)</option>
                 <option value="completada" {{ request('estado') == 'completada' ? 'selected' : '' }}>Completada</option>
                 <option value="cancelada" {{ request('estado') == 'cancelada' ? 'selected' : '' }}>Cancelada/No Asistió</option>
             </select>
@@ -299,8 +300,28 @@
                                     <form action="{{ route('citas.cambiar-estado', $cita->id) }}" method="POST" class="inline">
                                         @csrf
                                         <input type="hidden" name="estado_cita" value="Confirmada">
-                                        <button type="submit" class="btn btn-sm btn-success text-white">
-                                            <i class="bi bi-check-lg mr-1"></i> Confirmar
+                                        <button type="submit" class="btn btn-sm btn-success text-white" title="Confirmar asistencia">
+                                            <i class="bi bi-check-lg"></i>
+                                        </button>
+                                    </form>
+                                @endif
+
+                                @if(in_array($cita->estado_cita, ['Programada', 'Confirmada']))
+                                    <form action="{{ route('citas.cambiar-estado', $cita->id) }}" method="POST" class="inline">
+                                        @csrf
+                                        <input type="hidden" name="estado_cita" value="En Progreso">
+                                        <button type="submit" class="btn btn-sm btn-primary" title="Iniciar consulta / En Sala">
+                                            <i class="bi bi-play-fill"></i>
+                                        </button>
+                                    </form>
+                                @endif
+
+                                @if($cita->estado_cita == 'En Progreso')
+                                    <form action="{{ route('citas.cambiar-estado', $cita->id) }}" method="POST" class="inline">
+                                        @csrf
+                                        <input type="hidden" name="estado_cita" value="Completada">
+                                        <button type="submit" class="btn btn-sm btn-success text-white" title="Finalizar consulta">
+                                            <i class="bi bi-check-all"></i>
                                         </button>
                                     </form>
                                 @endif

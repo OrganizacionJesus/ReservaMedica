@@ -3,6 +3,46 @@
 @section('title', 'Recuperar Contraseña')
 
 @section('auth-content')
+<!-- Modern Modal Component (Vanilla JS) -->
+<div id="recoveryModal" class="fixed inset-0 z-50 overflow-y-auto hidden opacity-0 transition-opacity duration-300">
+    <!-- Background overlay with glassmorphism -->
+    <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+        <div onclick="closeRecoveryModal()" class="fixed inset-0 transition-opacity bg-slate-900/80 backdrop-blur-sm"></div>
+
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+
+        <!-- Modal Panel -->
+        <div class="inline-block align-bottom rounded-2xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full"
+             style="background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(20px);">
+            
+            <!-- Modal Content -->
+            <div class="px-6 pt-5 pb-4 sm:p-6">
+                <!-- Icon -->
+                <div class="flex items-center justify-center mb-4">
+                    <div id="modalIcon" class="w-16 h-16 rounded-full flex items-center justify-center shadow-lg transform transition-all duration-300 hover:scale-110">
+                        <i id="modalIconClass" class="text-3xl"></i>
+                    </div>
+                </div>
+
+                <!-- Title -->
+                <h3 id="modalTitle" class="text-xl font-bold text-center text-slate-900 mb-2"></h3>
+                
+                <!-- Message -->
+                <p id="modalMessage" class="text-sm text-center text-slate-600 mb-6"></p>
+
+                <!-- Action Button -->
+                <div class="flex justify-center">
+                    <button onclick="closeRecoveryModal()" 
+                            id="modalButton"
+                            class="px-8 py-3 rounded-xl text-white font-semibold shadow-lg transform hover:scale-105 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-opacity-50">
+                        Entendido
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Header Icon -->
 <div class="flex justify-center mb-6">
     <div class="w-16 h-16 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center shadow-lg transform hover:scale-110 transition-transform duration-300">
@@ -244,6 +284,58 @@
 
 @push('scripts')
 <script>
+// Vanilla JS Modal Functions
+window.showRecoveryModal = function(type, title, message) {
+    console.log('[Modal] Showing modal:', { type, title, message });
+    
+    const modal = document.getElementById('recoveryModal');
+    const modalIcon = document.getElementById('modalIcon');
+    const modalIconClass = document.getElementById('modalIconClass');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalMessage = document.getElementById('modalMessage');
+    const modalButton = document.getElementById('modalButton');
+    
+    // Set content
+    modalTitle.textContent = title;
+    modalMessage.textContent = message;
+    
+    // Reset classes
+    modalIcon.className = 'w-16 h-16 rounded-full flex items-center justify-center shadow-lg transform transition-all duration-300 hover:scale-110';
+    modalIconClass.className = 'text-3xl';
+    modalButton.className = 'px-8 py-3 rounded-xl text-white font-semibold shadow-lg transform hover:scale-105 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-opacity-50';
+    
+    // Apply type-specific styles
+    if (type === 'success') {
+        modalIcon.classList.add('bg-green-100', 'text-green-600');
+        modalIconClass.classList.add('bi-check-circle-fill');
+        modalButton.classList.add('bg-gradient-to-r', 'from-green-600', 'to-emerald-600', 'hover:from-green-700', 'hover:to-emerald-700');
+    } else if (type === 'error') {
+        modalIcon.classList.add('bg-red-100', 'text-red-600');
+        modalIconClass.classList.add('bi-x-circle-fill');
+        modalButton.classList.add('bg-gradient-to-r', 'from-red-600', 'to-rose-600', 'hover:from-red-700', 'hover:to-rose-700');
+    } else if (type === 'warning') {
+        modalIcon.classList.add('bg-yellow-100', 'text-yellow-600');
+        modalIconClass.classList.add('bi-exclamation-triangle-fill');
+        modalButton.classList.add('bg-gradient-to-r', 'from-yellow-600', 'to-amber-600', 'hover:from-yellow-700', 'hover:to-amber-700');
+    }
+    
+    // Show modal with animation
+    modal.classList.remove('hidden');
+    setTimeout(() => {
+        modal.classList.remove('opacity-0');
+        modal.classList.add('opacity-100');
+    }, 10);
+};
+
+window.closeRecoveryModal = function() {
+    const modal = document.getElementById('recoveryModal');
+    modal.classList.remove('opacity-100');
+    modal.classList.add('opacity-0');
+    setTimeout(() => {
+        modal.classList.add('hidden');
+    }, 300);
+};
+
 // Global functions
 function selectMethod(method) {
     document.getElementById('methodSelection').classList.add('hidden');
@@ -264,11 +356,6 @@ function backToSelection() {
     document.getElementById('step1').classList.remove('hidden');
     document.getElementById('step2').classList.add('hidden');
 }
-</script>
-
-<script type="module">
-import { validateEmail, validateCedula, showFieldFeedback } from '{{ asset("js/validators.js") }}';
-import { showToast, shakeElement, toggleSubmitButton, showLoading } from '{{ asset("js/alerts.js") }}';
 
 let attemptsRemaining = 3;
 let securityQuestions = [];
@@ -278,19 +365,27 @@ let userId = null;
 const emailRecoveryForm = document.getElementById('emailRecoveryForm');
 const emailRecoveryBtn = document.getElementById('emailRecoveryBtn');
 
+console.log('[Recovery] Email form:', emailRecoveryForm ? 'FOUND' : 'NOT FOUND');
+
 if(emailRecoveryForm) {
     emailRecoveryForm.addEventListener('submit', async function(e) {
         e.preventDefault();
+        console.log('[Recovery] Email form submitted');
         
         const email = document.getElementById('email_recovery').value.trim();
         
-        if (!validateEmail(email).valid) {
-            showToast('error', 'Por favor ingresa un correo válido');
+        // Simple email validation
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            showRecoveryModal('error', 'Correo Inválido', 'Por favor ingresa un correo electrónico válido.');
             return;
         }
         
-        const loading = showLoading('Enviando enlace...');
-        toggleSubmitButton(emailRecoveryBtn, true, 'Enviando...');
+        // Disable button
+        if (emailRecoveryBtn) {
+            emailRecoveryBtn.disabled = true;
+            emailRecoveryBtn.innerHTML = '<i class="bi bi-hourglass-split animate-spin mr-2"></i> Enviando...';
+        }
         
         try {
             const response = await fetch("{{ route('recovery.send-email') }}", {
@@ -311,20 +406,24 @@ if(emailRecoveryForm) {
                 throw new Error('La respuesta del servidor no es válida.');
             }
             
-            loading.close();
-            toggleSubmitButton(emailRecoveryBtn, false);
+            if (emailRecoveryBtn) {
+                emailRecoveryBtn.disabled = false;
+                emailRecoveryBtn.innerHTML = '<i class="bi bi-send-fill mr-2"></i> Enviar Enlace de Recuperación';
+            }
             
             if (data.success) {
-                showToast('success', 'Enlace enviado. Revisa tu correo electrónico.', 5000);
+                showRecoveryModal('success', '¡Enlace Enviado!', 'Revisa tu correo electrónico para continuar con la recuperación.');
                 setTimeout(() => window.location.href = '{{ route('login') }}', 3000);
             } else {
-                showToast('error', data.message || 'Correo no encontrado');
+                showRecoveryModal('error', 'Correo No Encontrado', data.message || 'El correo ingresado no está registrado en el sistema.');
             }
         } catch (error) {
-            loading.close();
-            toggleSubmitButton(emailRecoveryBtn, false);
+            if (emailRecoveryBtn) {
+                emailRecoveryBtn.disabled = false;
+                emailRecoveryBtn.innerHTML = '<i class="bi bi-send-fill mr-2"></i> Enviar Enlace de Recuperación';
+            }
             console.error('Error detallado:', error);
-            showToast('error', error.message || 'Error al enviar el enlace. Intenta de nuevo.');
+            showRecoveryModal('error', 'Error de Conexión', error.message || 'No se pudo conectar con el servidor. Verifica tu conexión e intenta nuevamente.');
         }
     });
 }
@@ -333,64 +432,125 @@ if(emailRecoveryForm) {
 const identificationForm = document.getElementById('identificationForm');
 const verifyBtn = document.getElementById('verifyBtn');
 
+console.log('[Recovery] Script loaded - identificationForm:', identificationForm ? 'FOUND' : 'NOT FOUND');
+console.log('[Recovery] verifyBtn:', verifyBtn ? 'FOUND' : 'NOT FOUND');
+
 if(identificationForm) {
+    console.log('[Recovery] Attaching submit event listener...');
+    
     identificationForm.addEventListener('submit', async function(e) {
         e.preventDefault();
+        console.log('[Recovery] Form submitted! Event prevented.');
         
         const identifier = document.getElementById('identifier').value.trim();
+        console.log('[Recovery] Identifier:', identifier);
         
         if (!identifier) {
-            showToast('warning', 'Por favor ingresa tu correo o cédula');
+            showRecoveryModal('warning', 'Campo Requerido', 'Por favor ingresa tu correo electrónico o cédula.');
             return;
         }
         
-        const loading = showLoading('Buscando cuenta...');
-        toggleSubmitButton(verifyBtn, true, 'Buscando...');
+        // Disable button
+        if (verifyBtn) {
+            verifyBtn.disabled = true;
+            verifyBtn.innerHTML = '<i class="bi bi-hourglass-split animate-spin mr-2"></i> Buscando...';
+        }
         
         // Get CSRF token from meta tag or form input
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') 
                        || document.querySelector('[name="_token"]')?.value;
         
-        console.log('Sending request to get security questions for:', identifier);
-        console.log('CSRF Token:', csrfToken ? 'Found' : 'Missing');
+        console.log('[Recovery] CSRF Token:', csrfToken ? 'Found' : 'Missing');
+        
+        if (!csrfToken) {
+
+            showRecoveryModal('error', 'Error de Seguridad', 'Token de seguridad no encontrado. Por favor recarga la página e intenta nuevamente.');
+            if (verifyBtn) {
+                verifyBtn.disabled = false;
+                verifyBtn.innerHTML = '<i class="bi bi-search mr-2"></i> Buscar Cuenta';
+            }
+            return;
+        }
         
         try {
+            console.log('[Recovery] Sending fetch request...');
             const response = await fetch("{{ route('recovery.get-questions') }}", {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': csrfToken
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json'
                 },
                 body: JSON.stringify({ identifier })
             });
             
-            console.log('Response status:', response.status);
+            console.log('[Recovery] Response status:', response.status);
+            console.log('[Recovery] Response OK:', response.ok);
+            
+            // Check if response is JSON
+            const contentType = response.headers.get("content-type");
+            console.log('[Recovery] Content-Type:', contentType);
+            
+            if (!contentType || !contentType.includes("application/json")) {
+                const textResponse = await response.text();
+                console.error('[Recovery] Response is NOT JSON:', textResponse);
+    
+                showRecoveryModal('error', 'Error del Servidor', 'La respuesta del servidor no es válida. Intenta nuevamente.');
+                if (verifyBtn) {
+                    verifyBtn.disabled = false;
+                    verifyBtn.innerHTML = '<i class="bi bi-search mr-2"></i> Buscar Cuenta';
+                }
+                return;
+            }
             
             const data = await response.json();
-            console.log('Response data:', data);
-            
-            loading.close();
-            toggleSubmitButton(verifyBtn, false);
+            console.log('[Recovery] Response data:', data);
             
             if (data.success) {
-                console.log('Questions found:', data.questions.length);
+                console.log('[Recovery] SUCCESS! Questions found:', data.questions?.length || 0);
+                
+                if (!data.questions || data.questions.length === 0) {
+        
+                    showRecoveryModal('warning', 'Sin Preguntas de Seguridad', 'Este usuario no tiene preguntas de seguridad configuradas. Intenta recuperar tu cuenta por email.');
+                    if (verifyBtn) {
+                        verifyBtn.disabled = false;
+                        verifyBtn.innerHTML = '<i class="bi bi-search mr-2"></i> Buscar Cuenta';
+                    }
+                    return;
+                }
+                
                 securityQuestions = data.questions;
                 userId = data.user_id;
                 showStep2(data.questions, data.user_id);
             } else {
-                console.error('Request failed:', data.message);
-                showToast('error', data.message || 'Usuario no encontrado');
-                shakeElement(document.getElementById('identifier'));
+                console.error('[Recovery] Request FAILED:', data.message);
+                const errorMsg = data.message || 'Usuario no encontrado o sin preguntas configuradas';
+    
+                showRecoveryModal('error', 'Usuario No Encontrado', errorMsg);
+                if (verifyBtn) {
+                    verifyBtn.disabled = false;
+                    verifyBtn.innerHTML = '<i class="bi bi-search mr-2"></i> Buscar Cuenta';
+                }
             }
             
         } catch (error) {
-            console.error('Error in security questions request:', error);
-            loading.close();
-            toggleSubmitButton(verifyBtn, false);
-            showToast('error', 'Usuario no encontrado');
-            shakeElement(document.getElementById('identifier'));
+            console.error('[Recovery] FATAL ERROR:', error);
+            console.error('[Recovery] Error message:', error.message);
+            console.error('[Recovery] Error stack:', error.stack);
+            
+
+            showRecoveryModal('error', 'Error de Conexión', 'No se pudo conectar con el servidor. Verifica tu conexión e intenta nuevamente.');
+            
+            if (verifyBtn) {
+                verifyBtn.disabled = false;
+                verifyBtn.innerHTML = '<i class="bi bi-search mr-2"></i> Buscar Cuenta';
+            }
         }
     });
+    
+    console.log('[Recovery] Event listener attached successfully!');
+} else {
+    console.error('[Recovery] ERROR: identificationForm not found in DOM!');
 }
 
 function showStep2(questions, user_id) {
@@ -446,13 +606,18 @@ if (securityForm) {
         e.preventDefault();
         
         if (attemptsRemaining <= 0) {
-            showToast('error', 'Has agotado tus intentos.');
+
+            showRecoveryModal('error', 'Intentos Agotados', 'Has agotado tus intentos. Tu cuenta ha sido bloqueada por seguridad.');
             return;
         }
         
         const formData = new FormData(this);
-        const loading = showLoading('Verificando respuestas...');
-        toggleSubmitButton(verifyQuestionsBtn, true, 'Verificando...');
+        
+        // Disable button
+        if (verifyQuestionsBtn) {
+            verifyQuestionsBtn.disabled = true;
+            verifyQuestionsBtn.innerHTML = '<i class="bi bi-hourglass-split animate-spin mr-2"></i> Verificando...';
+        }
         
         try {
             const response = await fetch("{{ route('recovery.verify-answers') }}", {
@@ -464,16 +629,20 @@ if (securityForm) {
             });
             
             const data = await response.json();
-            loading.close();
-            toggleSubmitButton(verifyQuestionsBtn, false);
+            
+            if (verifyQuestionsBtn) {
+                verifyQuestionsBtn.disabled = false;
+                verifyQuestionsBtn.innerHTML = '<i class="bi bi-shield-check mr-2"></i> Verificar Respuestas';
+            }
             
             if (data.success) {
-                showToast('success', '¡Correcto! Redirigiendo...', 2000);
+    
+                showRecoveryModal('success', '¡Respuestas Correctas!', 'Verificación exitosa. Redirigiendo al cambio de contraseña...');
                 setTimeout(() => {
                     if(data.token && data.email) {
                         window.location.href = "{{ url('/reset-password') }}/" + data.token + "?email=" + data.email;
                     }
-                }, 1500);
+                }, 2000);
             } else if (data.locked) {
                 // Account has been locked
                 handleAccountLocked(data);
@@ -484,9 +653,12 @@ if (securityForm) {
             
         } catch (error) {
             console.error('Error in security questions verification:', error);
-            loading.close();
-            toggleSubmitButton(verifyQuestionsBtn, false);
-            showToast('error', 'Error al verificar las respuestas');
+            if (verifyQuestionsBtn) {
+                verifyQuestionsBtn.disabled = false;
+                verifyQuestionsBtn.innerHTML = '<i class="bi bi-shield-check mr-2"></i> Verificar Respuestas';
+            }
+
+            showRecoveryModal('error', 'Error de Verificación', 'No se pudieron verificar las respuestas. Intenta nuevamente.');
         }
     });
 }
@@ -494,13 +666,16 @@ if (securityForm) {
 function handleAccountLocked(data) {
     const blockedUntil = data.blocked_until || '24 horas';
     
-    showToast('error', `Cuenta bloqueada por seguridad hasta ${blockedUntil}`, 10000);
+
+    showRecoveryModal('error', 'Cuenta Bloqueada', `Tu cuenta ha sido bloqueada por seguridad hasta ${blockedUntil} debido a múltiples intentos fallidos.`);
     
     // Disable form
-    verifyQuestionsBtn.disabled = true;
-    verifyQuestionsBtn.innerHTML = '<i class="bi bi-lock-fill mr-2"></i>Cuenta Bloqueada';
-    verifyQuestionsBtn.classList.remove('bg-gradient-to-r', 'from-green-600', 'to-emerald-600');
-    verifyQuestionsBtn.classList.add('bg-gray-400', 'cursor-not-allowed');
+    if (verifyQuestionsBtn) {
+        verifyQuestionsBtn.disabled = true;
+        verifyQuestionsBtn.innerHTML = '<i class="bi bi-lock-fill mr-2"></i>Cuenta Bloqueada';
+        verifyQuestionsBtn.classList.remove('bg-gradient-to-r', 'from-green-600', 'to-emerald-600');
+        verifyQuestionsBtn.classList.add('bg-gray-400', 'cursor-not-allowed');
+    }
     
     // Show lockout message
     const lockoutMsg = document.createElement('div');
@@ -535,16 +710,19 @@ function handleFailure(data) {
     }
     
     if (attemptsRemaining > 0) {
-        showToast('error', `Respuestas incorrectas. ${attemptsRemaining} ${attemptsRemaining === 1 ? 'intento restante' : 'intentos restantes'}.`, 5000);
-        shakeElement(securityForm);
+
+        showRecoveryModal('warning', 'Respuestas Incorrectas', `Las respuestas no son correctas. Te quedan ${attemptsRemaining} ${attemptsRemaining === 1 ? 'intento' : 'intentos'}.`);
         document.querySelectorAll('[name^="answer_"]').forEach(i => {
            i.value = '';
            i.classList.add('border-red-300');
            setTimeout(() => i.classList.remove('border-red-300'), 3000);
         });
     } else {
-        showToast('error', 'Cuenta bloqueada temporalmente.', 5000);
-        verifyQuestionsBtn.disabled = true;
+
+        showRecoveryModal('error', 'Cuenta Bloqueada', 'Tu cuenta ha sido bloqueada temporalmente por seguridad debido a múltiples intentos fallidos.');
+        if (verifyQuestionsBtn) {
+            verifyQuestionsBtn.disabled = true;
+        }
     }
 }
 </script>

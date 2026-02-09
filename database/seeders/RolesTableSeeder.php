@@ -9,6 +9,10 @@ class RolesTableSeeder extends Seeder
 {
     public function run(): void
     {
+        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+        DB::table('roles')->truncate();
+        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+
         $roles = [
             [
                 'nombre' => 'Root',
@@ -26,6 +30,9 @@ class RolesTableSeeder extends Seeder
                 'nombre' => 'Paciente',
                 'descripcion' => 'Usuario paciente con acceso a solicitar citas, ver su historial médico y gestionar su perfil',
             ],
+            ['id' => 1, 'nombre' => 'Administrador', 'descripcion' => 'Acceso completo al sistema'],
+            ['id' => 2, 'nombre' => 'Médico', 'descripcion' => 'Acceso médico para citas y pacientes'],
+            ['id' => 3, 'nombre' => 'Paciente', 'descripcion' => 'Acceso paciente para solicitar citas'],
         ];
 
         foreach ($roles as $rol) {

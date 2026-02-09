@@ -63,10 +63,32 @@ class MedicoController extends Controller
                                               ->where('status', true)
                                               ->distinct('paciente_id')
                                               ->count('paciente_id'),
-            'pacientes_nuevos' => 0, // Placeholder
-            'historias_pendientes' => 0, // Placeholder
-            'ordenes_pendientes' => 0, // Placeholder
-            'laboratorios_pendientes' => 0, // Placeholder
+            // Pacientes nuevos este mes (creados este mes y atendidos por este médico)
+            'pacientes_nuevos' => \App\Models\Paciente::whereMonth('created_at', $hoy->month)
+                                                      ->whereYear('created_at', $hoy->year)
+                                                      ->whereHas('citas', function($q) use ($medico, $hoy) {
+                                                          $q->where('medico_id', $medico->id)
+                                                            ->whereMonth('fecha_cita', $hoy->month)
+                                                            ->whereYear('fecha_cita', $hoy->year);
+                                                      })
+                                                      ->count(),
+            // Historias pendientes (Citas completadas sin evolución registrada)
+            'historias_pendientes' => \App\Models\Cita::where('medico_id', $medico->id)
+                                                      ->whereIn('estado_cita', ['Completada', 'En Progreso'])
+                                                      ->doesntHave('evolucionClinica')
+                                                      ->where('status', true)
+                                                      ->count(),
+            // Órdenes médicas pendientes
+            'ordenes_pendientes' => \App\Models\OrdenMedica::where('medico_id', $medico->id)
+                                                           ->where('estado_orden', 'Pendiente')
+                                                           ->where('status', true)
+                                                           ->count(),
+            // Laboratorios pendientes
+            'laboratorios_pendientes' => \App\Models\OrdenMedica::where('medico_id', $medico->id)
+                                                               ->where('tipo_orden', 'Laboratorio')
+                                                               ->where('estado_orden', 'Pendiente')
+                                                               ->where('status', true)
+                                                               ->count(),
         ];
 
         return view('medico.dashboard', compact('citasHoy', 'proximasCitas', 'stats'));
@@ -322,7 +344,7 @@ class MedicoController extends Controller
 
     public function horarios($id)
     {
-        $medico = Medico::findOrFail($id);
+        $medico = Medico::with('especialidades')->findOrFail($id);
         
         // 1. Obtener los horarios activos del médico
         $horarios = \App\Models\MedicoConsultorio::where('medico_id', $id)
@@ -341,6 +363,34 @@ class MedicoController extends Controller
         }
 
         return view('shared.medicos.horarios', compact('medico', 'consultorios', 'horarios'));
+    }
+
+    /**
+     * Muestra el horario del médico logueado
+     */
+    public function miHorario()
+    {
+        $user = auth()->user();
+        if (!$user->medico) {
+            abort(403, 'Acceso denegado. No es un médico.');
+        }
+        
+        // Reutilizamos la lógica, llamando internamente con el ID del médico
+        return $this->horarios($user->medico->id);
+    }
+
+    /**
+     * Guarda el horario del médico logueado
+     */
+    public function miHorarioStore(Request $request)
+    {
+        $user = auth()->user();
+        if (!$user->medico) {
+            abort(403, 'Acceso denegado. No es un médico.');
+        }
+
+        // Reutilizamos la lógica de guardado
+        return $this->guardarHorario($request, $user->medico->id);
     }
 
     public function guardarHorario(Request $request, $id)
@@ -373,6 +423,45 @@ class MedicoController extends Controller
             'sabado' => 'Sábado',
             'domingo' => 'Domingo'
         ];
+
+        \Log::info('Guardando horario médico', [
+            'medico_id' => $id,
+            'input_raw' => $request->all(),
+            'horarios_input' => $input
+        ]);
+
+        // 0. Validación de Integridad (Campos requeridos si el turno está activo)
+        foreach ($daysOfWeek as $dayKey) {
+            if (!isset($input[$dayKey])) continue;
+            $dayData = $input[$dayKey];
+            $diaNombre = $dbDays[$dayKey];
+
+            // Validar Turno Mañana
+            if (isset($dayData['manana_activa']) && $dayData['manana_activa'] == '1') {
+                if (empty($dayData['manana_consultorio_id'])) {
+                    return redirect()->back()->with('error', "Error en {$diaNombre} (Mañana): Debe seleccionar un CONSULTORIO.");
+                }
+                if (empty($dayData['manana_especialidad_id'])) {
+                    return redirect()->back()->with('error', "Error en {$diaNombre} (Mañana): Debe seleccionar una ESPECIALIDAD.");
+                }
+                if (empty($dayData['manana_inicio']) || empty($dayData['manana_fin'])) {
+                    return redirect()->back()->with('error', "Error en {$diaNombre} (Mañana): Debe definir hora de inicio y fin.");
+                }
+            }
+
+            // Validar Turno Tarde
+            if (isset($dayData['tarde_activa']) && $dayData['tarde_activa'] == '1') {
+                if (empty($dayData['tarde_consultorio_id'])) {
+                    return redirect()->back()->with('error', "Error en {$diaNombre} (Tarde): Debe seleccionar un CONSULTORIO.");
+                }
+                if (empty($dayData['tarde_especialidad_id'])) {
+                    return redirect()->back()->with('error', "Error en {$diaNombre} (Tarde): Debe seleccionar una ESPECIALIDAD.");
+                }
+                if (empty($dayData['tarde_inicio']) || empty($dayData['tarde_fin'])) {
+                    return redirect()->back()->with('error', "Error en {$diaNombre} (Tarde): Debe definir hora de inicio y fin.");
+                }
+            }
+        }
 
         // 1. Validación de Especialidades vs Consultorio
         // Recopilamos todos los IDs de consultorios involucrados para cargar sus especialidades permitidas
@@ -473,54 +562,26 @@ class MedicoController extends Controller
                         if (!empty($dayData['manana_inicio']) && !empty($dayData['manana_fin']) && !empty($dayData['manana_consultorio_id'])) {
                             $diasActivosFormulario[] = ['dia' => $diaSemanaDb, 'turno' => 'mañana'];
                             
-                            // Buscar si ya existe un registro para este día+turno con status=1
-                            $existente = \App\Models\MedicoConsultorio::where('medico_id', $id)
-                                ->where('dia_semana', $diaSemanaDb)
-                                ->where('turno', 'mañana')
-                                ->where('status', true)
-                                ->first();
-                            
                             $nuevoConsultorioId = $dayData['manana_consultorio_id'];
                             $nuevaEspecialidadId = $dayData['manana_especialidad_id'] ?? null;
                             $nuevoInicio = $dayData['manana_inicio'];
                             $nuevoFin = $dayData['manana_fin'];
-                            
-                            if ($existente) {
-                                // Comparar si todos los campos son iguales
-                                $esIgual = $existente->consultorio_id == $nuevoConsultorioId
-                                        && $existente->especialidad_id == $nuevaEspecialidadId
-                                        && $existente->horario_inicio == $nuevoInicio
-                                        && $existente->horario_fin == $nuevoFin;
-                                
-                                if (!$esIgual) {
-                                    // Campos diferentes: desactivar el anterior y crear nuevo
-                                    $existente->update(['status' => false]);
-                                    
-                                    \App\Models\MedicoConsultorio::create([
-                                        'medico_id' => $id,
-                                        'consultorio_id' => $nuevoConsultorioId,
-                                        'especialidad_id' => $nuevaEspecialidadId,
-                                        'dia_semana' => $diaSemanaDb,
-                                        'turno' => 'mañana',
-                                        'horario_inicio' => $nuevoInicio,
-                                        'horario_fin' => $nuevoFin,
-                                        'status' => true
-                                    ]);
-                                }
-                                // Si es igual, no hacer nada (mantener el registro actual)
-                            } else {
-                                // No existe registro activo, crear nuevo
-                                \App\Models\MedicoConsultorio::create([
+
+                            // Update existing or create new record (Upsert) to avoid Unique Constraint Violation
+                            \App\Models\MedicoConsultorio::updateOrCreate(
+                                [
                                     'medico_id' => $id,
+                                    'dia_semana' => $diaSemanaDb,
+                                    'turno' => 'mañana'
+                                ],
+                                [
                                     'consultorio_id' => $nuevoConsultorioId,
                                     'especialidad_id' => $nuevaEspecialidadId,
-                                    'dia_semana' => $diaSemanaDb,
-                                    'turno' => 'mañana',
                                     'horario_inicio' => $nuevoInicio,
                                     'horario_fin' => $nuevoFin,
                                     'status' => true
-                                ]);
-                            }
+                                ]
+                            );
                         }
                     }
 
@@ -529,54 +590,26 @@ class MedicoController extends Controller
                         if (!empty($dayData['tarde_inicio']) && !empty($dayData['tarde_fin']) && !empty($dayData['tarde_consultorio_id'])) {
                             $diasActivosFormulario[] = ['dia' => $diaSemanaDb, 'turno' => 'tarde'];
                             
-                            // Buscar si ya existe un registro para este día+turno con status=1
-                            $existente = \App\Models\MedicoConsultorio::where('medico_id', $id)
-                                ->where('dia_semana', $diaSemanaDb)
-                                ->where('turno', 'tarde')
-                                ->where('status', true)
-                                ->first();
-                            
                             $nuevoConsultorioId = $dayData['tarde_consultorio_id'];
                             $nuevaEspecialidadId = $dayData['tarde_especialidad_id'] ?? null;
                             $nuevoInicio = $dayData['tarde_inicio'];
                             $nuevoFin = $dayData['tarde_fin'];
-                            
-                            if ($existente) {
-                                // Comparar si todos los campos son iguales
-                                $esIgual = $existente->consultorio_id == $nuevoConsultorioId
-                                        && $existente->especialidad_id == $nuevaEspecialidadId
-                                        && $existente->horario_inicio == $nuevoInicio
-                                        && $existente->horario_fin == $nuevoFin;
-                                
-                                if (!$esIgual) {
-                                    // Campos diferentes: desactivar el anterior y crear nuevo
-                                    $existente->update(['status' => false]);
-                                    
-                                    \App\Models\MedicoConsultorio::create([
-                                        'medico_id' => $id,
-                                        'consultorio_id' => $nuevoConsultorioId,
-                                        'especialidad_id' => $nuevaEspecialidadId,
-                                        'dia_semana' => $diaSemanaDb,
-                                        'turno' => 'tarde',
-                                        'horario_inicio' => $nuevoInicio,
-                                        'horario_fin' => $nuevoFin,
-                                        'status' => true
-                                    ]);
-                                }
-                                // Si es igual, no hacer nada (mantener el registro actual)
-                            } else {
-                                // No existe registro activo, crear nuevo
-                                \App\Models\MedicoConsultorio::create([
+
+                            // Update existing or create new record (Upsert) to avoid Unique Constraint Violation
+                            \App\Models\MedicoConsultorio::updateOrCreate(
+                                [
                                     'medico_id' => $id,
+                                    'dia_semana' => $diaSemanaDb,
+                                    'turno' => 'tarde'
+                                ],
+                                [
                                     'consultorio_id' => $nuevoConsultorioId,
                                     'especialidad_id' => $nuevaEspecialidadId,
-                                    'dia_semana' => $diaSemanaDb,
-                                    'turno' => 'tarde',
                                     'horario_inicio' => $nuevoInicio,
                                     'horario_fin' => $nuevoFin,
                                     'status' => true
-                                ]);
-                            }
+                                ]
+                            );
                         }
                     }
                 }
@@ -804,7 +837,7 @@ class MedicoController extends Controller
         $citasQuery = \App\Models\Cita::with(['paciente', 'pacienteEspecial', 'especialidad', 'consultorio'])
                       ->where('medico_id', $medico->id)
                       ->where('status', true)
-                      ->whereIn('estado_cita', ['Programada', 'Confirmada', 'En Progreso'])
+                      ->whereIn('estado_cita', ['Programada', 'Confirmada', 'En Progreso', 'Completada'])
                       ->whereBetween('fecha_cita', [$inicioSemana->toDateString(), $finSemana->toDateString()]);
         
         if ($filtroConsultorioId) {
@@ -964,5 +997,83 @@ class MedicoController extends Controller
         $fechaIndisponible->update(['status' => false]);
 
         return redirect()->route('medico.agenda')->with('success', 'Fecha no laborable eliminada correctamente.');
+    }
+
+    // security questions methods
+    public function showSecurityQuestions()
+    {
+        $usuario = auth()->user();
+        $currentQuestions = \App\Models\RespuestaSeguridad::with('pregunta')
+            ->where('user_id', $usuario->id)
+            ->get();
+            
+        $preguntasCatalogo = \App\Models\PreguntaCatalogo::where('status', true)->get();
+        
+        return view('shared.perfil.security-questions', compact('currentQuestions', 'preguntasCatalogo'));
+    }
+
+    public function updateSecurityQuestions(Request $request)
+    {
+        $usuario = auth()->user();
+        
+        $validator = Validator::make($request->all(), [
+            'current_password' => 'required',
+            'question_1' => 'required|exists:preguntas_catalogo,id',
+            'answer_1' => 'required|string|min:3',
+            'question_2' => 'required|exists:preguntas_catalogo,id|different:question_1',
+            'answer_2' => 'required|string|min:3',
+            'question_3' => 'required|exists:preguntas_catalogo,id|different:question_1|different:question_2',
+            'answer_3' => 'required|string|min:3',
+        ], [
+            'current_password.required' => 'Debes ingresar tu contraseña actual',
+            'question_1.required' => 'Debes seleccionar la pregunta 1',
+            'question_2.different' => 'Las preguntas deben ser diferentes',
+            'question_3.different' => 'Las preguntas deben ser diferentes',
+            'answer_1.min' => 'La respuesta debe tener al menos 3 caracteres',
+            'answer_2.min' => 'La respuesta debe tener al menos 3 caracteres',
+            'answer_3.min' => 'La respuesta debe tener al menos 3 caracteres',
+        ]);
+        
+        if ($validator->fails()) {
+            return redirect()->back()->withErrors($validator)->withInput();
+        }
+        
+        // Verify current password
+        $passwordHash = md5(md5($request->current_password));
+        if ($usuario->password !== $passwordHash) {
+            return redirect()->back()
+                ->withErrors(['current_password' => 'La contraseña actual es incorrecta.'])
+                ->withInput();
+        }
+        
+        try {
+            \Illuminate\Support\Facades\DB::transaction(function () use ($request, $usuario) {
+                // Delete old security questions
+                \App\Models\RespuestaSeguridad::where('user_id', $usuario->id)->delete();
+                
+                // Create new security questions
+                for ($i = 1; $i <= 3; $i++) {
+                    // Convert to lowercase for case-insensitive comparison
+                    $respuesta = strtolower(trim($request->input("answer_{$i}")));
+                    
+                    // NO HASHEAR AQUÍ - El modelo RespuestaSeguridad usa un mutador setRespuestaHashAttribute
+                    
+                    \App\Models\RespuestaSeguridad::create([
+                        'user_id' => $usuario->id,
+                        'pregunta_id' => $request->input("question_{$i}"),
+                        'respuesta_hash' => $respuesta
+                    ]);
+                }
+            });
+            
+            return redirect()->route('medico.perfil.edit')
+                ->with('success', 'Preguntas de seguridad actualizadas exitosamente');
+                
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Error updating security questions: ' . $e->getMessage());
+            return redirect()->back()
+                ->with('error', 'Error al actualizar las preguntas de seguridad: ' . $e->getMessage())
+                ->withInput();
+        }
     }
 }

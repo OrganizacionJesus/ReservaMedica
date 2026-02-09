@@ -182,6 +182,13 @@ export function preventInvalidInput(input, validationType) {
                 }
                 break;
 
+            case 'email':
+                // Bloqueo estricto de espacios y caracteres inválidos comunes
+                if (/[\s"'`]/.test(char)) {
+                    e.preventDefault();
+                }
+                break;
+
             case 'phone':
                 // Solo números y guión
                 if (!/[\d-]/.test(char)) {
@@ -202,6 +209,16 @@ export function preventInvalidInput(input, validationType) {
                     e.preventDefault();
                 }
                 break;
+        }
+    });
+    
+    // Protección adicional para paste events
+    input.addEventListener('paste', (e) => {
+        if (validationType === 'email') {
+            // Esperar al siguiente tick para limpiar
+            setTimeout(() => {
+                input.value = input.value.replace(/[\s"'`]/g, '');
+            }, 0);
         }
     });
 }
