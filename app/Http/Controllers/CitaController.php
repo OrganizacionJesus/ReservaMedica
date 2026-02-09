@@ -35,75 +35,75 @@ class CitaController extends Controller
     public function index(Request $request)
     {
         $user = auth()->user();
-        
+
         // =========================================================================
         // PARA PACIENTE (ROL 3)
         // =========================================================================
         if ($user->rol_id == 3) {
             $paciente = $user->paciente;
-            
+
             if (!$paciente) {
                 return redirect()->route('paciente.dashboard')->with('error', 'No se encontró el perfil de paciente');
             }
-            
+
             // 1. Citas propias del paciente
             $citasPropias = Cita::with(['medico', 'especialidad', 'consultorio', 'paciente', 'facturaPaciente.pagos'])
-                         ->where('paciente_id', $paciente->id)
-                         ->where('status', true)
-                         ->orderBy('fecha_cita', 'desc')
-                         ->get()
-                         ->map(function($cita) {
-                             $cita->tipo_cita_display = 'propia';
-                             $cita->paciente_especial_info = null;
-                             return $cita;
-                         });
-            
+                ->where('paciente_id', $paciente->id)
+                ->where('status', true)
+                ->orderBy('fecha_cita', 'desc')
+                ->get()
+                ->map(function ($cita) {
+                    $cita->tipo_cita_display = 'propia';
+                    $cita->paciente_especial_info = null;
+                    return $cita;
+                });
+
             // 2. Buscar si este paciente es representante de pacientes especiales
             $representante = Representante::where('tipo_documento', $paciente->tipo_documento)
-                                          ->where('numero_documento', $paciente->numero_documento)
-                                          ->first();
-            
+                ->where('numero_documento', $paciente->numero_documento)
+                ->first();
+
             $citasTerceros = collect();
             $pacientesEspeciales = collect();
-            
+
             if ($representante) {
                 // Obtener pacientes especiales de este representante
                 $pacientesEspeciales = $representante->pacientesEspeciales()->with(['paciente'])->get();
-                
+
                 // Obtener citas de los pacientes asociados a esos pacientes especiales
                 $pacienteIds = $pacientesEspeciales->pluck('paciente_id')->filter();
-                
+
                 if ($pacienteIds->isNotEmpty()) {
                     $citasTerceros = Cita::with(['medico', 'especialidad', 'consultorio', 'paciente', 'paciente.pacienteEspecial', 'facturaPaciente.pagos'])
-                                         ->whereIn('paciente_id', $pacienteIds)
-                                         ->where('status', true)
-                                         ->orderBy('fecha_cita', 'desc')
-                                         ->get()
-                                         ->map(function($cita) use ($pacientesEspeciales) {
-                                             $cita->tipo_cita_display = 'terceros';
-                                             // Buscar info del paciente especial
-                                             $pe = $pacientesEspeciales->firstWhere('paciente_id', $cita->paciente_id);
-                                             $cita->paciente_especial_info = $pe;
-                                             return $cita;
-                                         });
+                        ->whereIn('paciente_id', $pacienteIds)
+                        ->where('status', true)
+                        ->orderBy('fecha_cita', 'desc')
+                        ->get()
+                        ->map(function ($cita) use ($pacientesEspeciales) {
+                            $cita->tipo_cita_display = 'terceros';
+                            // Buscar info del paciente especial
+                            $pe = $pacientesEspeciales->firstWhere('paciente_id', $cita->paciente_id);
+                            $cita->paciente_especial_info = $pe;
+                            return $cita;
+                        });
                 }
             }
-            
+
             // Combinar todas las citas
             $citas = $citasPropias->concat($citasTerceros)->sortByDesc('fecha_cita');
-            
+
             return view('paciente.citas.index', compact('citas', 'pacientesEspeciales'));
         }
-        
+
         // =========================================================================
         // PARA MÉDICO (ROL 2) Y ADMIN (ROL 1)
         // =========================================================================
-        
+
         $query = Cita::with([
-            'paciente.historiaClinicaBase', 
+            'paciente.historiaClinicaBase',
             'paciente.usuario',
-            'medico', 
-            'especialidad', 
+            'medico',
+            'especialidad',
             'consultorio',
             'evolucionClinica',
             'ordenesMedicas',
@@ -130,18 +130,18 @@ class CitaController extends Controller
         // Filtro por Búsqueda (Paciente, Médico, Cédula)
         if ($request->filled('buscar')) {
             $busqueda = $request->buscar;
-            $query->where(function($q) use ($busqueda) {
+            $query->where(function ($q) use ($busqueda) {
                 // Buscar por Paciente
-                $q->whereHas('paciente', function($qPac) use ($busqueda) {
+                $q->whereHas('paciente', function ($qPac) use ($busqueda) {
                     $qPac->where('primer_nombre', 'like', "%$busqueda%")
-                         ->orWhere('primer_apellido', 'like', "%$busqueda%")
-                         ->orWhere('numero_documento', 'like', "%$busqueda%");
+                        ->orWhere('primer_apellido', 'like', "%$busqueda%")
+                        ->orWhere('numero_documento', 'like', "%$busqueda%");
                 })
-                // Buscar por Médico
-                ->orWhereHas('medico', function($qMed) use ($busqueda) {
-                    $qMed->where('primer_nombre', 'like', "%$busqueda%")
-                         ->orWhere('primer_apellido', 'like', "%$busqueda%");
-                });
+                    // Buscar por Médico
+                    ->orWhereHas('medico', function ($qMed) use ($busqueda) {
+                        $qMed->where('primer_nombre', 'like', "%$busqueda%")
+                            ->orWhere('primer_apellido', 'like', "%$busqueda%");
+                    });
             });
         }
 
@@ -169,7 +169,7 @@ class CitaController extends Controller
         if ($request->filled('estado')) {
             // Valores BD válidos: 'Programada', 'Confirmada', 'En Progreso', 'Completada', 'Cancelada', 'No Asistió'
             $estadosValidos = ['Programada', 'Confirmada', 'En Progreso', 'Completada', 'Cancelada', 'No Asistió'];
-            
+
             // Si el valor viene directamente como enum válido
             if (in_array($request->estado, $estadosValidos)) {
                 $query->where('estado_cita', $request->estado);
@@ -181,7 +181,7 @@ class CitaController extends Controller
                     'completada' => ['Completada'],
                     'cancelada' => ['Cancelada', 'No Asistió']
                 ];
-                
+
                 if (array_key_exists($request->estado, $estadoMap)) {
                     $query->whereIn('estado_cita', $estadoMap[$request->estado]);
                 }
@@ -190,15 +190,15 @@ class CitaController extends Controller
 
         // Ordenamiento: priorizar citas confirmadas (pagadas) primero, luego por fecha más próxima (ASC)
         $citas = $query->orderByRaw("FIELD(estado_cita, 'Confirmada', 'En Progreso', 'Programada', 'Completada', 'Cancelada', 'No Asistió')")
-                       ->orderBy('fecha_cita', 'asc')
-                       ->orderBy('hora_inicio', 'asc')
-                       ->paginate(10)
-                       ->withQueryString();
+            ->orderBy('fecha_cita', 'asc')
+            ->orderBy('hora_inicio', 'asc')
+            ->paginate(10)
+            ->withQueryString();
 
         // =========================================================================
         // ESTADÍSTICAS (Para las tarjetas superiores)
         // =========================================================================
-        
+
         // Base query para stats (mismas restricciones de rol base, pero sin filtros de búsqueda/fecha para totales globales del día o generales)
         $statsQuery = Cita::where('status', true);
         if ($user->rol_id == 2 && $user->medico) {
@@ -209,9 +209,9 @@ class CitaController extends Controller
         if ($consultorioIds) {
             $statsQuery->whereIn('consultorio_id', $consultorioIds);
         }
-        
+
         $hoy = Carbon::today();
-        
+
         $stats = [
             'total_hoy' => (clone $statsQuery)->whereDate('fecha_cita', $hoy)->count(),
             // Pendientes: Programadas desde hoy en adelante
@@ -223,14 +223,14 @@ class CitaController extends Controller
             // Canceladas: Mes actual (histórico reciente)
             'canceladas_hoy' => (clone $statsQuery)->whereMonth('fecha_cita', $hoy->month)->whereYear('fecha_cita', $hoy->year)->whereIn('estado_cita', ['Cancelada', 'No Asistió'])->count(),
         ];
-        
+
         // Datos para combos de filtros
         $medicos = [];
         $consultorios = [];
         if ($user->rol_id == 1) {
             $medicosQuery = Medico::where('status', true);
             if ($consultorioIds) {
-                $medicosQuery->whereHas('consultorios', function($q) use ($consultorioIds) {
+                $medicosQuery->whereHas('consultorios', function ($q) use ($consultorioIds) {
                     $q->whereIn('consultorios.id', $consultorioIds);
                 });
             }
@@ -248,7 +248,7 @@ class CitaController extends Controller
             // Médico: vista específica
             return view('medico.citas.index', compact('citas', 'stats'));
         }
-        
+
         // Admin: vista compartida
         return view('shared.citas.index', compact('citas', 'stats', 'medicos', 'consultorios'));
     }
@@ -256,35 +256,35 @@ class CitaController extends Controller
     public function create()
     {
         $user = auth()->user();
-        
+
         // Doctors cannot create appointments
         if ($user->rol_id == 2) {
             return redirect()->route('citas.index')->with('error', 'No tienes permiso para agendar citas.');
         }
-        
+
         // Para paciente: vista específica con datos precargados
         if ($user->rol_id == 3) {
             $paciente = $user->paciente;
             $especialidades = Especialidad::where('status', true)->orderBy('nombre')->get();
             $consultorios = Consultorio::where('status', true)->get();
             $estados = Estado::where('status', true)->orderBy('estado')->get();
-            
+
             // Buscar si este paciente es representante de pacientes especiales
             $pacientesEspecialesRegistrados = collect();
             $representante = Representante::where('tipo_documento', $paciente->tipo_documento)
-                                          ->where('numero_documento', $paciente->numero_documento)
-                                          ->first();
-            
+                ->where('numero_documento', $paciente->numero_documento)
+                ->first();
+
             if ($representante) {
                 $pacientesEspecialesRegistrados = $representante->pacientesEspeciales()
                     ->with('paciente')
                     ->where('pacientes_especiales.status', true)
                     ->get();
             }
-            
+
             return view('paciente.citas.create', compact('paciente', 'especialidades', 'consultorios', 'estados', 'pacientesEspecialesRegistrados'));
         }
-        
+
         // Para admin: vista compartida
         $consultorioIds = null;
         if ($user->rol_id == 1 && $user->administrador && $user->administrador->tipo_admin !== 'Root') {
@@ -293,9 +293,9 @@ class CitaController extends Controller
 
         if ($consultorioIds) {
             $medicos = Medico::where('status', true)
-                            ->whereHas('consultorios', function($q) use ($consultorioIds) {
-                                $q->whereIn('consultorios.id', $consultorioIds);
-                            })->get();
+                ->whereHas('consultorios', function ($q) use ($consultorioIds) {
+                    $q->whereIn('consultorios.id', $consultorioIds);
+                })->get();
             $consultorios = Consultorio::whereIn('id', $consultorioIds)->where('status', true)->get();
         } else {
             $medicos = Medico::with('especialidades')->where('status', true)->get();
@@ -320,6 +320,9 @@ class CitaController extends Controller
                 return redirect()->back()->with('error', 'No tiene permiso para agendar citas en la sede seleccionada.')->withInput();
             }
         }
+
+        Log::info('Creando cita', ['user_id' => $user->id, 'rol' => $user->rol_id, 'data' => $request->all()]);
+
         
         Log::info('Creando cita', [
             'user_id' => $user->id,
@@ -341,7 +344,7 @@ class CitaController extends Controller
             'tipo_consulta' => 'required|in:Consultorio,Domicilio,Presencial',
             'motivo' => 'nullable|string|max:1000',
         ];
-        
+
         // Reglas adicionales para terceros (Paciente - rol 3)
         if ($request->tipo_cita == 'terceros' && $user->rol_id == 3) {
             $rules = array_merge($rules, [
@@ -352,7 +355,7 @@ class CitaController extends Controller
                 'rep_numero_documento' => 'required|max:20',
                 'rep_parentesco' => 'required|in:Padre,Madre,Hijo/a,Hermano/a,Tío/a,Sobrino/a,Abuelo/a,Nieto/a,Primo/a,Amigo/a,Tutor,Otro',
             ]);
-            
+
             // Validaciones del paciente especial solo si NO se seleccionó uno existente
             if (!$request->paciente_especial_existente_id) {
                 $rules = array_merge($rules, [
@@ -362,7 +365,7 @@ class CitaController extends Controller
                     'pac_tiene_documento' => 'required|in:si,no',
                     'pac_tipo' => 'required|in:Menor de Edad,Discapacitado,Anciano,Incapacitado',
                 ]);
-                
+
                 // Si tiene documento, validar sus campos
                 if ($request->pac_tiene_documento == 'si') {
                     $rules['pac_tipo_documento'] = 'required|in:V,E,P,J';
@@ -370,7 +373,7 @@ class CitaController extends Controller
                 }
             }
         }
-        
+
         // Reglas adicionales para terceros (Admin/Médico - roles 1 y 2)
         if ($request->tipo_cita == 'terceros' && in_array($user->rol_id, [1, 2])) {
             // Si representante NO es existente, validar campos de nuevo representante
@@ -384,7 +387,7 @@ class CitaController extends Controller
                     'rep_parentesco' => 'required|in:Padre,Madre,Hijo/a,Hermano/a,Tío/a,Sobrino/a,Abuelo/a,Nieto/a,Primo/a,Amigo/a,Tutor,Otro',
                 ]);
             }
-            
+
             // Si paciente especial NO es existente, validar campos de nuevo paciente especial
             if (!$request->paciente_especial_id) {
                 $rules = array_merge($rules, [
@@ -396,7 +399,7 @@ class CitaController extends Controller
                 ]);
             }
         }
-        
+
         $messages = [
             'medico_id.required' => 'Debe seleccionar un médico',
             'especialidad_id.required' => 'Debe seleccionar una especialidad',
@@ -414,7 +417,7 @@ class CitaController extends Controller
             'pac_esp_fecha_nac.required' => 'La fecha de nacimiento del paciente especial es requerida',
             'pac_esp_genero.required' => 'Debe seleccionar el género del paciente especial',
         ];
-        
+
         $validator = Validator::make($request->all(), $rules, $messages);
 
         if ($validator->fails()) {
@@ -427,31 +430,31 @@ class CitaController extends Controller
                 $pacienteId = null;
                 $pacienteEspecialId = null;
                 $representanteId = null;
-                
+
                 // Mapear tipo_consulta: Consultorio -> Presencial
                 $tipoConsulta = $request->tipo_consulta == 'Consultorio' ? 'Presencial' : $request->tipo_consulta;
-                
+
                 // ========================================
                 // CITA PROPIA
                 // ========================================
                 if ($request->tipo_cita == 'propia' && $user->rol_id == 3) {
                     $pacienteId = $user->paciente->id;
                 }
-                
+
                 // ========================================
                 // CITA PROPIA (Admin/Médico)
                 // ========================================
                 if ($request->tipo_cita == 'propia' && in_array($user->rol_id, [1, 2])) {
-                    
+
                     // Si se seleccionó un paciente existente
                     if ($request->paciente_existente == '1' && $request->paciente_id) {
                         $pacienteId = $request->paciente_id;
                         Log::info('Admin: Usando paciente existente', ['paciente_id' => $pacienteId]);
-                    } 
+                    }
                     // Si se marca como nuevo paciente (checkbox no registrado)
                     else {
                         $userId = null;
-                        
+
                         // Si se marcó registrar usuario, crearlo PRIMERO
                         if ($request->registrar_usuario == '1' && $request->pac_correo) {
                             $usuario = Usuario::create([
@@ -463,7 +466,7 @@ class CitaController extends Controller
                             $userId = $usuario->id;
                             Log::info('Admin: Usuario creado para paciente', ['usuario_id' => $userId]);
                         }
-                        
+
                         // Crear paciente (con o sin user_id)
                         $paciente = Paciente::create([
                             'user_id' => $userId,
@@ -484,20 +487,20 @@ class CitaController extends Controller
                             'direccion_detallada' => $request->pac_direccion_detallada,
                             'status' => true
                         ]);
-                        
+
                         $pacienteId = $paciente->id;
                         Log::info('Admin: Paciente nuevo creado', ['paciente_id' => $pacienteId, 'user_id' => $userId]);
                     }
                 }
-                
+
                 // ========================================
                 // CITA PARA TERCEROS (Paciente Especial)
                 // ========================================
                 if ($request->tipo_cita == 'terceros') {
-                    
+
                     // Admin/Médico: Verificar si representante es existente o nuevo
                     if (in_array($user->rol_id, [1, 2])) {
-                        
+
                         // REPRESENTANTE
                         if ($request->representante_existente == '1' && $request->representante_id) {
                             $representanteId = $request->representante_id;
@@ -505,9 +508,9 @@ class CitaController extends Controller
                         } else {
                             // Buscar si ya existe un paciente con el mismo documento del representante
                             $pacienteExistenteRep = Paciente::where('tipo_documento', $request->rep_tipo_documento)
-                                                            ->where('numero_documento', $request->rep_numero_documento)
-                                                            ->first();
-                            
+                                ->where('numero_documento', $request->rep_numero_documento)
+                                ->first();
+
                             // Crear nuevo representante con paciente_id si existe
                             $representante = Representante::create([
                                 'paciente_id' => $pacienteExistenteRep ? $pacienteExistenteRep->id : null,
@@ -531,7 +534,7 @@ class CitaController extends Controller
                             ]);
                             $representanteId = $representante->id;
                             Log::info('Admin: Representante nuevo creado', ['representante_id' => $representanteId, 'paciente_id' => $representante->paciente_id]);
-                            
+
                             // Si se marcó registrar usuario para representante
                             if ($request->has('chk_registrar_representante') && $request->rep_correo) {
                                 $usuarioRep = Usuario::create([
@@ -540,7 +543,7 @@ class CitaController extends Controller
                                     'rol_id' => 3,
                                     'status' => true
                                 ]);
-                                
+
                                 // Crear perfil de Paciente para este usuario (para que pueda hacer login)
                                 $pacienteRep = Paciente::create([
                                     'user_id' => $usuarioRep->id,
@@ -560,18 +563,18 @@ class CitaController extends Controller
                                     'direccion_detallada' => $request->rep_direccion_detallada,
                                     'status' => true
                                 ]);
-                                
+
                                 // Vincular el representante con la cuenta de paciente recién creada
                                 $representante->update(['paciente_id' => $pacienteRep->id]);
-                                
+
                                 Log::info('Admin: Usuario y perfil Paciente creado para representante', [
-                                    'usuario_id' => $usuarioRep->id, 
+                                    'usuario_id' => $usuarioRep->id,
                                     'paciente_id' => $pacienteRep->id,
                                     'representante_id' => $representanteId
                                 ]);
                             }
                         }
-                        
+
                         // PACIENTE ESPECIAL
                         if ($request->paciente_especial_id) {
                             $pacienteEspecialId = $request->paciente_especial_id;
@@ -591,7 +594,7 @@ class CitaController extends Controller
                             // Crear nuevo paciente especial
                             $representanteDoc = $request->rep_numero_documento;
                             $pacNumeroDoc = $this->calculateNextId($representanteDoc);
-                            
+
                             // Crear en tabla pacientes primero (marcado como especial)
                             $paciente = Paciente::create([
                                 'primer_nombre' => $request->pac_esp_primer_nombre,
@@ -611,7 +614,7 @@ class CitaController extends Controller
                                 'status' => true
                             ]);
                             $pacienteId = $paciente->id;
-                            
+
                             // Crear en tabla pacientes_especiales
                             $pacEspecial = PacienteEspecial::create([
                                 'paciente_id' => $pacienteId,
@@ -633,14 +636,14 @@ class CitaController extends Controller
                             ]);
                             $pacienteEspecialId = $pacEspecial->id;
                             Log::info('Admin: Paciente especial nuevo creado', ['pac_especial_id' => $pacienteEspecialId]);
-                            
+
                             // Vincular representante con paciente especial
                             $pacEspecial->representantes()->attach($representanteId, [
                                 'tipo_responsabilidad' => 'Principal',
                                 'status' => true
                             ]);
                         }
-                        
+
                     } else {
                         // Paciente (rol 3): Lógica original
                         $pacienteUsuario = $user->paciente;
@@ -668,9 +671,9 @@ class CitaController extends Controller
                             ]
                         );
                         $representanteId = $representante->id;
-                        
+
                         Log::info('Representante creado/encontrado', ['id' => $representanteId]);
-                        
+
                         // ===========================================
                         // VERIFICAR SI SE SELECCIONÓ UN PACIENTE ESPECIAL EXISTENTE
                         // ===========================================
@@ -680,12 +683,12 @@ class CitaController extends Controller
                             if ($pacienteEspecialExistente) {
                                 $pacienteId = $pacienteEspecialExistente->paciente_id;
                                 $pacienteEspecialId = $pacienteEspecialExistente->id;
-                                
+
                                 Log::info('Usando paciente especial existente', [
                                     'paciente_especial_id' => $pacienteEspecialId,
                                     'paciente_id' => $pacienteId
                                 ]);
-                                
+
                                 // Vincular representante si no existe el vínculo
                                 if (!$pacienteEspecialExistente->representantes()->where('representante_id', $representanteId)->exists()) {
                                     $pacienteEspecialExistente->representantes()->attach($representanteId, [
@@ -700,7 +703,7 @@ class CitaController extends Controller
                             $tieneDocumento = $request->pac_tiene_documento == 'si';
                             $pacTipoDoc = null;
                             $pacNumeroDoc = null;
-                            
+
                             if ($tieneDocumento) {
                                 $pacTipoDoc = $request->pac_tipo_documento;
                                 $pacNumeroDoc = $request->pac_numero_documento;
@@ -709,9 +712,9 @@ class CitaController extends Controller
                                 $pacTipoDoc = $request->rep_tipo_documento;
                                 $pacNumeroDoc = $this->calculateNextId($request->rep_numero_documento);
                             }
-                            
+
                             Log::info('Documento paciente especial', ['tipo' => $pacTipoDoc, 'numero' => $pacNumeroDoc]);
-                            
+
                             // Determinar ubicación del paciente (propia o del representante)
                             $usarMismaDireccion = $request->misma_direccion == 'on' || $request->misma_direccion == '1';
                             $pacEstadoId = $usarMismaDireccion ? $representante->estado_id : $request->pac_estado_id;
@@ -719,7 +722,7 @@ class CitaController extends Controller
                             $pacMunicipioId = $usarMismaDireccion ? $representante->municipio_id : $request->pac_municipio_id;
                             $pacParroquiaId = $usarMismaDireccion ? $representante->parroquia_id : $request->pac_parroquia_id;
                             $pacDireccion = $usarMismaDireccion ? $representante->direccion_detallada : $request->pac_direccion_detallada;
-                            
+
                             // 3. Crear o actualizar registro en tabla PACIENTES (marcado como especial)
                             $paciente = Paciente::updateOrCreate(
                                 [
@@ -743,18 +746,18 @@ class CitaController extends Controller
                                 ]
                             );
                             $pacienteId = $paciente->id;
-                            
+
                             Log::info('Paciente especial creado/encontrado', ['id' => $pacienteId, 'es_especial' => 1]);
-                            
+
                             // Vincular representante con paciente existente si coincide por documento
                             $pacienteRepresentante = Paciente::where('tipo_documento', $request->rep_tipo_documento)
-                                                             ->where('numero_documento', $request->rep_numero_documento)
-                                                             ->first();
+                                ->where('numero_documento', $request->rep_numero_documento)
+                                ->first();
                             if ($pacienteRepresentante && !$representante->paciente_id) {
                                 $representante->update(['paciente_id' => $pacienteRepresentante->id]);
                                 Log::info('Representante vinculado a cuenta de paciente existente', ['paciente_id' => $pacienteRepresentante->id]);
                             }
-                            
+
                             // 4. Crear o actualizar registro en tabla PACIENTES_ESPECIALES
                             $pacienteEspecial = PacienteEspecial::updateOrCreate(
                                 [
@@ -780,9 +783,9 @@ class CitaController extends Controller
                                 ]
                             );
                             $pacienteEspecialId = $pacienteEspecial->id;
-                            
+
                             Log::info('PacienteEspecial creado/encontrado', ['id' => $pacienteEspecialId]);
-                            
+
                             // 5. Vincular representante con paciente especial (tabla pivote)
                             if (!$pacienteEspecial->representantes()->where('representante_id', $representanteId)->exists()) {
                                 $pacienteEspecial->representantes()->attach($representanteId, [
@@ -794,32 +797,32 @@ class CitaController extends Controller
                         }
                     } // Fin else rol 3
                 } // Fin terceros
-                
+
                 // Obtener tarifa del médico para esta especialidad
                 $medico = Medico::find($request->medico_id);
                 $especialidadPivot = $medico->especialidades()
                     ->where('especialidad_id', $request->especialidad_id)
                     ->first();
-                
+
                 $tarifa = $especialidadPivot ? $especialidadPivot->pivot->tarifa : 0;
                 $tarifaExtra = 0;
-                
+
                 // Si es domicilio, agregar tarifa extra
                 if ($tipoConsulta == 'Domicilio' && $especialidadPivot) {
                     $tarifaExtra = $especialidadPivot->pivot->tarifa_extra_domicilio ?? 0;
                 }
-                
+
                 // Calcular hora fin (30 minutos por defecto)
                 $horaInicio = Carbon::createFromFormat('H:i', $request->hora_inicio);
                 $horaFin = $horaInicio->copy()->addMinutes(30)->format('H:i');
 
                 // Verificar disponibilidad del médico (Cita existente)
                 $citaExistente = Cita::where('medico_id', $request->medico_id)
-                                    ->where('fecha_cita', $request->fecha_cita)
-                                    ->where('hora_inicio', $request->hora_inicio)
-                                    ->where('status', true)
-                                    ->whereIn('estado_cita', ['Programada', 'Confirmada', 'En Progreso', 'Completada'])
-                                    ->exists();
+                    ->where('fecha_cita', $request->fecha_cita)
+                    ->where('hora_inicio', $request->hora_inicio)
+                    ->where('status', true)
+                    ->whereIn('estado_cita', ['Programada', 'Confirmada', 'En Progreso', 'Completada'])
+                    ->exists();
 
                 if ($citaExistente) {
                     throw new \Exception('El médico no está disponible en ese horario. Por favor seleccione otra hora.');
@@ -878,7 +881,7 @@ class CitaController extends Controller
                 try {
                     $consultorioId = $cita->consultorio_id;
                     $admins = \App\Models\Administrador::where('status', true)->get();
-                    
+
                     foreach ($admins as $admin) {
                         // Root admins ven todo
                         if ($admin->tipo_admin === 'Root') {
@@ -890,7 +893,7 @@ class CitaController extends Controller
                                 ->where('administrador_id', $admin->id)
                                 ->where('consultorio_id', $consultorioId)
                                 ->exists();
-                            
+
                             if ($tieneAcceso) {
                                 $admin->notify(new \App\Notifications\Admin\NuevaCitaAgendada($cita));
                             }
@@ -913,10 +916,10 @@ class CitaController extends Controller
                 if ($user->rol_id == 3) {
                     return redirect()->route('paciente.citas.index')->with('success', '¡Cita agendada exitosamente! Tarifa: $' . number_format($tarifa + $tarifaExtra, 2));
                 }
-                
+
                 return redirect()->route('citas.index')->with('success', 'Cita creada exitosamente');
             });
-            
+
         } catch (\Exception $e) {
             Log::error('Error al crear cita: ' . $e->getMessage());
             return redirect()->back()->with('error', $e->getMessage())->withInput();
@@ -927,11 +930,13 @@ class CitaController extends Controller
     {
         $user = auth()->user();
         $cita = Cita::with([
-            'paciente.historiaClinicaBase', 
+            'paciente.historiaClinicaBase',
             'paciente.usuario',
             'medico',
-            'especialidad', 
-            'consultorio' => function($q) { $q->with(['estado', 'ciudad', 'municipio', 'parroquia']); },
+            'especialidad',
+            'consultorio' => function ($q) {
+                $q->with(['estado', 'ciudad', 'municipio', 'parroquia']);
+            },
             'pacienteEspecial',
             'representante',
             'evolucionClinica',
@@ -947,19 +952,19 @@ class CitaController extends Controller
                 abort(403, 'No se encontró el perfil de paciente.');
             }
             $esPropia = $cita->paciente_id == $pacienteUsuario->id;
-            
+
             // Si no es propia, verificar si es de un paciente especial representado por este usuario
             $esTercero = false;
             if (!$esPropia && $cita->paciente_especial_id) {
                 // Verificar si el representante logueado tiene relación con este paciente especial
                 $representante = Representante::where('numero_documento', $pacienteUsuario->numero_documento)
-                                            ->where('tipo_documento', $pacienteUsuario->tipo_documento)
-                                            ->first();
+                    ->where('tipo_documento', $pacienteUsuario->tipo_documento)
+                    ->first();
                 if ($representante) {
                     $esTercero = DB::table('representante_paciente_especial')
-                                ->where('representante_id', $representante->id)
-                                ->where('paciente_especial_id', $cita->paciente_especial_id)
-                                ->exists();
+                        ->where('representante_id', $representante->id)
+                        ->where('paciente_especial_id', $cita->paciente_especial_id)
+                        ->exists();
                 }
             }
 
@@ -980,7 +985,7 @@ class CitaController extends Controller
                 ->orderBy('created_at', 'desc')
                 ->limit(10)
                 ->get();
-            
+
             return view('medico.citas.show', compact('cita', 'evolucionesPrevias'));
         }
 
@@ -999,7 +1004,7 @@ class CitaController extends Controller
     {
         try {
             DB::beginTransaction();
-            
+
             $cita = Cita::findOrFail($id);
             
             // Seguridad: Validar que el usuario tenga permiso sobre este consultorio (si es Admin Local)
@@ -1032,16 +1037,16 @@ class CitaController extends Controller
 
             // No cambiar el estado 'status' o 'estado_cita' directamente si no queremos afectar la lógica admin
             // pero podemos usar el campo observaciones para guardar temporalmente la solicitud o un estado intermedio
-            
+
             // Opción: Agregar prefijo a la observación existente
             $nuevaObservacion = "SOLICITUD CANCELACIÓN [" . date('d/m/Y H:i') . "]: \n" .
-                                "Motivo: " . $request->motivo_cancelacion . "\n" .
-                                "Detalle: " . $request->explicacion . "\n";
-            
+                "Motivo: " . $request->motivo_cancelacion . "\n" .
+                "Detalle: " . $request->explicacion . "\n";
+
             if ($cita->observaciones) {
                 $nuevaObservacion .= "\n--- Obs. Anteriores ---\n" . $cita->observaciones;
             }
-            
+
             $cita->observaciones = $nuevaObservacion;
             
             // AUTOMÁTICO: Cambiar estado a 'Cancelada' para liberar el horario
@@ -1055,7 +1060,7 @@ class CitaController extends Controller
                 $consultorioId = $cita->consultorio_id;
                 $motivo = $request->motivo_cancelacion . ': ' . $request->explicacion;
                 $admins = \App\Models\Administrador::where('status', true)->get();
-                
+
                 foreach ($admins as $admin) {
                     // Root admins ven todo
                     if ($admin->tipo_admin === 'Root') {
@@ -1067,7 +1072,7 @@ class CitaController extends Controller
                             ->where('administrador_id', $admin->id)
                             ->where('consultorio_id', $consultorioId)
                             ->exists();
-                        
+
                         if ($tieneAcceso) {
                             $admin->notify(new \App\Notifications\Admin\CitaCanceladaAdmin($cita, $motivo));
                         }
@@ -1097,12 +1102,12 @@ class CitaController extends Controller
     public function edit($id)
     {
         $user = auth()->user();
-        
+
         // Doctors cannot edit appointments
         if ($user->rol_id == 2) {
             return redirect()->route('citas.index')->with('error', 'No tienes permiso para editar citas.');
         }
-        
+
         $cita = Cita::findOrFail($id);
 
         // Seguridad: Admin Local solo puede editar citas de su sede
@@ -1117,9 +1122,9 @@ class CitaController extends Controller
         // Cargar listas filtradas si es Admin Local
         if ($consultorioIds) {
             $medicos = Medico::where('status', true)
-                            ->whereHas('consultorios', function($q) use ($consultorioIds) {
-                                $q->whereIn('consultorios.id', $consultorioIds);
-                            })->get();
+                ->whereHas('consultorios', function ($q) use ($consultorioIds) {
+                    $q->whereIn('consultorios.id', $consultorioIds);
+                })->get();
             $consultorios = Consultorio::whereIn('id', $consultorioIds)->where('status', true)->get();
         } else {
             $medicos = Medico::with('especialidades')->where('status', true)->get();
@@ -1154,6 +1159,11 @@ class CitaController extends Controller
         $cita = Cita::findOrFail($id);
         $user = auth()->user();
 
+        // Patients cannot update appointments directly
+        if ($user->rol_id == 3) {
+            return redirect()->route('paciente.citas.index')->with('error', 'Acción no permitida.');
+        }
+
         // Seguridad para Admin Local: No puede actualizar citas ajenas a su sede
         if ($user->rol_id == 1 && $user->administrador && $user->administrador->tipo_admin !== 'Root') {
             $consultorioIds = $user->administrador->consultorios->pluck('id');
@@ -1166,15 +1176,15 @@ class CitaController extends Controller
                 return redirect()->back()->with('error', 'El consultorio seleccionado no pertenece a sus sedes asignadas.')->withInput();
             }
         }
-        
+
         // Verificar disponibilidad (excluyendo la cita actual)
         $citaExistente = Cita::where('medico_id', $request->medico_id)
-                            ->where('fecha_cita', $request->fecha_cita)
-                            ->where('hora_inicio', '<', $request->hora_fin)
-                            ->where('hora_fin', '>', $request->hora_inicio)
-                            ->where('id', '!=', $id)
-                            ->where('status', true)
-                            ->exists();
+            ->where('fecha_cita', $request->fecha_cita)
+            ->where('hora_inicio', '<', $request->hora_fin)
+            ->where('hora_fin', '>', $request->hora_inicio)
+            ->where('id', '!=', $id)
+            ->where('status', true)
+            ->exists();
 
         if ($citaExistente) {
             return redirect()->back()->with('error', 'El médico no está disponible en ese horario')->withInput();
@@ -1191,60 +1201,60 @@ class CitaController extends Controller
 
         // NOTIFICACIONES
         try {
-                $paciente = $cita->paciente;
-                if ($paciente) {
-                    // Check if special patient to notify representative
-                    $pacienteEspecial = $paciente->pacienteEspecial;
-                    $notifiable = $paciente;
-                    
-                    if ($pacienteEspecial && $pacienteEspecial->representante) {
-                        $representante = $pacienteEspecial->representante;
-                        $pacienteRepresentante = Paciente::where('tipo_documento', $representante->tipo_documento)
-                            ->where('numero_documento', $representante->numero_documento)
-                            ->first();
-                        if ($pacienteRepresentante) $notifiable = $pacienteRepresentante;
+            $paciente = $cita->paciente;
+            if ($paciente) {
+                // Check if special patient to notify representative
+                $pacienteEspecial = $paciente->pacienteEspecial;
+                $notifiable = $paciente;
+
+                if ($pacienteEspecial && $pacienteEspecial->representante) {
+                    $representante = $pacienteEspecial->representante;
+                    $pacienteRepresentante = Paciente::where('tipo_documento', $representante->tipo_documento)
+                        ->where('numero_documento', $representante->numero_documento)
+                        ->first();
+                    if ($pacienteRepresentante)
+                        $notifiable = $pacienteRepresentante;
+                }
+
+                // 1. Caso Cancelación
+                if ($request->estado_cita == 'Cancelada' && $estadoAnterior != 'Cancelada') {
+                    $motivo = $request->observaciones ?? 'Cancelada por administración';
+                    $notifiable->notify(new \App\Notifications\CitaCancelada($cita, $motivo));
+
+                    // Notificar al médico sobre la cancelación
+                    if ($cita->medico) {
+                        $cita->medico->notify(new \App\Notifications\Medico\CitaCanceladaPaciente($cita, $motivo));
                     }
+                }
+                // 2. Caso Reprogramación (Solo si no se canceló)
+                elseif ($request->estado_cita != 'Cancelada') {
+                    $seMovio = ($fechaAnterior != $request->fecha_cita) || ($horaAnterior != $request->hora_inicio);
+                    if ($seMovio) {
+                        $notifiable->notify(new \App\Notifications\CitaReprogramada($cita, $fechaAnterior, $horaAnterior));
 
-                    // 1. Caso Cancelación
-                    if ($request->estado_cita == 'Cancelada' && $estadoAnterior != 'Cancelada') {
-                        $motivo = $request->observaciones ?? 'Cancelada por administración';
-                        $notifiable->notify(new \App\Notifications\CitaCancelada($cita, $motivo));
+                        // Notificar a los administradores relevantes sobre la reprogramación
+                        $consultorioId = $cita->consultorio_id;
+                        $admins = \App\Models\Administrador::where('status', true)->get();
 
-                        // Notificar al médico sobre la cancelación
-                        if ($cita->medico) {
-                            $cita->medico->notify(new \App\Notifications\Medico\CitaCanceladaPaciente($cita, $motivo));
-                        }
-                    }
-                    // 2. Caso Reprogramación (Solo si no se canceló)
-                    elseif ($request->estado_cita != 'Cancelada') {
-                        $seMovio = ($fechaAnterior != $request->fecha_cita) || ($horaAnterior != $request->hora_inicio);
-                        if ($seMovio) {
-                            $notifiable->notify(new \App\Notifications\CitaReprogramada($cita, $fechaAnterior, $horaAnterior));
+                        foreach ($admins as $admin) {
+                            if ($admin->tipo_admin === 'Root') {
+                                $admin->notify(new \App\Notifications\Admin\CitaReprogramada($cita, $fechaAnterior, $horaAnterior));
+                            } elseif ($admin->tipo_admin === 'Administrador' && $consultorioId) {
+                                $tieneAcceso = DB::table('administrador_consultorio')
+                                    ->where('administrador_id', $admin->id)
+                                    ->where('consultorio_id', $consultorioId)
+                                    ->exists();
 
-                            // Notificar a los administradores relevantes sobre la reprogramación
-                            $consultorioId = $cita->consultorio_id;
-                            $admins = \App\Models\Administrador::where('status', true)->get();
-                            
-                            foreach ($admins as $admin) {
-                                if ($admin->tipo_admin === 'Root') {
+                                if ($tieneAcceso) {
                                     $admin->notify(new \App\Notifications\Admin\CitaReprogramada($cita, $fechaAnterior, $horaAnterior));
                                 }
-                                elseif ($admin->tipo_admin === 'Administrador' && $consultorioId) {
-                                    $tieneAcceso = DB::table('administrador_consultorio')
-                                        ->where('administrador_id', $admin->id)
-                                        ->where('consultorio_id', $consultorioId)
-                                        ->exists();
-                                    
-                                    if ($tieneAcceso) {
-                                        $admin->notify(new \App\Notifications\Admin\CitaReprogramada($cita, $fechaAnterior, $horaAnterior));
-                                    }
-                                }
                             }
+                        }
 
-                            // Notificar al médico sobre la reprogramación
-                            if ($cita->medico) {
-                                $cita->medico->notify(new \App\Notifications\Medico\CitaReprogramada($cita, $fechaAnterior, $horaAnterior));
-                            }
+                        // Notificar al médico sobre la reprogramación
+                        if ($cita->medico) {
+                            $cita->medico->notify(new \App\Notifications\Medico\CitaReprogramada($cita, $fechaAnterior, $horaAnterior));
+                        }
                     }
                 }
             }
@@ -1262,7 +1272,7 @@ class CitaController extends Controller
 
         try {
             if ($cita->paciente && $cita->paciente->usuario) {
-               $cita->paciente->usuario->notify(new \App\Notifications\CitaCancelada($cita, 'Cancelada por el sistema/admin'));
+                $cita->paciente->usuario->notify(new \App\Notifications\CitaCancelada($cita, 'Cancelada por el sistema/admin'));
             }
 
             // Notificar al médico sobre la cancelación
@@ -1279,6 +1289,7 @@ class CitaController extends Controller
     public function cambiarEstado(Request $request, $id)
     {
         $cita = Cita::findOrFail($id);
+
         
         // Seguridad: Validar que el usuario tenga permiso sobre este consultorio (si es Admin Local)
         $user = auth()->user();
@@ -1300,7 +1311,7 @@ class CitaController extends Controller
 
         $estadoAnterior = $cita->estado_cita;
         $cita->estado_cita = $request->estado_cita;
-        
+
         // Si viene un motivo/observación (ej: al cancelar), lo guardamos
         if ($request->filled('observaciones')) {
             $cita->observaciones = $request->observaciones;
@@ -1337,13 +1348,14 @@ class CitaController extends Controller
             if ($paciente) {
                 $pacienteEspecial = $paciente->pacienteEspecial;
                 $notifiable = $paciente;
-                
+
                 if ($pacienteEspecial && $pacienteEspecial->representante) {
                     $representante = $pacienteEspecial->representante;
                     $pacienteRepresentante = Paciente::where('tipo_documento', $representante->tipo_documento)
                         ->where('numero_documento', $representante->numero_documento)
                         ->first();
-                    if ($pacienteRepresentante) $notifiable = $pacienteRepresentante;
+                    if ($pacienteRepresentante)
+                        $notifiable = $pacienteRepresentante;
                 }
 
                 if ($request->estado_cita == 'Cancelada' && $estadoAnterior != 'Cancelada') {
@@ -1396,7 +1408,7 @@ class CitaController extends Controller
     // =========================================================================
     // API ENDPOINTS
     // =========================================================================
-    
+
     /**
      * Obtener consultorios por estado
      */
@@ -1406,39 +1418,56 @@ class CitaController extends Controller
             ->where('status', true)
             ->orderBy('nombre')
             ->get(['id', 'nombre', 'direccion_detallada']);
-        
+
         return response()->json($consultorios);
     }
-    
+
     /**
      * Obtener especialidades por consultorio
      */
     public function getEspecialidadesPorConsultorio($consultorioId)
     {
         Log::info('Buscando especialidades para consultorio: ' . $consultorioId);
-        
+
         $consultorio = Consultorio::find($consultorioId);
-        
+
         if (!$consultorio) {
             Log::warning('Consultorio no encontrado: ' . $consultorioId);
             return response()->json([]);
         }
-        
+
         // Obtener especialidades activas del consultorio con pivot activo
         $especialidades = $consultorio->especialidades()
             ->where('especialidad_consultorio.status', true)
             ->where('especialidades.status', true)
             ->orderBy('nombre')
             ->get(['especialidades.id', 'especialidades.nombre']);
-        
+
         Log::info('Especialidades encontradas: ' . $especialidades->count());
-        
+
         return response()->json($especialidades);
     }
-    
+
     /**
      * Obtener consultorios por especialidad
      */
+    public function getConsultoriosPorEspecialidad($especialidadId)
+    {
+        $especialidad = Especialidad::find($especialidadId);
+
+        if (!$especialidad) {
+            return response()->json([]);
+        }
+
+        $consultorios = $especialidad->consultorios()
+            ->where('especialidad_consultorio.status', true)
+            ->where('consultorios.status', true)
+            ->orderBy('nombre')
+            ->get(['consultorios.id', 'consultorios.nombre', 'consultorios.direccion_detallada', 'consultorios.estado_id']);
+
+        return response()->json($consultorios);
+    }
+
     public function getConsultoriosPorEspecialidad($especialidadId, Request $request)
 {
     Log::info('Buscando consultorios', ['especialidad' => $especialidadId, 'medico' => $request->medico_id]);
@@ -1475,8 +1504,20 @@ class CitaController extends Controller
     {
         $especialidadId = $request->especialidad_id;
         $consultorioId = $request->consultorio_id;
-        
+
         Log::info('Buscando médicos', ['especialidad' => $especialidadId, 'consultorio' => $consultorioId]);
+
+        $medicos = Medico::whereHas('especialidades', function ($q) use ($especialidadId) {
+            $q->where('especialidades.id', $especialidadId)
+                ->where('medico_especialidad.status', true);
+        })
+            ->whereHas('consultorios', function ($q) use ($consultorioId) {
+                $q->where('consultorios.id', $consultorioId)
+                    ->where('medico_consultorio.status', true);
+            })
+            ->where('status', true)
+            ->get();
+
         
         $medicos = Medico::whereHas('especialidades', function($q) use ($especialidadId) {
                 $q->where('especialidades.id', $especialidadId)
@@ -1492,8 +1533,8 @@ class CitaController extends Controller
         ->get();
         
         Log::info('Médicos encontrados: ' . $medicos->count());
-        
-        $result = $medicos->map(function($medico) use ($especialidadId) {
+
+        $result = $medicos->map(function ($medico) use ($especialidadId) {
             $pivot = $medico->especialidades->where('id', $especialidadId)->first();
             return [
                 'id' => $medico->id,
@@ -1501,14 +1542,14 @@ class CitaController extends Controller
                 'primer_nombre' => $medico->primer_nombre,
                 'primer_apellido' => $medico->primer_apellido,
                 'tarifa' => $pivot ? $pivot->pivot->tarifa : 0,
-                'atiende_domicilio' => $pivot ? (bool)($pivot->pivot->atiende_domicilio ?? false) : false,
+                'atiende_domicilio' => $pivot ? (bool) ($pivot->pivot->atiende_domicilio ?? false) : false,
                 'tarifa_extra_domicilio' => $pivot ? ($pivot->pivot->tarifa_extra_domicilio ?? 0) : 0,
             ];
         });
-        
+
         return response()->json($result);
     }
-    
+
     /**
      * Obtener horarios disponibles del médico para una fecha
      */
@@ -1518,12 +1559,21 @@ class CitaController extends Controller
         $medicoId = $request->medico_id;
         $consultorioId = $request->consultorio_id;
         $fecha = $request->fecha;
-        
+
         if (!$medicoId || !$fecha) {
             return response()->json(['error' => 'Parámetros incompletos'], 400);
         }
-        
+
         $diaSemana = $this->obtenerDiaSemana($fecha);
+
+        // Obtener horario del médico para ese día en ese consultorio
+        $horarioMedico = MedicoConsultorio::where('medico_id', $medicoId)
+            ->where('consultorio_id', $consultorioId)
+            ->where('dia_semana', $diaSemana)
+            ->where('status', true)
+            ->first();
+
+        if (!$horarioMedico) {
         
         // Obtener TODOS los horarios del médico para ese día en ese consultorio (Turnos múltiples)
         $horariosMedico = MedicoConsultorio::where('medico_id', $medicoId)
@@ -1540,20 +1590,40 @@ class CitaController extends Controller
                 'horarios' => []
             ]);
         }
+
+        // Obtener citas ya agendadas para ese día
         
         // Obtener citas ya agendadas para ese día (para marcar como ocupadas)
         $citasOcupadas = Cita::where('medico_id', $medicoId)
             ->where('fecha_cita', $fecha)
             ->where('status', true)
             ->whereIn('estado_cita', ['Programada', 'Confirmada', 'En Progreso', 'Completada'])
-            ->when($request->exclude_cita_id, function($q) use ($request) {
+            ->when($request->exclude_cita_id, function ($q) use ($request) {
                 return $q->where('id', '!=', $request->exclude_cita_id);
             })
             ->pluck('hora_inicio')
-            ->map(function($hora) {
+            ->map(function ($hora) {
                 return substr($hora, 0, 5);
             })
             ->toArray();
+
+        // Generar slots de 30 minutos
+        $horaInicio = Carbon::createFromFormat('H:i:s', $horarioMedico->horario_inicio);
+        $horaFin = Carbon::createFromFormat('H:i:s', $horarioMedico->horario_fin);
+
+        $slots = [];
+        $current = $horaInicio->copy();
+
+        while ($current < $horaFin) {
+            $horaStr = $current->format('H:i');
+            $slots[] = [
+                'hora' => $horaStr,
+                'disponible' => !in_array($horaStr, $citasOcupadas),
+                'ocupada' => in_array($horaStr, $citasOcupadas)
+            ];
+            $current->addMinutes(30);
+        }
+
         
         $allSlots = [];
         $horarioInicioGlobal = null;
@@ -1622,7 +1692,7 @@ class CitaController extends Controller
         $fin = Carbon::createFromFormat('H:i', $horaFin);
         return $fin->diffInMinutes($inicio);
     }
-    
+
     // API Public para obtener siguiente secuencia
     public function getNextSequence($numero_documento)
     {
@@ -1630,25 +1700,27 @@ class CitaController extends Controller
         // Extraer solo la secuencia (últimos 2 dígitos)
         $parts = explode('-', $nextId);
         $sequence = end($parts);
-        
+
         return response()->json([
             'sequence' => $sequence,
             'full_id' => $nextId
         ]);
     }
-    
+
     // API para obtener pacientes especiales de un representante
     public function getPacientesEspecialesPorRepresentante($representanteId)
     {
-        $representante = Representante::with(['pacientesEspeciales' => function($q) {
-            $q->with('paciente')->where('pacientes_especiales.status', true);
-        }])->find($representanteId);
-        
+        $representante = Representante::with([
+            'pacientesEspeciales' => function ($q) {
+                $q->with('paciente')->where('pacientes_especiales.status', true);
+            }
+        ])->find($representanteId);
+
         if (!$representante) {
             return response()->json([]);
         }
-        
-        $pacientes = $representante->pacientesEspeciales->map(function($pe) {
+
+        $pacientes = $representante->pacientesEspeciales->map(function ($pe) {
             return [
                 'id' => $pe->id,
                 'paciente_id' => $pe->paciente_id,
@@ -1658,7 +1730,7 @@ class CitaController extends Controller
                 'numero_documento' => $pe->numero_documento,
             ];
         });
-        
+
         return response()->json($pacientes);
     }
 
@@ -1667,8 +1739,8 @@ class CitaController extends Controller
         // Buscar todos los documentos que empiecen con el documento base y tengan un sufijo
         // Formato esperado en DB: 12345678-01, 12345678-02, etc.
         $existing = PacienteEspecial::where('numero_documento', 'LIKE', $baseDocumento . '-%')
-                                    ->pluck('numero_documento');
-        
+            ->pluck('numero_documento');
+
         if ($existing->isEmpty()) {
             return $baseDocumento . '-01';
         }
@@ -1697,9 +1769,9 @@ class CitaController extends Controller
     {
         try {
             if ($cita->paciente && $cita->paciente->usuario) {
-                Mail::send('emails.cita', ['cita' => $cita], function($message) use ($cita) {
+                Mail::send('emails.cita', ['cita' => $cita], function ($message) use ($cita) {
                     $message->to($cita->paciente->usuario->correo)
-                            ->subject('Confirmación de Cita - Sistema Médico');
+                        ->subject('Confirmación de Cita - Sistema Médico');
                 });
             }
         } catch (\Exception $e) {
@@ -1714,7 +1786,7 @@ class CitaController extends Controller
     {
         $query = $request->get('q', '');
         $tipoCita = $request->get('tipo_cita', 'propia'); // propia o terceros
-        
+
         if (strlen($query) < 2) {
             return response()->json(['results' => []]);
         }
@@ -1722,20 +1794,20 @@ class CitaController extends Controller
         $results = [];
 
         // Buscar en pacientes normales
-        $pacientes = Paciente::where(function($q) use ($query) {
+        $pacientes = Paciente::where(function ($q) use ($query) {
             $q->where('numero_documento', 'LIKE', "%{$query}%")
-              ->orWhere('primer_nombre', 'LIKE', "%{$query}%")
-              ->orWhere('primer_apellido', 'LIKE', "%{$query}%")
-              ->orWhereRaw("CONCAT(primer_nombre, ' ', primer_apellido) LIKE ?", ["%{$query}%"]);
+                ->orWhere('primer_nombre', 'LIKE', "%{$query}%")
+                ->orWhere('primer_apellido', 'LIKE', "%{$query}%")
+                ->orWhereRaw("CONCAT(primer_nombre, ' ', primer_apellido) LIKE ?", ["%{$query}%"]);
         })
-        ->where('status', true)
-        ->limit(10)
-        ->get();
+            ->where('status', true)
+            ->limit(10)
+            ->get();
 
         foreach ($pacientes as $pac) {
             // Verificar si es paciente especial (tiene sufijo en documento)
             $esEspecial = preg_match('/-\d+$/', $pac->numero_documento);
-            
+
             $results[] = [
                 'id' => $pac->id,
                 'tipo' => $esEspecial ? 'especial' : 'paciente',
@@ -1762,15 +1834,15 @@ class CitaController extends Controller
         }
 
         // Buscar en pacientes especiales (para citas terceros)
-        $especiales = PacienteEspecial::where(function($q) use ($query) {
+        $especiales = PacienteEspecial::where(function ($q) use ($query) {
             $q->where('numero_documento', 'LIKE', "%{$query}%")
-              ->orWhere('primer_nombre', 'LIKE', "%{$query}%")
-              ->orWhere('primer_apellido', 'LIKE', "%{$query}%")
-              ->orWhereRaw("CONCAT(primer_nombre, ' ', primer_apellido) LIKE ?", ["%{$query}%"]);
+                ->orWhere('primer_nombre', 'LIKE', "%{$query}%")
+                ->orWhere('primer_apellido', 'LIKE', "%{$query}%")
+                ->orWhereRaw("CONCAT(primer_nombre, ' ', primer_apellido) LIKE ?", ["%{$query}%"]);
         })
-        ->where('status', true)
-        ->limit(10)
-        ->get();
+            ->where('status', true)
+            ->limit(10)
+            ->get();
 
         foreach ($especiales as $esp) {
             $results[] = [
@@ -1802,14 +1874,14 @@ class CitaController extends Controller
 
         // Buscar representantes existentes (para citas terceros)
         if ($tipoCita === 'terceros') {
-            $representantes = Representante::where(function($q) use ($query) {
+            $representantes = Representante::where(function ($q) use ($query) {
                 $q->where('numero_documento', 'LIKE', "%{$query}%")
-                  ->orWhere('primer_nombre', 'LIKE', "%{$query}%")
-                  ->orWhere('primer_apellido', 'LIKE', "%{$query}%");
+                    ->orWhere('primer_nombre', 'LIKE', "%{$query}%")
+                    ->orWhere('primer_apellido', 'LIKE', "%{$query}%");
             })
-            ->where('status', true)
-            ->limit(10)
-            ->get();
+                ->where('status', true)
+                ->limit(10)
+                ->get();
 
             foreach ($representantes as $rep) {
                 $results[] = [
@@ -1845,20 +1917,20 @@ class CitaController extends Controller
     {
         $correo = $request->get('correo', '');
         $rol = $request->get('rol', null);
-        
+
         if (empty($correo)) {
             return response()->json(['existe' => false]);
         }
 
         $query = Usuario::where('correo', $correo);
-        
+
         // Filtrar por rol si se proporciona
         if ($rol) {
             $query->where('rol_id', $rol);
         }
-        
+
         $existe = $query->exists();
-        
+
         return response()->json(['existe' => $existe]);
     }
 
@@ -1869,7 +1941,7 @@ class CitaController extends Controller
     {
         $tipoDocumento = strtoupper($request->get('tipo_documento', ''));
         $numeroDocumento = $request->get('numero_documento', '');
-        
+
         if (empty($tipoDocumento) || empty($numeroDocumento)) {
             return response()->json(['existe' => false]);
         }
@@ -1878,29 +1950,29 @@ class CitaController extends Controller
         $existePaciente = Paciente::where('tipo_documento', $tipoDocumento)
             ->where('numero_documento', $numeroDocumento)
             ->exists();
-        
+
         if ($existePaciente) {
             return response()->json(['existe' => true, 'tabla' => 'pacientes', 'mensaje' => 'Este documento ya está registrado como paciente.']);
         }
-        
+
         // Buscar en tabla representantes
         $existeRepresentante = Representante::where('tipo_documento', $tipoDocumento)
             ->where('numero_documento', $numeroDocumento)
             ->exists();
-        
+
         if ($existeRepresentante) {
             return response()->json(['existe' => true, 'tabla' => 'representantes', 'mensaje' => 'Este documento ya está registrado como representante.']);
         }
-        
+
         // Buscar en tabla usuarios
         $existeUsuario = Usuario::where('tipo_documento', $tipoDocumento)
             ->where('numero_documento', $numeroDocumento)
             ->exists();
-        
+
         if ($existeUsuario) {
             return response()->json(['existe' => true, 'tabla' => 'usuarios', 'mensaje' => 'Este documento ya está registrado en el sistema.']);
         }
-        
+
         return response()->json(['existe' => false]);
     }
 
@@ -1911,39 +1983,40 @@ class CitaController extends Controller
     public function events(Request $request)
     {
         $user = auth()->user();
-        
+
         $start = $request->query('start');
         $end = $request->query('end');
 
         // Base query
         $query = Cita::with(['paciente', 'medico', 'consultorio', 'especialidad'])
-                     ->where('status', true)
-                     ->whereBetween('fecha_cita', [substr($start, 0, 10), substr($end, 0, 10)]);
+            ->where('status', true)
+            ->whereBetween('fecha_cita', [substr($start, 0, 10), substr($end, 0, 10)]);
 
         // Filtros de Rol
         if ($user->rol_id == 3) {
-             // Paciente: ver sus citas (propia y terceros)
-             $paciente = $user->paciente;
-             if (!$paciente) return response()->json([]);
-             
-             // Buscar citas directas
-             $idsPropios = Cita::where('paciente_id', $paciente->id)->pluck('id');
-             
-             // Buscar citas como representante
-             $representante = Representante::where('tipo_documento', $paciente->tipo_documento)
-                                           ->where('numero_documento', $paciente->numero_documento)
-                                           ->first();
-             $idsTerceros = collect();
-             if ($representante) {
-                 $pacientesEspeciales = $representante->pacientesEspeciales; // Get the collection
-                 if ($pacientesEspeciales) {
+            // Paciente: ver sus citas (propia y terceros)
+            $paciente = $user->paciente;
+            if (!$paciente)
+                return response()->json([]);
+
+            // Buscar citas directas
+            $idsPropios = Cita::where('paciente_id', $paciente->id)->pluck('id');
+
+            // Buscar citas como representante
+            $representante = Representante::where('tipo_documento', $paciente->tipo_documento)
+                ->where('numero_documento', $paciente->numero_documento)
+                ->first();
+            $idsTerceros = collect();
+            if ($representante) {
+                $pacientesEspeciales = $representante->pacientesEspeciales; // Get the collection
+                if ($pacientesEspeciales) {
                     $pacientesEspecialesIds = $pacientesEspeciales->pluck('paciente_id');
                     $idsTerceros = Cita::whereIn('paciente_id', $pacientesEspecialesIds)->pluck('id');
-                 }
-             }
-             
-             $query->whereIn('id', $idsPropios->concat($idsTerceros));
-             
+                }
+            }
+
+            $query->whereIn('id', $idsPropios->concat($idsTerceros));
+
         } elseif ($user->rol_id == 2) {
             // Médico: ver sus citas
             if ($user->medico) {
@@ -1971,8 +2044,8 @@ class CitaController extends Controller
 
         $citas = $query->get();
 
-        $events = $citas->map(function($cita) {
-            $color = match($cita->estado_cita) {
+        $events = $citas->map(function ($cita) {
+            $color = match ($cita->estado_cita) {
                 'Confirmada' => '#10b981', // emerald-500
                 'Programada' => '#f59e0b', // amber-500
                 'En Progreso' => '#3b82f6', // blue-500
@@ -1984,17 +2057,17 @@ class CitaController extends Controller
             $title = $cita->paciente->primer_nombre . ' ' . $cita->paciente->primer_apellido;
             // Para admin/medico mostrar paciente, para paciente mostrar medico/especialidad
             if (auth()->user()->rol_id == 3) {
-                 $title = $cita->especialidad->nombre . ' - Dr. ' . $cita->medico->primer_apellido;
+                $title = $cita->especialidad->nombre . ' - Dr. ' . $cita->medico->primer_apellido;
             } else {
-                 // Info extra para admin/medico
-                 $title .= ' (' . $cita->especialidad->nombre . ')';
+                // Info extra para admin/medico
+                $title .= ' (' . $cita->especialidad->nombre . ')';
             }
 
             return [
                 'id' => $cita->id,
                 'title' => $title,
                 'start' => $cita->fecha_cita . 'T' . $cita->hora_inicio,
-                'end' => $cita->fecha_cita . 'T' . $cita->hora_fin, 
+                'end' => $cita->fecha_cita . 'T' . $cita->hora_fin,
                 'backgroundColor' => $color,
                 'borderColor' => $color,
                 'url' => route('citas.show', $cita->id),

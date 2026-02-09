@@ -13,6 +13,27 @@ class MedicoEspecialidadTableSeeder extends Seeder
         $now = now();
         $relaciones = [];
 
+        // Asegurar asignaciones fijas para médicos 1 y 2
+        $relaciones[] = ['medico_id' => 1, 'especialidad_id' => 1, 'tarifa' => 50.00, 'anos_experiencia' => 15]; // Cardiología
+        $relaciones[] = ['medico_id' => 1, 'especialidad_id' => 7, 'tarifa' => 30.00, 'anos_experiencia' => 15]; // Medicina General
+        $relaciones[] = ['medico_id' => 2, 'especialidad_id' => 2, 'tarifa' => 45.00, 'anos_experiencia' => 10]; // Pediatría
+
+        // Para los médicos del 3 al 12 (Generados)
+        for ($medicoId = 3; $medicoId <= 12; $medicoId++) {
+            // Asignar entre 1 y 2 especialidades por médico
+            $numEspecialidades = $faker->numberBetween(1, 2);
+            $especialidadesIds = $faker->randomElements(range(1, 20), $numEspecialidades);
+
+            foreach ($especialidadesIds as $espId) {
+                // Verificar que no se repita (aunque aquí son elementos únicos por randomElements)
+                $relaciones[] = [
+                    'medico_id' => $medicoId,
+                    'especialidad_id' => $espId,
+                    'tarifa' => $faker->randomFloat(2, 20, 100), // Tarifas entre 20 y 100
+                    'anos_experiencia' => $faker->numberBetween(1, 30),
+                ];
+            }
+        }
         // Médico 1 (ID 5) - Cardiología (ID 1)
         $relaciones[] = [
             'medico_id' => 5,

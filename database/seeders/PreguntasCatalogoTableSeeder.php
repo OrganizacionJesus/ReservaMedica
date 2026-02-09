@@ -14,19 +14,30 @@ class PreguntasCatalogoTableSeeder extends Seeder
         DB::statement('SET FOREIGN_KEY_CHECKS=1;');
 
         $preguntas = [
-            ['pregunta' => '¿Cuál es el nombre de tu primera mascota?'],
-            ['pregunta' => '¿En qué ciudad naciste?'],
-            ['pregunta' => '¿Cuál es tu color favorito?'],
-            ['pregunta' => '¿Nombre de tu escuela primaria?'],
-            ['pregunta' => '¿Cuál es tu comida favorita?'],
+            '¿Cuál es el nombre de tu primera mascota?',
+            '¿En qué ciudad naciste?',
+            '¿Cuál es tu comida favorita?',
+            '¿Cuál es el nombre de tu mejor amigo de la infancia?',
+            '¿Cuál es el nombre de soltera de tu madre?',
+            '¿En qué escuela estudiaste la primaria?',
+            '¿Cuál es tu color favorito?',
+            '¿Cuál es el nombre de tu película favorita?',
+            '¿Cuál fue tu primer trabajo?',
+            '¿Cuál es tu equipo deportivo favorito?',
+            '¿Cuál es el nombre de tu abuelo paterno?',
+            '¿En qué año te graduaste de bachillerato?',
+            '¿Cuál es tu libro favorito?',
+            '¿Cuál es el nombre de tu primer profesor?',
+            '¿Cuál es tu lugar de vacaciones favorito?',
         ];
 
         foreach ($preguntas as $pregunta) {
-            DB::table('preguntas_catalogo')->insert(array_merge($pregunta, [
+            DB::table('preguntas_catalogo')->insert([
+                'pregunta' => $pregunta,
                 'status' => true,
                 'created_at' => now(),
                 'updated_at' => now(),
-            ]));
+            ]);
         }
     }
 }

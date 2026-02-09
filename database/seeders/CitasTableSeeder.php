@@ -33,6 +33,11 @@ class CitasTableSeeder extends Seeder
             // Fecha aleatoria
             $fecha = $faker->dateTimeBetween('-2 months', '+2 months');
             $horaInicio = $faker->randomElement(['08:00:00', '09:00:00', '10:00:00', '11:00:00', '14:00:00', '15:00:00', '16:00:00']);
+
+            // Calcular hora fin (30 min después)
+            $horaFin = date('H:i:s', strtotime($horaInicio) + 1800);
+
+            // Estado basado en fecha
             $horaFin = date('H:i:s', strtotime($horaInicio) + 1800);
             
             if ($fecha < $now) {
@@ -42,6 +47,10 @@ class CitasTableSeeder extends Seeder
             }
 
             $citas[] = [
+                'paciente_id' => $faker->numberBetween(1, 20),
+                'medico_id' => $faker->numberBetween(1, 12),
+                'especialidad_id' => $faker->numberBetween(1, 20),
+                'consultorio_id' => $faker->numberBetween(1, 8),
                 'paciente_id' => $faker->randomElement($pacientesIds),
                 'medico_id' => $faker->randomElement($medicosIds),
                 'especialidad_id' => $faker->randomElement($especialidadesIds),

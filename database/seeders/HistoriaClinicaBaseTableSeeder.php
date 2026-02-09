@@ -14,6 +14,9 @@ class HistoriaClinicaBaseTableSeeder extends Seeder
         $now = now();
         $historias = [];
 
+        // Generar historia para cada paciente (1 al 20)
+        for ($pacienteId = 1; $pacienteId <= 20; $pacienteId++) {
+
         // Obtener IDs de pacientes existentes
         $pacientesIds = DB::table('pacientes')->pluck('id')->toArray();
 
@@ -24,7 +27,7 @@ class HistoriaClinicaBaseTableSeeder extends Seeder
             
             $tieneAlergia = $faker->boolean(30);
             $tieneEnfermedad = $faker->boolean(20);
-            
+
             $historias[] = [
                 'paciente_id' => $pacienteId,
                 'tipo_sangre' => $faker->randomElement(['O+', 'O-', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-']),
